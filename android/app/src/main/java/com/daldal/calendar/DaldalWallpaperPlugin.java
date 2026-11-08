@@ -1,6 +1,8 @@
 package com.daldal.calendar;
 
 import android.app.WallpaperManager;
+import android.content.ComponentName;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
@@ -16,6 +18,21 @@ import java.io.ByteArrayInputStream;
 
 @CapacitorPlugin(name = "DaldalWallpaper")
 public class DaldalWallpaperPlugin extends Plugin {
+    @PluginMethod
+    public void openLiveWallpaperSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
+            intent.putExtra(
+                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    new ComponentName(getContext(), DaldalLiveWallpaperService.class)
+            );
+            getContext().startActivity(intent);
+            call.resolve(new JSObject());
+        } catch (Exception error) {
+            call.reject("라이브 배경화면 설정을 열 수 없습니다.", error);
+        }
+    }
+
     @PluginMethod
     public void setLockScreenWallpaper(PluginCall call) {
         String image = call.getString("image", "");

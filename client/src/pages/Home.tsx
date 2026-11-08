@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { syncNativeWidget } from "@/lib/widget";
-import { createMonthlyWallpaper, downloadWallpaper, setNativeLockScreenWallpaper } from "@/lib/wallpaper";
+import { createMonthlyWallpaper, downloadWallpaper, openNativeLiveWallpaperSettings, setNativeLockScreenWallpaper } from "@/lib/wallpaper";
 
 type ItemType = "todo" | "event" | "income" | "expense" | "loan";
 type View = "home" | "calendar" | "ledger";
@@ -359,6 +359,16 @@ export default function Home() {
     }
   };
 
+  const openLiveWallpaper = async () => {
+    try {
+      const opened = await openNativeLiveWallpaperSettings();
+      setWallpaperMessage(opened ? "잠금화면을 선택한 뒤 적용해 주세요." : "라이브 배경화면은 설치된 Android 앱에서 사용할 수 있어요.");
+    } catch {
+      setWallpaperMessage("라이브 배경화면 설정을 열지 못했어요.");
+    }
+    window.setTimeout(() => setWallpaperMessage(null), 4200);
+  };
+
   return (
     <div className="app-shell">
       <div className="app-backdrop" />
@@ -408,6 +418,7 @@ export default function Home() {
             monthSummary={monthSummary}
             onGenerateWallpaper={generateWallpaper}
             isGeneratingWallpaper={isGeneratingWallpaper}
+            onOpenLiveWallpaper={openLiveWallpaper}
           />
         )}
         {view === "ledger" && (
@@ -561,6 +572,7 @@ function CalendarView({
   monthSummary,
   onGenerateWallpaper,
   isGeneratingWallpaper,
+  onOpenLiveWallpaper,
 }: {
   month: Date;
   selectedDate: string;
@@ -574,11 +586,12 @@ function CalendarView({
   monthSummary: { income: number; expense: number; loan: number; balance: number };
   onGenerateWallpaper: () => void;
   isGeneratingWallpaper: boolean;
+  onOpenLiveWallpaper: () => void;
 }) {
   const cells = getCalendarCells(month);
   return (
     <div className="view-stack calendar-view">
-      <div className="page-title-row"><div><span className="section-eyebrow">MONTHLY PLANNER</span><h2>한 달을 한눈에</h2></div><div className="page-title-actions"><button className="wallpaper-action" type="button" onClick={onGenerateWallpaper} disabled={isGeneratingWallpaper}><ImageDown size={15} />{isGeneratingWallpaper ? "만드는 중" : "배경 만들기"}</button><button className="round-action" type="button" onClick={() => onCreate("event", selectedDate)}><Plus size={18} /></button></div></div>
+      <div className="page-title-row"><div><span className="section-eyebrow">MONTHLY PLANNER</span><h2>한 달을 한눈에</h2></div><div className="page-title-actions"><button className="wallpaper-action" type="button" onClick={onOpenLiveWallpaper}><span aria-hidden="true">▣</span> 잠금화면 적용</button><button className="wallpaper-action" type="button" onClick={onGenerateWallpaper} disabled={isGeneratingWallpaper}><ImageDown size={15} />{isGeneratingWallpaper ? "만드는 중" : "배경 만들기"}</button><button className="round-action" type="button" onClick={() => onCreate("event", selectedDate)}><Plus size={18} /></button></div></div>
       <section className="calendar-panel surface-card">
         <div className="calendar-toolbar"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><div><strong>{monthLabel(month)}</strong><span>기록 {items.filter((item) => item.date.startsWith(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)).length}개</span></div><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
         <div className="calendar-summary-strip"><span><i className="dot income-dot" /> 수입 {formatCompact(monthSummary.income)}</span><span><i className="dot expense-dot" /> 지출 {formatCompact(monthSummary.expense)}</span><span><i className="dot loan-dot" /> 대출 {formatCompact(monthSummary.loan)}</span></div>

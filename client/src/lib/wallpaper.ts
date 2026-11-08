@@ -20,6 +20,7 @@ type WallpaperOptions = {
 };
 
 type WallpaperPlugin = {
+  openLiveWallpaperSettings(): Promise<void>;
   setLockScreenWallpaper(options: { image: string }): Promise<void>;
 };
 
@@ -199,5 +200,11 @@ export function downloadWallpaper(dataUrl: string, month: Date) {
 export async function setNativeLockScreenWallpaper(dataUrl: string) {
   if (!Capacitor.isNativePlatform()) return false;
   await Wallpaper.setLockScreenWallpaper({ image: dataUrl });
+  return true;
+}
+
+export async function openNativeLiveWallpaperSettings() {
+  if (!Capacitor.isNativePlatform()) return false;
+  await Wallpaper.openLiveWallpaperSettings();
   return true;
 }
