@@ -38,6 +38,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         };
         private final Calendar now = Calendar.getInstance();
         private boolean visible;
+        private String selectedFinanceType;
 
         @Override
         public void onVisibilityChanged(boolean visible) {
@@ -71,9 +72,37 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         @Override
         public void onTouchEvent(MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP) {
-                toggleTodoAt(event.getY());
+                if (!selectFinanceChart(event.getX(), event.getY())) {
+                    if (selectedFinanceType != null) {
+                        selectedFinanceType = null;
+                        drawWallpaper();
+                    } else {
+                        toggleTodoAt(event.getY());
+                    }
+                }
             }
             super.onTouchEvent(event);
+        }
+
+        private boolean selectFinanceChart(float pixelX, float pixelY) {
+            int pixelWidth = getSurfaceHolder().getSurfaceFrame().width();
+            int pixelHeight = getSurfaceHolder().getSurfaceFrame().height();
+            if (pixelWidth <= 0 || pixelHeight <= 0) return false;
+            float scale = pixelWidth / 360f;
+            float x = pixelX / scale;
+            float y = pixelY / scale;
+            int width = Math.round(pixelWidth / scale);
+            int height = Math.round(pixelHeight / scale);
+            float margin = width * 0.075f;
+            float cardTop = height * 0.245f;
+            float chartX = width - margin - 161;
+            float chartY = cardTop + 110;
+            if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
+            int row = (int) ((y - (chartY + 12)) / 22f);
+            if (row < 0 || row > 2) return false;
+            selectedFinanceType = row == 0 ? "income" : row == 1 ? "expense" : "loan";
+            drawWallpaper();
+            return true;
         }
 
         private void toggleTodoAt(float pixelY) {
@@ -241,6 +270,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
 
             float footerY = Math.min(height - 92, gridTop + 6 * cellHeight + 54);
+            if (selectedFinanceType != null) {
+                drawFinanceDetails(canvas, entries, margin, Math.min(height - 210, gridTop + 170), width - margin * 2, selectedFinanceType);
+            }
             drawText(canvas, "잠금화면에서 달력을 바로 확인해요", margin, footerY, 14, Color.rgb(121,111,106), false);
             drawText(canvas, "달달", width - margin, footerY, 18, Color.rgb(216,117,104), true, true);
             canvas.restore();
@@ -261,6 +293,38 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if ("income".equals(type)) return Color.rgb(76, 157, 131);
             if ("loan".equals(type)) return Color.rgb(184, 137, 77);
             return Color.rgb(216, 117, 104);
+        }
+
+        private void drawFinanceDetails(Canvas canvas, JSONArray entries, float x, float y, float panelWidth, String type) {
+            paint.setColor(0xF7FFFFFF);
+            canvas.drawRoundRect(new RectF(x, y, x + panelWidth, y + 184), 18, 18, paint);
+            String label = "income".equals(type) ? "수입" : "expense".equals(type) ? "지출" : "대출";
+            int total = 0;
+            int count = 0;
+            String monthPrefix = String.format(Locale.US, "%04d-%02d-", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1);
+            for (int index = 0; index < entries.length(); index++) {
+                JSONObject item = entries.optJSONObject(index);
+                if (item != null && type.equals(item.optString("type")) && item.optString("date", "").startsWith(monthPrefix)) {
+                    total += item.optInt("amount", 0);
+                    count++;
+                }
+            }
+            drawText(canvas, label + " 상세", x + 18, y + 27, 14, Color.rgb(47,42,49), true);
+            drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type), true, true);
+            int row = 0;
+            for (int index = 0; index < entries.length() && row < 5; index++) {
+                JSONObject item = entries.optJSONObject(index);
+                if (item == null || !type.equals(item.optString("type")) || !item.optString("date", "").startsWith(monthPrefix)) continue;
+                String title = item.optString("title", "기록");
+                if (title.length() > 17) title = title.substring(0, 16) + "…";
+                float rowY = y + 53 + row * 24;
+                drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, Color.rgb(143,136,133), false);
+                drawText(canvas, title, x + 61, rowY, 13, Color.rgb(47,42,49), false);
+                drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type), true, true);
+                row++;
+            }
+            if (row == 0) drawText(canvas, "이번 달 내역이 없어요", x + 18, y + 67, 13, Color.rgb(143,136,133), false);
+            drawText(canvas, "차트 밖을 터치하면 닫혀요", x + 18, y + 169, 10, Color.rgb(143,136,133), false);
         }
 
         private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
