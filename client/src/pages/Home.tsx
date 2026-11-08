@@ -74,6 +74,25 @@ const categories: Record<ItemType, string[]> = {
   loan: ["대출", "카드값", "할부", "저축"],
 };
 
+const aiCategoryKeywords: Partial<Record<ItemType, Record<string, string[]>>> = {
+  income: { "급여": ["월급", "급여", "연봉", "보너스", "상여"], "용돈": ["용돈", "생활비"], "부수입": ["판매", "알바", "프리랜서", "부수입", "이자"], "환급": ["환급", "캐시백", "취소", "돌려받"] },
+  expense: { "식비": ["점심", "저녁", "아침", "식사", "밥", "카페", "커피", "배달", "치킨", "맥주", "식비", "마트"], "교통": ["교통", "택시", "버스", "지하철", "주유", "주차", "기차", "항공"], "쇼핑": ["쇼핑", "쿠팡", "선물", "옷", "신발", "온라인", "마켓"], "구독": ["구독", "넷플릭스", "유튜브", "멤버십", "정기결제"], "생활": ["관리비", "전기", "가스", "통신", "병원", "약국", "생활", "세탁"] },
+  loan: { "대출": ["대출", "이자", "은행", "상환"], "카드값": ["카드", "카드값", "결제대금"], "할부": ["할부", "리볼빙"], "저축": ["저축", "적금", "예금", "투자"] },
+};
+
+function aiSuggestCategory(type: ItemType, text: string) {
+  const keywordGroups = aiCategoryKeywords[type];
+  if (!keywordGroups || !text.trim()) return { category: categories[type][0], confidence: 0, reason: "제목을 입력하면 자동으로 추천해요" };
+  const normalized = text.toLowerCase();
+  let best = { category: categories[type][0], score: 0, keyword: "" };
+  Object.entries(keywordGroups).forEach(([category, keywords]) => {
+    keywords.forEach((keyword) => {
+      if (normalized.includes(keyword.toLowerCase()) && keyword.length > best.score) best = { category, score: keyword.length, keyword };
+    });
+  });
+  return best.score ? { category: best.category, confidence: Math.min(96, 62 + best.score * 5), reason: `“${best.keyword}” 키워드로 ${best.category} 추천` } : { category: categories[type][0], confidence: 38, reason: "내용을 바탕으로 기본 카테고리를 추천했어요" };
+}
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 function toISO(date: Date) {
@@ -646,12 +665,20 @@ function LedgerView({
     groups[item.date] = [...(groups[item.date] ?? []), item];
     return groups;
   }, {});
+  const categoryTotals = Object.entries(financeItems.reduce<Record<string, number>>((totals, item) => {
+    const key = item.category || "미분류";
+    totals[key] = (totals[key] ?? 0) + (item.amount ?? 0);
+    return totals;
+  }, {})).sort(([, a], [, b]) => b - a).slice(0, 4);
+  const topCategory = categoryTotals[0];
+  const analysisText = topCategory ? `이번 달은 ${topCategory[0]}에 ${formatWon(topCategory[1])}을 기록했어요.` : "기록이 쌓이면 카테고리별 패턴을 분석해 드려요.";
   return (
     <div className="view-stack ledger-view">
       <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div>
       <div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
       <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(summary.balance)}</strong><p>이번 달에 남은 금액이에요</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(summary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(summary.expense + summary.loan)}</span></div></section>
       <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="수입" amount={summary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={summary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={summary.loan} tone="loan" /></section>
+      <section className="ai-analysis-card surface-card"><div className="ai-analysis-head"><span className="ai-spark"><Sparkles size={15} /></span><div><span className="section-eyebrow">AI MONEY INSIGHT</span><strong>카테고리별로 살펴봤어요</strong></div><span className="ai-live">자동 분석</span></div><p>{analysisText}</p><div className="category-analysis-bars">{categoryTotals.length ? categoryTotals.map(([category, amount]) => <div className="category-analysis-row" key={category}><span>{category}</span><div><i style={{ width: `${Math.max(8, (amount / categoryTotals[0][1]) * 100)}%` }} /></div><b>{formatCompact(amount)}원</b></div>) : <span className="analysis-empty">금융 기록을 추가해 보세요.</span>}</div></section>
       <section className="ledger-list-section"><SectionHeading eyebrow="TRANSACTIONS" title="이번 달 기록" action={<button className="text-button" type="button" onClick={() => onCreate("expense", toISO(new Date()))}>빠른 입력 <Plus size={15} /></button>} /><div className="ledger-groups">{Object.keys(grouped).length ? Object.entries(grouped).map(([date, entries]) => <div className="ledger-group" key={date}><div className="ledger-date"><strong>{fromISO(date).getDate()}</strong><span>{fromISO(date).toLocaleDateString("ko-KR", { weekday: "short" })}</span></div><div className="ledger-entries">{entries.map((item) => <button className="ledger-entry" type="button" key={item.id} onClick={() => onEdit(item)}><span className="item-icon" style={{ backgroundColor: typeMeta[item.type].soft, color: typeMeta[item.type].color }}>{(() => { const Icon = typeMeta[item.type].icon; return <Icon size={16} />; })()}</span><span><strong>{item.title}</strong><small>{item.category}</small></span><b className={item.type === "income" ? "positive" : ""}>{item.type === "income" ? "+" : "−"}{formatWon(item.amount)}</b><ChevronRight size={15} /></button>)}</div></div>) : <div className="soft-empty">이번 달 금융 기록이 아직 없어요.</div>}</div></section>
     </div>
   );
@@ -682,7 +709,12 @@ function Composer({
 }) {
   const meta = typeMeta[draft.type];
   const isFinance = ["income", "expense", "loan"].includes(draft.type);
-  const update = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
+  const aiSuggestion = isFinance ? aiSuggestCategory(draft.type, `${draft.title} ${draft.note}`) : null;
+  const update = (patch: Partial<Draft>) => {
+    const next = { ...draft, ...patch };
+    const shouldAutoClassify = isFinance && typeof patch.title === "string" && patch.title.trim().length >= 2;
+    onChange(shouldAutoClassify ? { ...next, category: aiSuggestCategory(draft.type, `${next.title} ${next.note}`).category } : next);
+  };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="composer-sheet" role="dialog" aria-modal="true" aria-label={editing ? "기록 수정" : "새 기록"}>
@@ -692,7 +724,7 @@ function Composer({
         <div className="composer-form">
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
-          <div className="field-label">분류<div className="category-pills">{categories[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div></div>
+          <div className="field-label">분류<div className="category-pills">{categories[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>
         </div>
         <div className="sheet-actions"><button className="save-button" type="button" style={{ backgroundColor: meta.color }} onClick={onSave}>{editing ? "수정 저장" : "기록 저장"}<Check size={17} /></button>{editing && <button className="delete-button" type="button" onClick={onDelete}><Trash2 size={16} /> 삭제</button>}</div>
