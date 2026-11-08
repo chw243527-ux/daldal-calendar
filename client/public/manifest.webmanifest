@@ -1,0 +1,18 @@
+{
+  "name": "달달 캘린더",
+  "short_name": "달달",
+  "description": "오늘의 할 일, 일정, 수입과 지출을 한눈에 보는 달력",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf8f4",
+  "theme_color": "#d87568",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
