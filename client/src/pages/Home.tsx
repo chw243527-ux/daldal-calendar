@@ -26,6 +26,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { syncNativeWidget } from "@/lib/widget";
 
 type ItemType = "todo" | "event" | "income" | "expense" | "loan";
 type View = "home" | "calendar" | "ledger";
@@ -263,6 +264,15 @@ export default function Home() {
     .filter((item) => item.date > todayISO && (item.type === "event" || item.type === "todo"))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 2);
+
+  useEffect(() => {
+    void syncNativeWidget({
+      todoCount: todayTodos.filter((item) => !item.completed).length,
+      eventCount: todayEvents.length,
+      balance: monthSummary.balance,
+      dateLabel: formatLongDate(todayISO),
+    });
+  }, [todayISO, todayTodos, todayEvents, monthSummary.balance]);
 
   const openCreate = (type: ItemType = "todo", date = selectedDate) => {
     setEditingId(null);

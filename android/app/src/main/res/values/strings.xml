@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">달달 캘린더</string>
+    <string name="title_activity_main">달달 캘린더</string>
+    <string name="package_name">com.daldal.calendar</string>
+    <string name="custom_url_scheme">com.daldal.calendar</string>
+</resources>
