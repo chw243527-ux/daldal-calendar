@@ -276,9 +276,9 @@ export default function Home() {
       balance: monthSummary.balance,
       dateLabel: formatLongDate(todayISO),
       monthLabel: monthLabel(month),
-      calendarItems: monthItems.map(({ type, title, date, time, amount, completed }) => ({ type, title, date, time, amount, completed })),
+      calendarItems: items.map(({ type, title, date, time, amount, completed }) => ({ type, title, date, time, amount, completed })),
     });
-  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, monthItems]);
+  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, items]);
 
   const openCreate = (type: ItemType = "todo", date = selectedDate) => {
     setEditingId(null);
