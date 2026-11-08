@@ -167,20 +167,25 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 JSONObject item = entries.optJSONObject(itemIndex);
                 if (item == null || !todayKey.equals(item.optString("date"))) continue;
                 String type = item.optString("type");
-                if (!"todo".equals(type) && !"event".equals(type)) continue;
+                if (!"todo".equals(type) && !"event".equals(type) && !"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) continue;
                 String title = item.optString("title", "기록");
                 if (title.length() > 18) title = title.substring(0, 17) + "…";
                 paint.setColor(itemColor(type));
                 canvas.drawCircle(margin + 31, cardTop + 143 + todayRow * 23, 4, paint);
-                boolean completed = item.optBoolean("completed", false);
+                boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
                 drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 143 + todayRow * 23, 14, completed ? 0xB8FFFFFF : Color.WHITE, false);
                 if (completed) {
                     paint.setColor(0xB8FFFFFF);
                     paint.setStrokeWidth(1.5f);
                     canvas.drawLine(margin + 45, cardTop + 143 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 143 + todayRow * 23, paint);
                 }
-                if ("event".equals(type) && !item.optString("time", "").isEmpty()) {
-                    drawText(canvas, item.optString("time"), width - margin - 24, cardTop + 143 + todayRow * 23, 12, 0xCFFFFFFF, false, true);
+                String detail = item.optString("time", "");
+                if ("income".equals(type) || "expense".equals(type) || "loan".equals(type)) {
+                    int amount = item.optInt("amount", 0);
+                    detail = ("income".equals(type) ? "+" : "−") + compactWon(amount);
+                }
+                if (!detail.isEmpty()) {
+                    drawText(canvas, detail, width - margin - 24, cardTop + 143 + todayRow * 23, 12, 0xCFFFFFFF, false, true);
                 }
                 todayRow++;
             }
