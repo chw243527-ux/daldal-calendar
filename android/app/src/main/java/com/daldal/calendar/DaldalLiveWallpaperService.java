@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.service.wallpaper.WallpaperService;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.os.Handler;
 import android.os.Looper;
@@ -55,6 +56,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         @Override
         public void onSurfaceCreated(SurfaceHolder holder) {
+            setTouchEventsEnabled(true);
             drawWallpaper();
             if (visible) refreshHandler.postDelayed(refreshRunnable, 30000L);
         }
@@ -64,6 +66,47 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             visible = false;
             refreshHandler.removeCallbacks(refreshRunnable);
             super.onSurfaceDestroyed(holder);
+        }
+
+        @Override
+        public void onTouchEvent(MotionEvent event) {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                toggleTodoAt(event.getY());
+            }
+            super.onTouchEvent(event);
+        }
+
+        private void toggleTodoAt(float pixelY) {
+            int pixelWidth = getSurfaceHolder().getSurfaceFrame().width();
+            if (pixelWidth <= 0) return;
+            float scale = pixelWidth / 360f;
+            float logicalY = pixelY / scale;
+            int logicalHeight = Math.round(getSurfaceHolder().getSurfaceFrame().height() / scale);
+            float cardTop = logicalHeight * 0.245f;
+            int targetRow = Math.round((logicalY - (cardTop + 143f)) / 23f);
+            if (targetRow < 0 || targetRow > 2) return;
+
+            SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
+            JSONArray entries = parseItems(preferences.getString("calendarItems", "[]"));
+            String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
+            int visibleRow = 0;
+            for (int index = 0; index < entries.length(); index++) {
+                JSONObject item = entries.optJSONObject(index);
+                if (item == null || !todayKey.equals(item.optString("date"))) continue;
+                String type = item.optString("type");
+                if (!"todo".equals(type) && !"event".equals(type)) continue;
+                if (visibleRow == targetRow && "todo".equals(type)) {
+                    try {
+                        item.put("completed", !item.optBoolean("completed", false));
+                        preferences.edit().putString("calendarItems", entries.toString()).apply();
+                        drawWallpaper();
+                    } catch (Exception ignored) {
+                        // Keep the existing wallpaper state when a malformed record is tapped.
+                    }
+                    return;
+                }
+                visibleRow++;
+            }
         }
 
         private void drawWallpaper() {
@@ -129,7 +172,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (title.length() > 18) title = title.substring(0, 17) + "…";
                 paint.setColor(itemColor(type));
                 canvas.drawCircle(margin + 31, cardTop + 143 + todayRow * 23, 4, paint);
-                drawText(canvas, title, margin + 45, cardTop + 143 + todayRow * 23, 14, Color.WHITE, false);
+                boolean completed = item.optBoolean("completed", false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 143 + todayRow * 23, 14, completed ? 0xB8FFFFFF : Color.WHITE, false);
+                if (completed) {
+                    paint.setColor(0xB8FFFFFF);
+                    paint.setStrokeWidth(1.5f);
+                    canvas.drawLine(margin + 45, cardTop + 143 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 143 + todayRow * 23, paint);
+                }
                 if ("event".equals(type) && !item.optString("time", "").isEmpty()) {
                     drawText(canvas, item.optString("time"), width - margin - 24, cardTop + 143 + todayRow * 23, 12, 0xCFFFFFFF, false, true);
                 }
