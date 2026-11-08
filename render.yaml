@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: daldal-calendar
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
