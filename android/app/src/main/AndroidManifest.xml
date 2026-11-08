@@ -45,6 +45,19 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/daldal_widget_info" />
         </receiver>
+
+        <service
+            android:name=".DaldalLiveWallpaperService"
+            android:exported="true"
+            android:label="달달 캘린더 라이브 배경화면"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/daldal_wallpaper" />
+        </service>
     </application>
 
     <!-- Permissions -->

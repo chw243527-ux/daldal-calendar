@@ -47,7 +47,10 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build debug APK
+      - name: Verify live wallpaper service
+        run: test -f android/app/src/main/java/com/daldal/calendar/DaldalLiveWallpaperService.java && grep -q "android.service.wallpaper.WallpaperService" android/app/src/main/AndroidManifest.xml
+
+      - name: Build debug APK with live wallpaper
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 

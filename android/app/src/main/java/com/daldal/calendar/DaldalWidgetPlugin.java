@@ -20,6 +20,8 @@ public class DaldalWidgetPlugin extends Plugin {
         int eventCount = call.getInt("eventCount", 0);
         int balance = call.getInt("balance", 0);
         String dateLabel = call.getString("dateLabel", "오늘");
+        String monthLabel = call.getString("monthLabel", "달달 캘린더");
+        String calendarItems = call.getString("calendarItems", "[]");
 
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -27,6 +29,8 @@ public class DaldalWidgetPlugin extends Plugin {
                 .putInt("eventCount", eventCount)
                 .putInt("balance", balance)
                 .putString("dateLabel", dateLabel)
+                .putString("monthLabel", monthLabel)
+                .putString("calendarItems", calendarItems)
                 .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
