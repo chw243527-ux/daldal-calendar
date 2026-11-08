@@ -100,7 +100,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
             int row = (int) ((y - (chartY + 12)) / 22f);
             if (row < 0 || row > 2) return false;
-            selectedFinanceType = row == 0 ? "income" : row == 1 ? "expense" : "loan";
+            selectedFinanceType = row == 0 ? "income" : row == 1 ? "expense" : "outgoing";
             drawWallpaper();
             return true;
         }
@@ -204,7 +204,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if ("expense".equals(item.optString("type"))) monthlyExpense += amount;
                 if ("loan".equals(item.optString("type"))) monthlyLoan += amount;
             }
-            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyLoan);
+            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyExpense + monthlyLoan);
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
             int todayRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && todayRow < 3; itemIndex++) {
@@ -299,13 +299,14 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private void drawFinanceDetails(Canvas canvas, JSONArray entries, float x, float y, float panelWidth, String type) {
             paint.setColor(0xF7FFFFFF);
             canvas.drawRoundRect(new RectF(x, y, x + panelWidth, y + 184), 18, 18, paint);
-            String label = "income".equals(type) ? "수입" : "expense".equals(type) ? "지출" : "대출";
+            String label = "income".equals(type) ? "수입" : "expense".equals(type) ? "지출" : "나갈 돈";
             int total = 0;
             int count = 0;
             String monthPrefix = String.format(Locale.US, "%04d-%02d-", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1);
             for (int index = 0; index < entries.length(); index++) {
                 JSONObject item = entries.optJSONObject(index);
-                if (item != null && type.equals(item.optString("type")) && item.optString("date", "").startsWith(monthPrefix)) {
+                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && ("expense".equals(item.optString("type")) || "loan".equals(item.optString("type")))));
+                if (matches && item.optString("date", "").startsWith(monthPrefix)) {
                     total += item.optInt("amount", 0);
                     count++;
                 }
@@ -315,7 +316,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int row = 0;
             for (int index = 0; index < entries.length() && row < 5; index++) {
                 JSONObject item = entries.optJSONObject(index);
-                if (item == null || !type.equals(item.optString("type")) || !item.optString("date", "").startsWith(monthPrefix)) continue;
+                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && ("expense".equals(item.optString("type")) || "loan".equals(item.optString("type")))));
+                if (!matches || !item.optString("date", "").startsWith(monthPrefix)) continue;
                 String title = item.optString("title", "기록");
                 if (title.length() > 17) title = title.substring(0, 16) + "…";
                 float rowY = y + 53 + row * 24;
@@ -331,7 +333,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
             drawText(canvas, "월간 자금", x, y, 11, 0xB8FFFFFF, true);
             int max = Math.max(1, Math.max(income, Math.max(expense, loan)));
-            String[] labels = {"수입", "지출", "대출"};
+            String[] labels = {"수입", "지출", "나갈 돈"};
             int[] values = {income, expense, loan};
             int[] colors = {Color.rgb(137, 218, 183), Color.rgb(255, 184, 166), Color.rgb(244, 205, 125)};
             for (int index = 0; index < labels.length; index++) {
