@@ -79,8 +79,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         }
 
         private void drawCanvas(Canvas canvas) {
-            int width = canvas.getWidth();
-            int height = canvas.getHeight();
+            int pixelWidth = canvas.getWidth();
+            int pixelHeight = canvas.getHeight();
+            float scale = pixelWidth / 360f;
+            canvas.save();
+            canvas.scale(scale, scale);
+            int width = Math.round(pixelWidth / scale);
+            int height = Math.round(pixelHeight / scale);
             canvas.drawColor(Color.rgb(249, 246, 242));
 
             paint.setStyle(Paint.Style.FILL);
@@ -170,6 +175,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float footerY = Math.min(height - 92, gridTop + 6 * cellHeight + 54);
             drawText(canvas, "잠금화면에서 달력을 바로 확인해요", margin, footerY, 14, Color.rgb(121,111,106), false);
             drawText(canvas, "달달", width - margin, footerY, 18, Color.rgb(216,117,104), true, true);
+            canvas.restore();
         }
 
         private JSONArray parseItems(String value) {
