@@ -94,7 +94,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int width = Math.round(pixelWidth / scale);
             int height = Math.round(pixelHeight / scale);
             float margin = width * 0.075f;
-            float cardTop = height * 0.245f;
+            float cardTop = height * 0.24f;
             float chartX = width - margin - 161;
             float chartY = cardTop + 110;
             if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
@@ -111,7 +111,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float scale = pixelWidth / 360f;
             float logicalY = pixelY / scale;
             int logicalHeight = Math.round(getSurfaceHolder().getSurfaceFrame().height() / scale);
-            float cardTop = logicalHeight * 0.245f;
+            float cardTop = logicalHeight * 0.24f;
             int targetRow = Math.round((logicalY - (cardTop + 143f)) / 23f);
             if (targetRow < 0 || targetRow > 2) return;
 
@@ -162,9 +162,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(Color.rgb(216, 117, 104));
-            canvas.drawCircle(width - 20, 90, 150, paint);
+            canvas.drawCircle(width - 18, 86, 122, paint);
             paint.setColor(Color.rgb(223, 218, 244));
-            canvas.drawCircle(5, height - 80, 180, paint);
+            canvas.drawCircle(0, height - 76, 148, paint);
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String monthLabel = preferences.getString("monthLabel", "달달 캘린더");
@@ -175,19 +175,23 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             String calendarItems = preferences.getString("calendarItems", "[]");
 
             float margin = width * 0.075f;
-            drawText(canvas, "☾  달달 캘린더", margin, height * 0.075f, 13, Color.rgb(82, 73, 78), true);
-            drawText(canvas, monthLabel, margin, height * 0.155f, 28, Color.rgb(47, 42, 49), true);
-            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.205f, 13, Color.rgb(96, 87, 84), false);
+            drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
+            drawText(canvas, monthLabel, margin, height * 0.15f, 26, Color.rgb(47, 42, 49), true);
+            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.195f, 12, Color.rgb(96, 87, 84), false);
 
-            float cardTop = height * 0.245f;
+            float cardTop = height * 0.24f;
             paint.setColor(Color.rgb(112, 103, 177));
-            canvas.drawRoundRect(new RectF(margin, cardTop, width - margin, cardTop + 218), 24, 24, paint);
+            canvas.drawRoundRect(new RectF(margin, cardTop, width - margin, cardTop + 222), 24, 24, paint);
+            float columnWidth = (width - margin * 2) / 3f;
+            float leftColumn = margin + 22;
+            float middleColumn = margin + columnWidth + 10;
+            float rightColumn = margin + columnWidth * 2 + 5;
             drawText(canvas, "오늘 할 일", margin + 24, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, String.valueOf(todoCount) + "개", margin + 24, cardTop + 73, 27, Color.WHITE, true);
-            drawText(canvas, "오늘 일정", width / 2f, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, String.valueOf(eventCount) + "개", width / 2f, cardTop + 73, 27, Color.WHITE, true);
-            drawText(canvas, "잔액", width - margin - 155, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, compactWon(balance), width - margin - 155, cardTop + 73, 22, Color.WHITE, true);
+            drawText(canvas, String.valueOf(todoCount) + "개", leftColumn, cardTop + 73, 24, Color.WHITE, true);
+            drawText(canvas, "오늘 일정", middleColumn, cardTop + 32, 13, 0xB8FFFFFF, false);
+            drawText(canvas, String.valueOf(eventCount) + "개", middleColumn, cardTop + 73, 24, Color.WHITE, true);
+            drawText(canvas, "잔액", rightColumn, cardTop + 32, 13, 0xB8FFFFFF, false);
+            drawText(canvas, compactWon(balance), rightColumn, cardTop + 73, 18, Color.WHITE, true);
 
             drawText(canvas, "오늘의 기록", margin + 24, cardTop + 112, 13, 0xB8FFFFFF, true);
             JSONArray entries = parseItems(calendarItems);
@@ -237,7 +241,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 }
                 todayRow++;
             }
-            if (todayRow == 0) drawText(canvas, "오늘 등록된 기록이 없어요", margin + 24, cardTop + 145, 14, 0xCFFFFFFF, false);
+            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 145, 13, 0xCFFFFFFF, false);
 
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
