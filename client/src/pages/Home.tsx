@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Clock3,
   CreditCard,
+  ImageDown,
   Landmark,
   LayoutGrid,
   ListChecks,
@@ -27,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { syncNativeWidget } from "@/lib/widget";
+import { createMonthlyWallpaper, downloadWallpaper, setNativeLockScreenWallpaper } from "@/lib/wallpaper";
 
 type ItemType = "todo" | "event" | "income" | "expense" | "loan";
 type View = "home" | "calendar" | "ledger";
@@ -227,6 +229,8 @@ export default function Home() {
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [clock, setClock] = useState(() => new Date());
+  const [isGeneratingWallpaper, setIsGeneratingWallpaper] = useState(false);
+  const [wallpaperMessage, setWallpaperMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -337,6 +341,22 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const generateWallpaper = async () => {
+    setIsGeneratingWallpaper(true);
+    setWallpaperMessage(null);
+    try {
+      const dataUrl = await createMonthlyWallpaper({ month, items, ...monthSummary });
+      const appliedNatively = await setNativeLockScreenWallpaper(dataUrl);
+      if (!appliedNatively) downloadWallpaper(dataUrl, month);
+      setWallpaperMessage(appliedNatively ? "잠금화면 배경으로 적용했어요." : "월간 달력 이미지를 저장했어요. 잠금화면으로 설정해 보세요.");
+    } catch {
+      setWallpaperMessage("배경 이미지를 만들지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setIsGeneratingWallpaper(false);
+      window.setTimeout(() => setWallpaperMessage(null), 4200);
+    }
+  };
+
   return (
     <div className="app-shell">
       <div className="app-backdrop" />
@@ -384,6 +404,8 @@ export default function Home() {
             onEdit={openEdit}
             onToggle={toggleTodo}
             monthSummary={monthSummary}
+            onGenerateWallpaper={generateWallpaper}
+            isGeneratingWallpaper={isGeneratingWallpaper}
           />
         )}
         {view === "ledger" && (
@@ -409,6 +431,8 @@ export default function Home() {
         <button className={view === "ledger" ? "active" : ""} type="button" onClick={() => setViewAndScroll("ledger")}><Wallet size={19} /><span>가계부</span></button>
         <button type="button" onClick={() => openCreate("event")}><Menu size={19} /><span>더보기</span></button>
       </nav>
+
+      {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
 
       {isComposerOpen && (
         <Composer
@@ -533,6 +557,8 @@ function CalendarView({
   onEdit,
   onToggle,
   monthSummary,
+  onGenerateWallpaper,
+  isGeneratingWallpaper,
 }: {
   month: Date;
   selectedDate: string;
@@ -544,11 +570,13 @@ function CalendarView({
   onEdit: (item: CalendarItem) => void;
   onToggle: (item: CalendarItem) => void;
   monthSummary: { income: number; expense: number; loan: number; balance: number };
+  onGenerateWallpaper: () => void;
+  isGeneratingWallpaper: boolean;
 }) {
   const cells = getCalendarCells(month);
   return (
     <div className="view-stack calendar-view">
-      <div className="page-title-row"><div><span className="section-eyebrow">MONTHLY PLANNER</span><h2>한 달을 한눈에</h2></div><button className="round-action" type="button" onClick={() => onCreate("event", selectedDate)}><Plus size={18} /></button></div>
+      <div className="page-title-row"><div><span className="section-eyebrow">MONTHLY PLANNER</span><h2>한 달을 한눈에</h2></div><div className="page-title-actions"><button className="wallpaper-action" type="button" onClick={onGenerateWallpaper} disabled={isGeneratingWallpaper}><ImageDown size={15} />{isGeneratingWallpaper ? "만드는 중" : "배경 만들기"}</button><button className="round-action" type="button" onClick={() => onCreate("event", selectedDate)}><Plus size={18} /></button></div></div>
       <section className="calendar-panel surface-card">
         <div className="calendar-toolbar"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><div><strong>{monthLabel(month)}</strong><span>기록 {items.filter((item) => item.date.startsWith(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)).length}개</span></div><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
         <div className="calendar-summary-strip"><span><i className="dot income-dot" /> 수입 {formatCompact(monthSummary.income)}</span><span><i className="dot expense-dot" /> 지출 {formatCompact(monthSummary.expense)}</span><span><i className="dot loan-dot" /> 대출 {formatCompact(monthSummary.loan)}</span></div>
