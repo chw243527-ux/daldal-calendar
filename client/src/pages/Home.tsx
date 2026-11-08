@@ -22,6 +22,7 @@ import {
   PiggyBank,
   Plus,
   Repeat2,
+  Settings2,
   Sparkles,
   Trash2,
   Wallet,
@@ -57,6 +58,8 @@ type Draft = {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const STORAGE_KEY = "daldal-calendar-items";
+const CATEGORY_STORAGE_KEY = "daldal-calendar-custom-categories";
+type CategoryMap = Record<ItemType, string[]>;
 
 const typeMeta: Record<ItemType, { label: string; color: string; soft: string; icon: LucideIcon }> = {
   todo: { label: "할 일", color: "#6f63b6", soft: "#f0edff", icon: ClipboardCheck },
@@ -80,9 +83,10 @@ const aiCategoryKeywords: Partial<Record<ItemType, Record<string, string[]>>> = 
   loan: { "대출": ["대출", "이자", "은행", "상환"], "카드값": ["카드", "카드값", "결제대금"], "할부": ["할부", "리볼빙"], "저축": ["저축", "적금", "예금", "투자"] },
 };
 
-function aiSuggestCategory(type: ItemType, text: string) {
-  const keywordGroups = aiCategoryKeywords[type];
-  if (!keywordGroups || !text.trim()) return { category: categories[type][0], confidence: 0, reason: "제목을 입력하면 자동으로 추천해요" };
+function aiSuggestCategory(type: ItemType, text: string, categoryMap: CategoryMap = categories) {
+  const keywordGroups = { ...(aiCategoryKeywords[type] ?? {}) } as Record<string, string[]>;
+  categoryMap[type].filter((category) => !keywordGroups[category]).forEach((category) => { keywordGroups[category] = [category]; });
+  if (!text.trim()) return { category: categoryMap[type][0], confidence: 0, reason: "제목을 입력하면 자동으로 추천해요" };
   const normalized = text.toLowerCase();
   let best = { category: categories[type][0], score: 0, keyword: "" };
   Object.entries(keywordGroups).forEach(([category, keywords]) => {
@@ -156,14 +160,14 @@ function getMonthItems(items: CalendarItem[], date: Date) {
   return items.filter((item) => item.date.startsWith(prefix));
 }
 
-function createDraft(date: string, type: ItemType = "todo"): Draft {
+function createDraft(date: string, type: ItemType = "todo", categoryMap: CategoryMap = categories): Draft {
   return {
     type,
     title: "",
     date,
     time: type === "event" ? "12:00" : "",
     amount: "",
-    category: categories[type][0],
+    category: categoryMap[type][0],
     note: "",
   };
 }
@@ -243,6 +247,7 @@ export default function Home() {
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [items, setItems] = useState<CalendarItem[]>(() => seedItems(today));
+  const [customCategories, setCustomCategories] = useState<Partial<Record<ItemType, string[]>>>({ income: [], expense: [], loan: [] });
   const [isLoaded, setIsLoaded] = useState(false);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
@@ -250,11 +255,20 @@ export default function Home() {
   const [clock, setClock] = useState(() => new Date());
   const [isGeneratingWallpaper, setIsGeneratingWallpaper] = useState(false);
   const [wallpaperMessage, setWallpaperMessage] = useState<string | null>(null);
+  const [isCategoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const categoryMap = useMemo<CategoryMap>(() => ({
+    ...categories,
+    income: [...categories.income, ...(customCategories.income ?? [])],
+    expense: [...categories.expense, ...(customCategories.expense ?? [])],
+    loan: [...categories.loan, ...(customCategories.loan ?? [])],
+  }), [customCategories]);
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) setItems(JSON.parse(saved));
+      const savedCategories = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
+      if (savedCategories) setCustomCategories(JSON.parse(savedCategories));
     } catch {
       // Keep the starter entries if local storage is unavailable.
     } finally {
@@ -265,6 +279,10 @@ export default function Home() {
   useEffect(() => {
     if (isLoaded) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(customCategories));
+  }, [customCategories, isLoaded]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -301,7 +319,7 @@ export default function Home() {
 
   const openCreate = (type: ItemType = "todo", date = selectedDate) => {
     setEditingId(null);
-    setDraft(createDraft(date, type));
+    setDraft(createDraft(date, type, categoryMap));
     setComposerOpen(true);
   };
 
@@ -313,7 +331,7 @@ export default function Home() {
       date: item.date,
       time: item.time ?? "",
       amount: item.amount ? String(item.amount) : "",
-      category: item.category ?? categories[item.type][0],
+      category: item.category ?? categoryMap[item.type][0],
       note: item.note ?? "",
     });
     setComposerOpen(true);
@@ -448,6 +466,7 @@ export default function Home() {
             onMonthChange={changeMonth}
             onEdit={openEdit}
             onCreate={openCreate}
+            onManageCategories={() => setCategoryManagerOpen(true)}
           />
         )}
       </main>
@@ -471,11 +490,13 @@ export default function Home() {
           draft={draft}
           editing={Boolean(editingId)}
           onChange={setDraft}
+          categoryMap={categoryMap}
           onClose={() => setComposerOpen(false)}
           onSave={saveItem}
           onDelete={deleteItem}
         />
       )}
+      {isCategoryManagerOpen && <CategoryManager customCategories={customCategories} onChange={setCustomCategories} onClose={() => setCategoryManagerOpen(false)} />}
     </div>
   );
 }
@@ -652,6 +673,7 @@ function LedgerView({
   onMonthChange,
   onEdit,
   onCreate,
+  onManageCategories,
 }: {
   month: Date;
   monthItems: CalendarItem[];
@@ -659,6 +681,7 @@ function LedgerView({
   onMonthChange: (offset: number) => void;
   onEdit: (item: CalendarItem) => void;
   onCreate: (type?: ItemType, date?: string) => void;
+  onManageCategories: () => void;
 }) {
   const financeItems = monthItems.filter((item) => ["income", "expense", "loan"].includes(item.type)).sort((a, b) => b.date.localeCompare(a.date));
   const grouped = financeItems.reduce<Record<string, CalendarItem[]>>((groups, item) => {
@@ -674,7 +697,7 @@ function LedgerView({
   const analysisText = topCategory ? `이번 달은 ${topCategory[0]}에 ${formatWon(topCategory[1])}을 기록했어요.` : "기록이 쌓이면 카테고리별 패턴을 분석해 드려요.";
   return (
     <div className="view-stack ledger-view">
-      <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div>
+      <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><div className="page-title-actions"><button className="text-button" type="button" onClick={onManageCategories}><Settings2 size={14} /> 카테고리</button><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div></div>
       <div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
       <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(summary.balance)}</strong><p>이번 달에 남은 금액이에요</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(summary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(summary.expense + summary.loan)}</span></div></section>
       <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="수입" amount={summary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={summary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={summary.loan} tone="loan" /></section>
@@ -688,6 +711,19 @@ function LedgerStat({ icon: Icon, label, amount, tone }: { icon: LucideIcon; lab
   return <div className={`ledger-stat ${tone}`}><span className="stat-icon"><Icon size={16} /></span><span>{label}</span><strong>{formatCompact(amount)}<small>원</small></strong></div>;
 }
 
+function CategoryManager({ customCategories, onChange, onClose }: { customCategories: Partial<Record<ItemType, string[]>>; onChange: (value: Partial<Record<ItemType, string[]>>) => void; onClose: () => void }) {
+  const [kind, setKind] = useState<"income" | "expense" | "loan">("expense");
+  const [name, setName] = useState("");
+  const add = () => {
+    const trimmed = name.trim();
+    if (!trimmed || categories[kind].includes(trimmed) || (customCategories[kind] ?? []).includes(trimmed)) return;
+    onChange({ ...customCategories, [kind]: [...(customCategories[kind] ?? []), trimmed] });
+    setName("");
+  };
+  const remove = (category: string) => onChange({ ...customCategories, [kind]: (customCategories[kind] ?? []).filter((item) => item !== category) });
+  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet category-manager-sheet" role="dialog" aria-modal="true" aria-label="카테고리 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">CATEGORY LAB</span><h2>나만의 카테고리</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">추가한 카테고리는 입력 화면과 AI 자동 분류에 바로 반영돼요.</p><div className="manager-tabs">{(["expense", "income", "loan"] as const).map((type) => <button key={type} className={kind === type ? "active" : ""} type="button" onClick={() => setKind(type)}>{typeMeta[type].label}</button>)}</div><div className="manager-add-row"><input value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") add(); }} placeholder="예: 반려동물" /><button type="button" onClick={add}><Plus size={16} /> 추가</button></div><div className="manager-category-list">{categories[kind].map((category) => <span className="manager-category built-in" key={category}>{category}</span>)}{(customCategories[kind] ?? []).map((category) => <span className="manager-category custom" key={category}>{category}<button type="button" onClick={() => remove(category)} aria-label={`${category} 삭제`}><X size={12} /></button></span>)}</div><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
+}
+
 function EmptyState({ label, onClick }: { label: string; onClick: () => void }) {
   return <button className="empty-state" type="button" onClick={onClick}><span><Plus size={15} /></span>{label}</button>;
 }
@@ -695,6 +731,7 @@ function EmptyState({ label, onClick }: { label: string; onClick: () => void }) 
 function Composer({
   draft,
   editing,
+  categoryMap,
   onChange,
   onClose,
   onSave,
@@ -702,6 +739,7 @@ function Composer({
 }: {
   draft: Draft;
   editing: boolean;
+  categoryMap: CategoryMap;
   onChange: (draft: Draft) => void;
   onClose: () => void;
   onSave: () => void;
@@ -709,22 +747,22 @@ function Composer({
 }) {
   const meta = typeMeta[draft.type];
   const isFinance = ["income", "expense", "loan"].includes(draft.type);
-  const aiSuggestion = isFinance ? aiSuggestCategory(draft.type, `${draft.title} ${draft.note}`) : null;
+  const aiSuggestion = isFinance ? aiSuggestCategory(draft.type, `${draft.title} ${draft.note}`, categoryMap) : null;
   const update = (patch: Partial<Draft>) => {
     const next = { ...draft, ...patch };
     const shouldAutoClassify = isFinance && typeof patch.title === "string" && patch.title.trim().length >= 2;
-    onChange(shouldAutoClassify ? { ...next, category: aiSuggestCategory(draft.type, `${next.title} ${next.note}`).category } : next);
+    onChange(shouldAutoClassify ? { ...next, category: aiSuggestCategory(draft.type, `${next.title} ${next.note}`, categoryMap).category } : next);
   };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="composer-sheet" role="dialog" aria-modal="true" aria-label={editing ? "기록 수정" : "새 기록"}>
         <div className="sheet-handle" />
         <div className="sheet-header"><div><span className="section-eyebrow">{editing ? "EDIT RECORD" : "QUICK RECORD"}</span><h2>{editing ? "기록을 다듬어요" : "무엇을 기록할까요?"}</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div>
-        <div className="type-tabs">{(Object.keys(typeMeta) as ItemType[]).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? "active" : ""} type="button" key={type} onClick={() => update({ type, category: categories[type][0], time: type === "event" ? draft.time || "12:00" : "" })}><TypeIcon size={15} />{typeMeta[type].label}</button>; })}</div>
+        <div className="type-tabs">{(Object.keys(typeMeta) as ItemType[]).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? "active" : ""} type="button" key={type} onClick={() => update({ type, category: categoryMap[type][0], time: type === "event" ? draft.time || "12:00" : "" })}><TypeIcon size={15} />{typeMeta[type].label}</button>; })}</div>
         <div className="composer-form">
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
-          <div className="field-label">분류<div className="category-pills">{categories[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
+          <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>
         </div>
         <div className="sheet-actions"><button className="save-button" type="button" style={{ backgroundColor: meta.color }} onClick={onSave}>{editing ? "수정 저장" : "기록 저장"}<Check size={17} /></button>{editing && <button className="delete-button" type="button" onClick={onDelete}><Trash2 size={16} /> 삭제</button>}</div>
