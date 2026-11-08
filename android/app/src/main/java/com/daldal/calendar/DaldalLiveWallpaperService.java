@@ -161,6 +161,20 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             drawText(canvas, "오늘의 기록", margin + 24, cardTop + 112, 13, 0xB8FFFFFF, true);
             JSONArray entries = parseItems(calendarItems);
+            int monthlyIncome = 0;
+            int monthlyExpense = 0;
+            int monthlyLoan = 0;
+            int currentYear = now.get(Calendar.YEAR);
+            int currentMonth = now.get(Calendar.MONTH) + 1;
+            for (int itemIndex = 0; itemIndex < entries.length(); itemIndex++) {
+                JSONObject item = entries.optJSONObject(itemIndex);
+                if (item == null || !item.optString("date", "").startsWith(String.format(Locale.US, "%04d-%02d-", currentYear, currentMonth))) continue;
+                int amount = item.optInt("amount", 0);
+                if ("income".equals(item.optString("type"))) monthlyIncome += amount;
+                if ("expense".equals(item.optString("type"))) monthlyExpense += amount;
+                if ("loan".equals(item.optString("type"))) monthlyLoan += amount;
+            }
+            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyLoan);
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
             int todayRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && todayRow < 3; itemIndex++) {
@@ -169,7 +183,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String type = item.optString("type");
                 if (!"todo".equals(type) && !"event".equals(type) && !"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) continue;
                 String title = item.optString("title", "기록");
-                if (title.length() > 18) title = title.substring(0, 17) + "…";
+                if (title.length() > 11) title = title.substring(0, 10) + "…";
                 paint.setColor(itemColor(type));
                 canvas.drawCircle(margin + 31, cardTop + 143 + todayRow * 23, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
@@ -247,6 +261,23 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if ("income".equals(type)) return Color.rgb(76, 157, 131);
             if ("loan".equals(type)) return Color.rgb(184, 137, 77);
             return Color.rgb(216, 117, 104);
+        }
+
+        private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
+            drawText(canvas, "월간 자금", x, y, 11, 0xB8FFFFFF, true);
+            int max = Math.max(1, Math.max(income, Math.max(expense, loan)));
+            String[] labels = {"수입", "지출", "대출"};
+            int[] values = {income, expense, loan};
+            int[] colors = {Color.rgb(137, 218, 183), Color.rgb(255, 184, 166), Color.rgb(244, 205, 125)};
+            for (int index = 0; index < labels.length; index++) {
+                float rowY = y + 19 + index * 22;
+                drawText(canvas, labels[index], x, rowY + 9, 9, 0xCFFFFFFF, false);
+                paint.setColor(0x35FFFFFF);
+                canvas.drawRoundRect(new RectF(x + 29, rowY + 2, x + chartWidth, rowY + 9), 4, 4, paint);
+                paint.setColor(colors[index]);
+                float barWidth = (chartWidth - 29) * values[index] / (float) max;
+                if (barWidth > 0) canvas.drawRoundRect(new RectF(x + 29, rowY + 2, x + 29 + Math.max(4, barWidth), rowY + 9), 4, 4, paint);
+            }
         }
 
         private String compactWon(int value) {
