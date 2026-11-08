@@ -194,6 +194,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int monthlyIncome = 0;
             int monthlyExpense = 0;
             int monthlyLoan = 0;
+            int monthlyOutgoing = 0;
             int currentYear = now.get(Calendar.YEAR);
             int currentMonth = now.get(Calendar.MONTH) + 1;
             for (int itemIndex = 0; itemIndex < entries.length(); itemIndex++) {
@@ -202,9 +203,12 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 int amount = item.optInt("amount", 0);
                 if ("income".equals(item.optString("type"))) monthlyIncome += amount;
                 if ("expense".equals(item.optString("type"))) monthlyExpense += amount;
-                if ("loan".equals(item.optString("type"))) monthlyLoan += amount;
+                if ("loan".equals(item.optString("type"))) {
+                    monthlyLoan += amount;
+                    if (isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
+                }
             }
-            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyExpense + monthlyLoan);
+            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
             int todayRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && todayRow < 3; itemIndex++) {
@@ -296,6 +300,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return Color.rgb(216, 117, 104);
         }
 
+        private boolean isOutgoingCategory(String category) {
+            return "카드값".equals(category) || "대출".equals(category);
+        }
+
         private void drawFinanceDetails(Canvas canvas, JSONArray entries, float x, float y, float panelWidth, String type) {
             paint.setColor(0xF7FFFFFF);
             canvas.drawRoundRect(new RectF(x, y, x + panelWidth, y + 184), 18, 18, paint);
@@ -305,7 +313,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             String monthPrefix = String.format(Locale.US, "%04d-%02d-", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1);
             for (int index = 0; index < entries.length(); index++) {
                 JSONObject item = entries.optJSONObject(index);
-                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && ("expense".equals(item.optString("type")) || "loan".equals(item.optString("type")))));
+                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && "loan".equals(item.optString("type")) && isOutgoingCategory(item.optString("category"))));
                 if (matches && item.optString("date", "").startsWith(monthPrefix)) {
                     total += item.optInt("amount", 0);
                     count++;
@@ -316,7 +324,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int row = 0;
             for (int index = 0; index < entries.length() && row < 5; index++) {
                 JSONObject item = entries.optJSONObject(index);
-                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && ("expense".equals(item.optString("type")) || "loan".equals(item.optString("type")))));
+                boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && "loan".equals(item.optString("type")) && isOutgoingCategory(item.optString("category"))));
                 if (!matches || !item.optString("date", "").startsWith(monthPrefix)) continue;
                 String title = item.optString("title", "기록");
                 if (title.length() > 17) title = title.substring(0, 16) + "…";
