@@ -28,7 +28,7 @@ cd android
 
 완성된 APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다. Google Play 배포용은 Android Studio의 Generate Signed Bundle/APK에서 **Android App Bundle (AAB)** 을 선택합니다.
 
-현재 Android 프로젝트에는 `DaldalWidgetProvider`가 포함되어 있습니다. 이 위젯은 달달 캘린더의 오늘 할 일 수, 오늘 일정 수, 이번 달 잔액을 보여주고 누르면 앱을 엽니다. 앱의 웹 화면에서 데이터가 바뀌면 Capacitor 브리지를 통해 위젯 데이터도 갱신됩니다.
+현재 Android 프로젝트에는 `DaldalWidgetProvider`가 포함되어 있습니다. 이 위젯은 달달 캘린더의 오늘 할 일 수, 오늘 일정 수, 이번 달 잔액을 보여주고 누르면 앱을 엽니다. `widgetCategory`는 `home_screen|keyguard`로 선언되어 갤럭시 S25의 지원되는 잠금화면/Brief 위젯 목록에도 노출될 수 있습니다. 앱의 웹 화면에서 데이터가 바뀌면 Capacitor 브리지를 통해 위젯 데이터도 갱신됩니다.
 
 Android에서는 기기 제조사와 OS 버전에 따라 잠금화면 위젯이 제한될 수 있습니다. 따라서 기본 구현은 안정적인 **홈 화면 위젯**을 대상으로 하며, 잠금화면에서는 일정 알림을 함께 사용하는 방식이 안전합니다.
 
@@ -55,7 +55,7 @@ Xcode에서 `ios/App/App.xcodeproj`를 열고 Signing & Capabilities에서 Apple
 
 ## 스마트폰에서 테스트할 때
 
-Android는 Android Studio에서 USB 디버깅을 켠 기기를 선택하고 Run을 누른 뒤, 홈 화면을 길게 눌러 위젯 메뉴에서 `달달 캘린더`를 추가합니다.
+Android는 Android Studio에서 USB 디버깅을 켠 기기를 선택하고 Run을 누른 뒤, 홈 화면을 길게 눌러 위젯 메뉴에서 `달달 캘린더`를 추가합니다. 잠금화면에서는 `설정 → 배경화면 및 스타일 → 현재 잠금화면 → 위젯 추가`에서 `달달 캘린더`를 선택합니다. One UI의 Brief 위젯 지원 목록과 표시 방식은 기기·소프트웨어 버전에 따라 달라질 수 있습니다.
 
 iPhone은 Xcode에서 앱을 설치한 뒤 잠금화면을 길게 누르고 사용자화 → 잠금화면 → 위젯 영역을 눌러 `달달 캘린더`를 추가합니다.
 
