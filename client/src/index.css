@@ -194,3 +194,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .rate-source { padding: 8px 10px; border-radius: 10px; font-size: 10px; font-weight: 750; line-height: 1.35; }
 .rate-source.verified { background: #e8f7f0; color: #438c75; }
 .rate-source.manual { background: #fff6e5; color: #9b7438; }
+
+.schedule-preview { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 11px; background: #f4eee6; color: #8f6b45; font-size: 10px; line-height: 1.35; }
+.schedule-preview strong { font-size: 11px; }

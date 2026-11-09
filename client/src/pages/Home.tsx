@@ -48,6 +48,13 @@ type CalendarItem = {
   interestRate?: number;
   gracePeriod?: number;
   repaymentDate?: string;
+  repaymentMethod?: "equalPayment" | "equalPrincipal";
+  termMonths?: number;
+  sourceLoanId?: string;
+  paymentNumber?: number;
+  principalPaid?: number;
+  interestPaid?: number;
+  remainingBalance?: number;
   cardCompany?: string;
   cardMode?: "lumpSum" | "installment";
   installments?: number;
@@ -66,6 +73,8 @@ type Draft = {
   interestRate: string;
   gracePeriod: string;
   repaymentDate: string;
+  repaymentMethod: "equalPayment" | "equalPrincipal";
+  termMonths: string;
   cardCompany: string;
   cardMode: "lumpSum" | "installment";
   installments: string;
@@ -142,6 +151,42 @@ function addDays(date: Date, amount: number) {
   return result;
 }
 
+function addMonths(date: Date, amount: number) {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + amount);
+  return result;
+}
+
+function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
+  if (item.type !== "loan" || !item.loanPrincipal || item.interestRate === undefined || !item.repaymentDate || !item.termMonths) return [];
+  const principal = item.loanPrincipal;
+  const monthlyRate = item.interestRate / 100 / 12;
+  const graceMonths = Math.max(0, item.gracePeriod ?? 0);
+  const repaymentMonths = Math.max(1, item.termMonths);
+  const fixedPayment = item.repaymentMethod === "equalPrincipal"
+    ? principal / repaymentMonths
+    : monthlyRate === 0 ? principal / repaymentMonths : principal * monthlyRate * ((1 + monthlyRate) ** repaymentMonths) / (((1 + monthlyRate) ** repaymentMonths) - 1);
+  let balance = principal;
+  const schedule: CalendarItem[] = [];
+  for (let index = 1; index <= graceMonths + repaymentMonths; index += 1) {
+    const isGrace = index <= graceMonths;
+    const interest = Math.round(balance * monthlyRate);
+    const principalPaid = isGrace ? 0 : Math.min(balance, index === graceMonths + repaymentMonths ? balance : Math.round(item.repaymentMethod === "equalPrincipal" ? principal / repaymentMonths : fixedPayment - interest));
+    const amount = interest + principalPaid;
+    balance = Math.max(0, balance - principalPaid);
+    schedule.push({ ...item, id: `${item.id}-schedule-${index}`, sourceLoanId: item.id, title: isGrace ? `${item.title} · 거치 ${index}회차` : `${item.title} · ${index - graceMonths}회차`, date: toISO(addMonths(fromISO(item.repaymentDate), index - 1)), amount, note: `${isGrace ? "거치기간 이자" : item.repaymentMethod === "equalPrincipal" ? "원금균등 상환" : "원리금균등 상환"} · 원금 ${formatWon(principalPaid)} · 이자 ${formatWon(interest)} · 잔액 ${formatWon(balance)}`, paymentNumber: index, principalPaid, interestPaid: interest, remainingBalance: balance });
+  }
+  return schedule;
+}
+
+function getDisplayItems(items: CalendarItem[]) {
+  return items.flatMap((item) => {
+    if (item.type !== "loan" || !item.termMonths || !item.loanPrincipal) return [item];
+    const schedule = calculateLoanSchedule(item);
+    return schedule.length ? schedule : [item];
+  });
+}
+
 function formatWon(value = 0) {
   return `${new Intl.NumberFormat("ko-KR").format(value)}원`;
 }
@@ -202,6 +247,8 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
     interestRate: "",
     gracePeriod: "0",
     repaymentDate: date,
+    repaymentMethod: "equalPayment",
+    termMonths: "60",
     cardCompany: CARD_COMPANIES[0],
     cardMode: "lumpSum",
     installments: "2",
@@ -242,7 +289,7 @@ function CalendarItemRow({
       <span className="item-copy">
         <span className="item-title">{item.title}</span>
         <span className="item-meta">
-          {meta.label}{item.category ? ` · ${item.category}` : ""}{item.time ? ` · ${item.time}` : ""}
+          {meta.label}{item.category ? ` · ${item.category}` : ""}{item.time ? ` · ${item.time}` : ""}{item.paymentNumber ? ` · ${item.paymentNumber}회차 · 원금 ${formatCompact(item.principalPaid)} · 이자 ${formatCompact(item.interestPaid)}` : ""}
         </span>
       </span>
       {isFinance && <span className={`item-amount ${item.type === "income" ? "positive" : ""}`}>{item.type === "income" ? "+" : "−"}{formatCompact(item.amount)}</span>}
@@ -326,9 +373,10 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const monthItems = useMemo(() => getMonthItems(items, month), [items, month]);
-  const selectedItems = useMemo(() => items.filter((item) => item.date === selectedDate), [items, selectedDate]);
-  const todayItems = useMemo(() => items.filter((item) => item.date === todayISO), [items, todayISO]);
+  const displayItems = useMemo(() => getDisplayItems(items), [items]);
+  const monthItems = useMemo(() => getMonthItems(displayItems, month), [displayItems, month]);
+  const selectedItems = useMemo(() => displayItems.filter((item) => item.date === selectedDate), [displayItems, selectedDate]);
+  const todayItems = useMemo(() => displayItems.filter((item) => item.date === todayISO), [displayItems, todayISO]);
   const monthSummary = useMemo(() => {
     const income = monthItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const expense = monthItems.filter((item) => item.type === "expense").reduce((sum, item) => sum + (item.amount ?? 0), 0);
@@ -338,7 +386,7 @@ export default function Home() {
 
   const todayTodos = todayItems.filter((item) => item.type === "todo");
   const todayEvents = todayItems.filter((item) => item.type === "event");
-  const nextItems = items
+  const nextItems = displayItems
     .filter((item) => item.date > todayISO && (item.type === "event" || item.type === "todo"))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 2);
@@ -350,9 +398,9 @@ export default function Home() {
       balance: monthSummary.balance,
       dateLabel: formatLongDate(todayISO),
       monthLabel: monthLabel(month),
-      calendarItems: items.map(({ type, title, date, time, amount, completed }) => ({ type, title, date, time, amount, completed })),
+      calendarItems: displayItems.map(({ type, title, date, time, amount, completed }) => ({ type, title, date, time, amount, completed })),
     });
-  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, items]);
+  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, displayItems]);
 
   const openCreate = (type: ItemType = "todo", date = selectedDate) => {
     setEditingId(null);
@@ -361,23 +409,26 @@ export default function Home() {
   };
 
   const openEdit = (item: CalendarItem) => {
-    setEditingId(item.id);
+    const sourceItem = item.sourceLoanId ? items.find((candidate) => candidate.id === item.sourceLoanId) ?? item : item;
+    setEditingId(sourceItem.id);
     setDraft({
-      type: item.type,
-      title: item.title,
-      date: item.date,
-      time: item.time ?? "",
-      amount: item.amount ? String(item.amount) : "",
-      category: item.category ?? categoryMap[item.type][0],
-      note: item.note ?? "",
-      loanPrincipal: item.loanPrincipal ? String(item.loanPrincipal) : "",
-      interestRate: item.interestRate ? String(item.interestRate) : "",
-      gracePeriod: item.gracePeriod ? String(item.gracePeriod) : "0",
-      repaymentDate: item.repaymentDate ?? item.date,
-      cardCompany: item.cardCompany ?? CARD_COMPANIES[0],
-      cardMode: item.cardMode ?? "lumpSum",
-      installments: item.installments ? String(item.installments) : "2",
-      cardFeeRate: item.cardFeeRate ? String(item.cardFeeRate) : "0",
+      type: sourceItem.type,
+      title: sourceItem.title,
+      date: sourceItem.date,
+      time: sourceItem.time ?? "",
+      amount: sourceItem.amount ? String(sourceItem.amount) : "",
+      category: sourceItem.category ?? categoryMap[sourceItem.type][0],
+      note: sourceItem.note ?? "",
+      loanPrincipal: sourceItem.loanPrincipal ? String(sourceItem.loanPrincipal) : "",
+      interestRate: sourceItem.interestRate ? String(sourceItem.interestRate) : "",
+      gracePeriod: sourceItem.gracePeriod ? String(sourceItem.gracePeriod) : "0",
+      repaymentDate: sourceItem.repaymentDate ?? sourceItem.date,
+      repaymentMethod: sourceItem.repaymentMethod ?? "equalPayment",
+      termMonths: sourceItem.termMonths ? String(sourceItem.termMonths) : "60",
+      cardCompany: sourceItem.cardCompany ?? CARD_COMPANIES[0],
+      cardMode: sourceItem.cardMode ?? "lumpSum",
+      installments: sourceItem.installments ? String(sourceItem.installments) : "2",
+      cardFeeRate: sourceItem.cardFeeRate ? String(sourceItem.cardFeeRate) : "0",
     });
     setComposerOpen(true);
   };
@@ -398,6 +449,8 @@ export default function Home() {
       interestRate: draft.type === "loan" && draft.interestRate ? Number(draft.interestRate) : undefined,
       gracePeriod: draft.type === "loan" && draft.gracePeriod ? Number(draft.gracePeriod) : undefined,
       repaymentDate: draft.type === "loan" ? draft.repaymentDate : undefined,
+      repaymentMethod: draft.type === "loan" ? draft.repaymentMethod : undefined,
+      termMonths: draft.type === "loan" && draft.termMonths ? Number(draft.termMonths) : undefined,
       cardCompany: draft.type === "loan" && draft.category === "카드값" ? draft.cardCompany : undefined,
       cardMode: draft.type === "loan" && draft.category === "카드값" ? draft.cardMode : undefined,
       installments: draft.type === "loan" && draft.category === "카드값" ? Number(draft.installments) : undefined,
@@ -829,7 +882,7 @@ function Composer({
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
-          {draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">다음 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div></div>}
+          {draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">첫 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div><div className="field-row"><label className="field-label">상환방식<select value={draft.repaymentMethod} onChange={(event) => update({ repaymentMethod: event.target.value as Draft["repaymentMethod"] })}><option value="equalPayment">원리금균등</option><option value="equalPrincipal">원금균등</option></select></label><label className="field-label">상환기간(개월)<input inputMode="numeric" value={draft.termMonths} onChange={(event) => update({ termMonths: event.target.value.replace(/[^0-9]/g, "") })} /></label></div>{draft.loanPrincipal && draft.interestRate && draft.termMonths && <div className="schedule-preview"><strong>{draft.repaymentMethod === "equalPayment" ? "원리금균등" : "원금균등"} · 총 {Number(draft.termMonths) + Number(draft.gracePeriod || 0)}회</strong><span>거치기간은 이자만 납부하고, 이후 월별 상환일을 달력에 자동 표시해요.</span></div>}</div>}
           {draft.type === "loan" && draft.category === "카드값" && <div className="detail-block"><div className="detail-block-title">카드 결제 상세</div><div className="field-row"><label className="field-label">카드사<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제 방식<select value={draft.cardMode} onChange={(event) => update({ cardMode: event.target.value as Draft["cardMode"] })}><option value="lumpSum">일시불</option><option value="installment">할부</option></select></label></div><div className="field-row"><label className="field-label">수수료율(%)<input inputMode="decimal" value={draft.cardFeeRate} onChange={(event) => update({ cardFeeRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="카드사 안내 수수료" /></label>{draft.cardMode === "installment" && <label className="field-label">할부 개월<input inputMode="numeric" value={draft.installments} onChange={(event) => update({ installments: event.target.value.replace(/[^0-9]/g, "") })} /></label>}</div>{draft.cardMode === "installment" && <div className={`rate-source ${officialCardRate !== undefined ? "verified" : "manual"}`}>{officialCardRate !== undefined ? `공식 기준 자동 적용 · 연 ${officialCardRate}%` : getCardRateBasis(draft.cardCompany, cardInstallments)}</div>}<div className="detail-estimate">예상 총 결제액 {formatWon(cardTotal)} · {draft.cardMode === "installment" ? `월 ${formatWon(cardMonthly)}` : "일시불 결제"}</div></div>}
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>
         </div>
