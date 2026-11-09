@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { protectedProcedure } from "./_core/trpc";
-import { createFamilyForUser, getFamilyForUser, joinFamilyForUser, saveFamilyLedger } from "./db";
+import { createFamilyForUser, getFamilyBackups, getFamilyForUser, joinFamilyForUser, restoreFamilyBackup, saveFamilyLedger } from "./db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -27,7 +27,7 @@ export const appRouter = router({
       if (!space) return null;
       let records: unknown[] = [];
       try { records = JSON.parse(space.ledgerJson) as unknown[]; } catch { records = []; }
-      return { id: space.id, name: space.name, inviteCode: space.inviteCode, records, updatedAt: space.updatedAt.toISOString() };
+      return { id: space.id, name: space.name, inviteCode: space.inviteCode, records, version: space.version, backups: await getFamilyBackups(ctx.user.id), updatedAt: space.updatedAt.toISOString() };
     }),
     create: protectedProcedure.input(z.object({ name: z.string().trim().min(1).max(80).optional() })).mutation(async ({ ctx, input }) => {
       const existing = await getFamilyForUser(ctx.user.id);
@@ -39,10 +39,15 @@ export const appRouter = router({
       if (!space) throw new TRPCError({ code: "NOT_FOUND", message: "초대 코드를 찾을 수 없어요." });
       return { id: space.id, name: space.name, inviteCode: space.inviteCode };
     }),
-    sync: protectedProcedure.input(z.object({ records: z.array(z.unknown()).max(5000) })).mutation(async ({ ctx, input }) => {
-      const space = await saveFamilyLedger(ctx.user.id, input.records);
+    sync: protectedProcedure.input(z.object({ records: z.array(z.unknown()).max(5000), baseVersion: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const space = await saveFamilyLedger(ctx.user.id, input.records, input.baseVersion);
       if (!space) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "먼저 가족 공유 공간을 만들어 주세요." });
-      return { updatedAt: space.updatedAt.toISOString() };
+      return space;
+    }),
+    restore: protectedProcedure.input(z.object({ backupId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const space = await restoreFamilyBackup(ctx.user.id, input.backupId);
+      if (!space) throw new TRPCError({ code: "NOT_FOUND", message: "백업을 찾을 수 없어요." });
+      return { version: space.version };
     }),
   }),
 

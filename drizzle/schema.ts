@@ -32,6 +32,7 @@ export const familySpaces = mysqlTable("familySpaces", {
   ownerUserId: int("ownerUserId").notNull(),
   ledgerJson: text("ledgerJson").notNull(),
   updatedBy: int("updatedBy"),
+  version: int("version").notNull().default(1),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -45,5 +46,14 @@ export const familyMembers = mysqlTable("familyMembers", {
 }, (table) => ({
   spaceUserUnique: uniqueIndex("familyMembers_space_user_unique").on(table.spaceId, table.userId),
 }));
+
+export const familyBackups = mysqlTable("familyBackups", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  version: int("version").notNull(),
+  snapshotJson: text("snapshotJson").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
 
 export type FamilySpace = typeof familySpaces.$inferSelect;

@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { familyMembers, familySpaces, InsertUser, users } from "../drizzle/schema";
+import { familyBackups, familyMembers, familySpaces, InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -108,7 +108,7 @@ export async function createFamilyForUser(userId: number, name = "우리 가족 
     if (!existing[0]) break;
     inviteCode = newInviteCode();
   }
-  const inserted = await db.insert(familySpaces).values({ inviteCode, name, ownerUserId: userId, ledgerJson: "[]", updatedBy: userId });
+  const inserted = await db.insert(familySpaces).values({ inviteCode, name, ownerUserId: userId, ledgerJson: "[]", updatedBy: userId, version: 1 });
   const spaceId = Number(inserted[0].insertId);
   await db.insert(familyMembers).values({ spaceId, userId, role: "owner" });
   return (await getFamilyForUser(userId))!;
@@ -124,11 +124,37 @@ export async function joinFamilyForUser(userId: number, inviteCode: string) {
   return space[0];
 }
 
-export async function saveFamilyLedger(userId: number, records: unknown[]) {
+export async function getFamilyBackups(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const family = await getFamilyForUser(userId);
+  if (!family) return [];
+  return db.select({ id: familyBackups.id, version: familyBackups.version, createdAt: familyBackups.createdAt }).from(familyBackups).where(eq(familyBackups.spaceId, family.id)).orderBy(desc(familyBackups.createdAt)).limit(10);
+}
+
+export async function saveFamilyLedger(userId: number, records: unknown[], baseVersion: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const family = await getFamilyForUser(userId);
   if (!family) return null;
-  await db.update(familySpaces).set({ ledgerJson: JSON.stringify(records), updatedBy: userId }).where(eq(familySpaces.id, family.id));
+  if (family.version !== baseVersion) {
+    let remoteRecords: unknown[] = [];
+    try { remoteRecords = JSON.parse(family.ledgerJson) as unknown[]; } catch { remoteRecords = []; }
+    return { conflict: true as const, version: family.version, records: remoteRecords };
+  }
+  await db.insert(familyBackups).values({ spaceId: family.id, version: family.version, snapshotJson: family.ledgerJson, createdBy: userId });
+  await db.update(familySpaces).set({ ledgerJson: JSON.stringify(records), updatedBy: userId, version: family.version + 1 }).where(and(eq(familySpaces.id, family.id), eq(familySpaces.version, baseVersion)));
+  return { conflict: false as const, version: family.version + 1 };
+}
+
+export async function restoreFamilyBackup(userId: number, backupId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const family = await getFamilyForUser(userId);
+  if (!family) return null;
+  const backup = await db.select().from(familyBackups).where(and(eq(familyBackups.id, backupId), eq(familyBackups.spaceId, family.id))).limit(1);
+  if (!backup[0]) return null;
+  await db.insert(familyBackups).values({ spaceId: family.id, version: family.version, snapshotJson: family.ledgerJson, createdBy: userId });
+  await db.update(familySpaces).set({ ledgerJson: backup[0].snapshotJson, updatedBy: userId, version: family.version + 1 }).where(eq(familySpaces.id, family.id));
   return getFamilyForUser(userId);
 }

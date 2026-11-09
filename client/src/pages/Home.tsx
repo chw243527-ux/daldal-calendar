@@ -7,6 +7,8 @@ import {
   Bell,
   Cloud,
   Copy,
+  GitMerge,
+  History,
   CalendarDays,
   Check,
   ChevronDown,
@@ -77,6 +79,7 @@ type CalendarItem = {
   assetKind?: "account" | "card" | "cash" | "savings" | "loan" | "other";
   assetName?: string;
   paymentMethod?: "card" | "cash" | "account" | "other";
+  updatedAt?: string;
 };
 
 type Draft = {
@@ -398,6 +401,7 @@ export default function Home() {
   const familyCreate = trpc.family.create.useMutation();
   const familyJoin = trpc.family.join.useMutation();
   const familySync = trpc.family.sync.useMutation();
+  const familyRestore = trpc.family.restore.useMutation();
   const [view, setView] = useState<View>("home");
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -417,7 +421,9 @@ export default function Home() {
   const [familyName, setFamilyName] = useState("우리 가족 가계부");
   const [familyInviteCode, setFamilyInviteCode] = useState("");
   const [familyMessage, setFamilyMessage] = useState<string | null>(null);
+  const [conflictState, setConflictState] = useState<{ version: number; remoteRecords: CalendarItem[] } | null>(null);
   const lastFamilySignature = useRef<string | null>(null);
+  const lastSyncedRecords = useRef<string | null>(null);
   const categoryMap = useMemo<CategoryMap>(() => ({
     ...categories,
     income: [...categories.income, ...(customCategories.income ?? [])],
@@ -448,21 +454,26 @@ export default function Home() {
 
   useEffect(() => {
     const remote = familyQuery.data;
-    if (!isLoaded || !remote || lastFamilySignature.current === remote.updatedAt) return;
+    if (!isLoaded || !remote || conflictState || lastFamilySignature.current === remote.updatedAt) return;
     const remoteRecords = Array.isArray(remote.records) ? remote.records as CalendarItem[] : [];
     lastFamilySignature.current = remote.updatedAt;
+    lastSyncedRecords.current = JSON.stringify(remoteRecords);
     if (remoteRecords.length > 0 || items.length === 0) setItems(remoteRecords);
-  }, [familyQuery.data, isLoaded]);
+  }, [familyQuery.data, isLoaded, conflictState]);
 
   useEffect(() => {
-    if (!isLoaded || !familyQuery.data || familySync.isPending) return;
+    if (!isLoaded || !familyQuery.data || conflictState || familySync.isPending) return;
+    const currentFamily = familyQuery.data;
     const signature = JSON.stringify(items);
-    if (signature === lastFamilySignature.current) return;
+    if (signature === lastSyncedRecords.current) return;
     const timer = window.setTimeout(() => {
-      familySync.mutate({ records: items }, { onSuccess: (result) => { lastFamilySignature.current = result.updatedAt; } });
+      familySync.mutate({ records: items, baseVersion: currentFamily.version }, { onSuccess: (result) => {
+        if (result.conflict) setConflictState({ version: result.version, remoteRecords: result.records as CalendarItem[] });
+        else lastSyncedRecords.current = signature;
+      } });
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [items, isLoaded, familyQuery.data, familySync.isPending]);
+  }, [items, isLoaded, familyQuery.data, familySync.isPending, conflictState]);
 
   useEffect(() => {
     if (isLoaded) window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(customCategories));
@@ -556,6 +567,7 @@ export default function Home() {
     if (!draft.title.trim()) return;
     const nextItem: CalendarItem = {
       id: editingId ?? `item-${Date.now()}`,
+      updatedAt: new Date().toISOString(),
       type: draft.type,
       title: draft.title.trim(),
       date: draft.date,
@@ -645,7 +657,7 @@ export default function Home() {
     try {
       const space = await familyCreate.mutateAsync({ name: familyName });
       await familyQuery.refetch();
-      if (items.length) familySync.mutate({ records: items });
+      if (items.length) familySync.mutate({ records: items, baseVersion: 1 });
       setFamilyMessage(`공유 공간을 만들었어요. 초대 코드 ${space.inviteCode}`);
     } catch { setFamilyMessage("공유 공간을 만들지 못했어요. 로그인 상태와 서버 연결을 확인해 주세요."); }
   };
@@ -663,6 +675,28 @@ export default function Home() {
     if (!familyQuery.data?.inviteCode) return;
     await navigator.clipboard?.writeText(familyQuery.data.inviteCode);
     setFamilyMessage("초대 코드를 복사했어요.");
+  };
+
+  const resolveConflict = (mode: "local" | "remote" | "merge") => {
+    if (!conflictState) return;
+    const local = items;
+    const remote = conflictState.remoteRecords;
+    const next = mode === "local" ? local : mode === "remote" ? remote : Array.from(new Map([...remote, ...local].map((item) => [item.id, item])).values()).map((item) => {
+      const other = remote.find((remoteItem) => remoteItem.id === item.id);
+      const mine = local.find((localItem) => localItem.id === item.id);
+      if (!other || !mine) return item;
+      return (mine.updatedAt ?? "") >= (other.updatedAt ?? "") ? mine : other;
+    });
+    setItems(next);
+    lastSyncedRecords.current = JSON.stringify(next);
+    familySync.mutate({ records: next, baseVersion: conflictState.version }, { onSuccess: (result) => {
+      if (result.conflict) setConflictState({ version: result.version, remoteRecords: result.records as CalendarItem[] });
+      else setConflictState(null);
+    } });
+  };
+
+  const restoreBackup = (backupId: number) => {
+    familyRestore.mutate({ backupId }, { onSuccess: async () => { setFamilyMessage("백업을 복원했어요."); await familyQuery.refetch(); } });
   };
 
   return (
@@ -746,7 +780,7 @@ export default function Home() {
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
 
-      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
+      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
 
       {isComposerOpen && (
         <Composer
@@ -1050,19 +1084,22 @@ function EmptyState({ label, onClick }: { label: string; onClick: () => void }) 
 }
 
 function FamilyShareSheet({
-  authenticated, loading, family, familyName, inviteCode, message, onFamilyNameChange, onInviteCodeChange, onCreate, onJoin, onCopy, onClose,
+  authenticated, loading, family, familyName, inviteCode, message, conflict, onFamilyNameChange, onInviteCodeChange, onCreate, onJoin, onCopy, onResolveConflict, onRestore, onClose,
 }: {
   authenticated: boolean;
   loading: boolean;
-  family: { id: number; name: string; inviteCode: string; records: unknown[]; updatedAt: string } | null;
+  family: { id: number; name: string; inviteCode: string; records: unknown[]; version: number; backups: Array<{ id: number; version: number; createdAt: string | Date }>; updatedAt: string } | null;
   familyName: string;
   inviteCode: string;
   message: string | null;
+  conflict: { version: number; remoteRecords: CalendarItem[] } | null;
   onFamilyNameChange: (value: string) => void;
   onInviteCodeChange: (value: string) => void;
   onCreate: () => void;
   onJoin: () => void;
   onCopy: () => void;
+  onResolveConflict: (mode: "local" | "remote" | "merge") => void;
+  onRestore: (backupId: number) => void;
   onClose: () => void;
 }) {
   return (
@@ -1070,6 +1107,8 @@ function FamilyShareSheet({
       <section className="family-sheet" onClick={(event) => event.stopPropagation()}>
         <div className="sheet-topline"><div><span className="section-eyebrow">FAMILY CLOUD</span><h2><Users size={20} /> 가족과 함께 쓰기</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div>
         {!authenticated ? <div className="family-login-card"><Cloud size={27} /><strong>로그인하면 가족과 동기화할 수 있어요</strong><p>나와 신랑이 같은 가족 공간에 참여하면 일정·할 일·가계부 기록이 자동으로 맞춰집니다.</p><button className="save-button" type="button" onClick={() => startLogin()}>로그인하고 연결하기</button></div> : family ? <div className="family-connected-card"><div className="family-connected-head"><div><span className="connected-dot" /> 실시간 공유 중</div><small>{family.name}</small></div><div className="family-code-box"><span>가족 초대 코드</span><strong>{family.inviteCode}</strong><button type="button" onClick={onCopy}><Copy size={15} /> 복사</button></div><div className="family-sync-note"><Cloud size={15} /> 최근 동기화 {new Date(family.updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · 약 5초마다 새 기록을 확인해요</div><p>신랑의 앱에서 이 코드를 입력하면 같은 장부를 함께 볼 수 있어요.</p></div> : <><div className="family-intro"><Cloud size={26} /><div><strong>우리 가족 공간 만들기</strong><p>현재 기기의 기록을 가족과 공유할 수 있는 안전한 공간이에요.</p></div></div><label className="field-label">공간 이름<input value={familyName} onChange={(event) => onFamilyNameChange(event.target.value)} /></label><button className="save-button family-main-button" type="button" onClick={onCreate} disabled={loading}>공유 공간 만들고 초대 코드 받기</button><div className="family-divider"><span>또는</span></div><label className="field-label">가족에게 받은 초대 코드<input value={inviteCode} onChange={(event) => onInviteCodeChange(event.target.value.toUpperCase())} placeholder="예: AB12CD" maxLength={12} /></label><button className="outline-button family-main-button" type="button" onClick={onJoin} disabled={loading || inviteCode.length < 4}>초대 코드로 참여하기</button></>}
+        {conflict && <div className="family-conflict-card"><div className="family-conflict-title"><GitMerge size={16} /> 동시에 수정된 기록이 있어요</div><p>내 기록과 가족 기록을 자동으로 덮어쓰지 않았어요. 원하는 병합 방식을 선택해 주세요.</p><div className="conflict-actions"><button type="button" onClick={() => onResolveConflict("merge")}>자동 병합</button><button type="button" onClick={() => onResolveConflict("local")}>내 기록 우선</button><button type="button" onClick={() => onResolveConflict("remote")}>가족 기록 우선</button></div><small>자동 병합은 같은 항목의 수정 시각이 더 최근인 기록을 선택합니다.</small></div>}
+        {family?.backups?.length ? <div className="family-backups"><div className="family-backups-title"><History size={15} /> 최근 자동 백업 <span>저장 전 최대 10개</span></div>{family.backups.slice(0, 3).map((backup) => <div className="family-backup-row" key={backup.id}><span>버전 {backup.version} · {new Date(backup.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span><button type="button" onClick={() => onRestore(backup.id)}>복원</button></div>)}</div> : null}
         {message && <div className="family-message" role="status">{message}</div>}
         <small className="family-privacy-note">가족 공간에 참여한 사용자만 기록을 볼 수 있습니다. 인터넷이 연결되지 않으면 기기에 저장된 기록을 계속 사용할 수 있어요.</small>
       </section>

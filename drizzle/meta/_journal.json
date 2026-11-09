@@ -15,6 +15,13 @@
       "when": 1794189446068,
       "tag": "0001_puzzling_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1794189993955,
+      "tag": "0002_exotic_jigsaw",
+      "breakpoints": true
     }
   ]
 }
