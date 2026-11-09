@@ -158,11 +158,14 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             canvas.scale(scale, scale);
             int width = Math.round(pixelWidth / scale);
             int height = Math.round(pixelHeight / scale);
-            canvas.drawColor(Color.rgb(249, 246, 242));
+
+            SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
+            String backgroundTheme = preferences.getString("backgroundTheme", "ivory");
+            boolean darkTheme = "night".equals(backgroundTheme);
+            canvas.drawColor(backgroundColor(backgroundTheme));
 
             paint.setStyle(Paint.Style.FILL);
 
-            SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String calendarItems = preferences.getString("calendarItems", "[]");
             boolean showCalendar = preferences.getBoolean("showCalendar", true);
             boolean showSchedule = preferences.getBoolean("showSchedule", true);
@@ -170,7 +173,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             boolean showMonthlyFunds = preferences.getBoolean("showMonthlyFunds", true);
 
             float margin = width * 0.075f;
-            drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
+            drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, primaryTextColor(darkTheme), true);
             float cardTop = height * 0.18f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
@@ -195,8 +198,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float cellX = margin + column * cellWidth;
                 float cellY = gridTop + 28 + row * cellHeight;
                 boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
-                if (isToday) { paint.setColor(Color.rgb(216,117,104)); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
-                drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : Color.rgb(47,42,49), true);
+                if (isToday) { paint.setColor(themeAccent(backgroundTheme)); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
+                drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                 int markerCount = 0;
                 for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
                     JSONObject item = entries.optJSONObject(itemIndex);
@@ -221,7 +224,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float rowY = sectionTop + 23 + scheduleRow * 24;
                 paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? Color.rgb(143,136,133) : Color.rgb(47,42,49), false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? Color.rgb(143,136,133) : primaryTextColor(darkTheme), false);
                 drawText(canvas, "event".equals(type) ? item.optString("time", "일정") : "할 일", width - margin - 24, rowY, 11, recordColor, false, true);
                 scheduleRow++;
             }
@@ -250,6 +253,24 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private boolean dateMatches(String value, int year, int month, int day) {
             String prefix = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
             return value.startsWith(prefix);
+        }
+
+        private int backgroundColor(String theme) {
+            if ("blush".equals(theme)) return Color.rgb(255, 240, 237);
+            if ("sage".equals(theme)) return Color.rgb(237, 245, 240);
+            if ("night".equals(theme)) return Color.rgb(37, 35, 42);
+            return Color.rgb(249, 246, 242);
+        }
+
+        private int themeAccent(String theme) {
+            if ("blush".equals(theme)) return Color.rgb(205, 103, 91);
+            if ("sage".equals(theme)) return Color.rgb(76, 137, 113);
+            if ("night".equals(theme)) return Color.rgb(244, 167, 151);
+            return Color.rgb(216, 117, 104);
+        }
+
+        private int primaryTextColor(boolean darkTheme) {
+            return darkTheme ? Color.rgb(248, 242, 238) : Color.rgb(47, 42, 49);
         }
 
         private int itemColor(String type) {

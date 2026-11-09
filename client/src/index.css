@@ -310,3 +310,10 @@ body { background: var(--ivory); }
 .lockscreen-toggle-row strong { font-size: 14px; }
 .lockscreen-toggle-row small { color: var(--muted); font-size: 11px; }
 .lockscreen-toggle-row input { width: 20px; height: 20px; accent-color: var(--coral); }
+
+.lockscreen-theme-picker { display: grid; gap: 10px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #eee7e1; }
+.lockscreen-theme-picker > strong { font-size: 13px; }
+.theme-choice-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.theme-choice { display: grid; justify-items: center; gap: 5px; padding: 8px 4px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; font-size: 10px; font-weight: 750; }
+.theme-choice:hover, .theme-choice.selected { border-color: var(--coral); background: #fff8f5; }
+.theme-choice i { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(47,42,49,.12); box-shadow: inset 0 0 0 3px rgba(255,255,255,.35); }

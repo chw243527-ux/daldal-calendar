@@ -149,8 +149,9 @@ const BUDGET_STORAGE_KEY = "daldal-calendar-monthly-budgets";
 const RESERVE_STORAGE_KEY = "daldal-calendar-emergency-reserve";
 const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 const LOCKSCREEN_STORAGE_KEY = "daldal-calendar-lockscreen-config";
-type LockScreenConfig = { showCalendar: boolean; showSchedule: boolean; showTodo: boolean; showMonthlyFunds: boolean };
-const DEFAULT_LOCKSCREEN_CONFIG: LockScreenConfig = { showCalendar: true, showSchedule: true, showTodo: true, showMonthlyFunds: true };
+type LockScreenTheme = "ivory" | "blush" | "sage" | "night";
+type LockScreenConfig = { showCalendar: boolean; showSchedule: boolean; showTodo: boolean; showMonthlyFunds: boolean; backgroundTheme: LockScreenTheme };
+const DEFAULT_LOCKSCREEN_CONFIG: LockScreenConfig = { showCalendar: true, showSchedule: true, showTodo: true, showMonthlyFunds: true, backgroundTheme: "ivory" };
 type CategoryMap = Record<ItemType, string[]>;
 
 const typeMeta: Record<ItemType, { label: string; color: string; soft: string; icon: LucideIcon }> = {
@@ -943,7 +944,12 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
   ["showSchedule", "일정", "오늘 일정 표시"],
   ["showTodo", "할 일", "오늘 할 일 표시"],
   ["showMonthlyFunds", "월간 자금", "수입·지출·나갈 돈 요약 표시"],
-] as const).map(([key, label, description]) => <label className="lockscreen-toggle-row" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={lockScreenConfig[key]} onChange={(event) => onLockScreenConfigChange({ ...lockScreenConfig, [key]: event.target.checked })} /></label>)}</div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section></div>;
+] as const).map(([key, label, description]) => <label className="lockscreen-toggle-row" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={lockScreenConfig[key]} onChange={(event) => onLockScreenConfigChange({ ...lockScreenConfig, [key]: event.target.checked })} /></label>)}</div><div className="lockscreen-theme-picker"><strong>배경 테마</strong><div className="theme-choice-list">{([
+  ["ivory", "아이보리", "#f9f6f2"],
+  ["blush", "살구 핑크", "#fff0ed"],
+  ["sage", "세이지", "#edf5f0"],
+  ["night", "차분한 밤", "#25232a"],
+] as const).map(([value, label, color]) => <button type="button" className={`theme-choice ${lockScreenConfig.backgroundTheme === value ? "selected" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: value })} key={value}><i style={{ backgroundColor: color }} /><span>{label}</span></button>)}</div></div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section></div>;
 }
 
 function HomeView({

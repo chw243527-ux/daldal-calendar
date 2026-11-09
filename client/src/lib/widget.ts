@@ -5,6 +5,7 @@ type LockScreenConfig = {
   showSchedule: boolean;
   showTodo: boolean;
   showMonthlyFunds: boolean;
+  backgroundTheme: "ivory" | "blush" | "sage" | "night";
 };
 
 type WidgetData = {

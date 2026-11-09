@@ -27,6 +27,7 @@ public class DaldalWidgetPlugin extends Plugin {
         boolean showSchedule = lockScreenConfig == null || !lockScreenConfig.has("showSchedule") || Boolean.TRUE.equals(lockScreenConfig.opt("showSchedule"));
         boolean showTodo = lockScreenConfig == null || !lockScreenConfig.has("showTodo") || Boolean.TRUE.equals(lockScreenConfig.opt("showTodo"));
         boolean showMonthlyFunds = lockScreenConfig == null || !lockScreenConfig.has("showMonthlyFunds") || Boolean.TRUE.equals(lockScreenConfig.opt("showMonthlyFunds"));
+        String backgroundTheme = lockScreenConfig == null ? "ivory" : lockScreenConfig.optString("backgroundTheme", "ivory");
 
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -40,6 +41,7 @@ public class DaldalWidgetPlugin extends Plugin {
                 .putBoolean("showSchedule", showSchedule)
                 .putBoolean("showTodo", showTodo)
                 .putBoolean("showMonthlyFunds", showMonthlyFunds)
+                .putString("backgroundTheme", backgroundTheme)
                 .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
