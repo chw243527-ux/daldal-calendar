@@ -96,7 +96,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float margin = width * 0.075f;
             float cardTop = height * 0.18f;
             float chartX = width - margin - 161;
-            float chartY = cardTop + 110;
+            float chartY = cardTop + 30;
             if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
             int row = (int) ((y - (chartY + 12)) / 22f);
             if (row < 0 || row > 2) return false;
@@ -112,7 +112,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float logicalY = pixelY / scale;
             int logicalHeight = Math.round(getSurfaceHolder().getSurfaceFrame().height() / scale);
             float cardTop = logicalHeight * 0.18f;
-            int targetRow = Math.round((logicalY - (cardTop + 143f)) / 23f);
+            int targetRow = Math.round((logicalY - (cardTop + 63f)) / 23f);
             if (targetRow < 0 || targetRow > 2) return;
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
@@ -161,16 +161,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             canvas.drawColor(Color.rgb(249, 246, 242));
 
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.rgb(216, 117, 104));
-            canvas.drawCircle(width - 18, 86, 122, paint);
-            paint.setColor(Color.rgb(223, 218, 244));
-            canvas.drawCircle(0, height - 76, 148, paint);
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String dateLabel = preferences.getString("dateLabel", "");
-            int todoCount = preferences.getInt("todoCount", 0);
-            int eventCount = preferences.getInt("eventCount", 0);
-            int balance = preferences.getInt("balance", 0);
             String calendarItems = preferences.getString("calendarItems", "[]");
 
             float margin = width * 0.075f;
@@ -178,18 +171,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.15f, 12, Color.rgb(96, 87, 84), false);
 
             float cardTop = height * 0.18f;
-            float columnWidth = (width - margin * 2) / 3f;
-            float leftColumn = margin + 22;
-            float middleColumn = margin + columnWidth + 10;
-            float rightColumn = margin + columnWidth * 2 + 5;
-            drawText(canvas, "오늘 할 일", margin + 24, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
-            drawText(canvas, String.valueOf(todoCount) + "개", leftColumn, cardTop + 73, 24, Color.rgb(111, 99, 182), true);
-            drawText(canvas, "오늘 일정", middleColumn, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
-            drawText(canvas, String.valueOf(eventCount) + "개", middleColumn, cardTop + 73, 24, Color.rgb(216, 117, 104), true);
-            drawText(canvas, "잔액", rightColumn, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
-            drawText(canvas, compactWon(balance), rightColumn, cardTop + 73, 18, Color.rgb(76, 157, 131), true);
-
-            drawText(canvas, "오늘의 기록", margin + 24, cardTop + 112, 13, Color.rgb(82, 73, 78), true);
+            drawText(canvas, "오늘의 기록", margin + 24, cardTop + 32, 13, Color.rgb(82, 73, 78), true);
             JSONArray entries = parseItems(calendarItems);
             int monthlyIncome = 0;
             int monthlyExpense = 0;
@@ -208,7 +190,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     if (isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
                 }
             }
-            drawFinanceChart(canvas, width - margin - 151, cardTop + 110, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
+            drawFinanceChart(canvas, width - margin - 151, cardTop + 30, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
             int todayRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && todayRow < 3; itemIndex++) {
@@ -220,13 +202,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (title.length() > 11) title = title.substring(0, 10) + "…";
                 int recordColor = "지역화폐 충전".equals(item.optString("category")) ? Color.rgb(63, 143, 141) : itemColor(type);
                 paint.setColor(recordColor);
-                canvas.drawCircle(margin + 31, cardTop + 143 + todayRow * 23, 4, paint);
+                canvas.drawCircle(margin + 31, cardTop + 63 + todayRow * 23, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 143 + todayRow * 23, 14, completed ? Color.rgb(143, 136, 133) : Color.rgb(47, 42, 49), false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 63 + todayRow * 23, 14, completed ? Color.rgb(143, 136, 133) : Color.rgb(47, 42, 49), false);
                 if (completed) {
                     paint.setColor(Color.rgb(143, 136, 133));
                     paint.setStrokeWidth(1.5f);
-                    canvas.drawLine(margin + 45, cardTop + 143 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 143 + todayRow * 23, paint);
+                    canvas.drawLine(margin + 45, cardTop + 63 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 63 + todayRow * 23, paint);
                 }
                 String detail = item.optString("time", "");
                 if ("income".equals(type) || "expense".equals(type) || "loan".equals(type)) {
@@ -234,11 +216,11 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     detail = ("income".equals(type) ? "+" : "−") + compactWon(amount);
                 }
                 if (!detail.isEmpty()) {
-                    drawText(canvas, detail, width - margin - 24, cardTop + 143 + todayRow * 23, 12, recordColor, false, true);
+                    drawText(canvas, detail, width - margin - 24, cardTop + 63 + todayRow * 23, 12, recordColor, false, true);
                 }
                 todayRow++;
             }
-            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 145, 13, Color.rgb(143, 136, 133), false);
+            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 65, 13, Color.rgb(143, 136, 133), false);
 
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
@@ -246,7 +228,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             first.set(year, month, 1);
             int firstDay = first.get(Calendar.DAY_OF_WEEK) - 1;
             int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
-            float gridTop = cardTop + 238;
+            float gridTop = cardTop + 158;
             float cellWidth = (width - margin * 2) / 7f;
             float cellHeight = Math.max(47f, Math.min(68f, height * 0.06f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
