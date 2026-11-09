@@ -834,7 +834,7 @@ export default function Home() {
         <div className="topbar-actions">
           <button className={`sync-button ${familyQuery.data ? "is-synced" : ""}`} type="button" onClick={() => setFamilyOpen(true)}><Cloud size={16} /><span>{familyQuery.data ? "공유 중" : "가족 공유"}</span></button>
           <button className="icon-button" type="button" aria-label="설정" onClick={() => setViewAndScroll("settings")}><Settings2 size={19} /></button>
-          <div className="profile-chip">나</div>
+          <button className="profile-chip profile-chip-button" type="button" onClick={() => auth.isAuthenticated ? setFamilyOpen(true) : startLogin()} aria-label={auth.isAuthenticated ? "내 계정" : "로그인"}>나</button>
         </div>
       </header>
 
@@ -899,7 +899,6 @@ export default function Home() {
         <button className={view === "calendar" ? "active" : ""} type="button" onClick={() => setViewAndScroll("calendar")}><CalendarDays size={19} /><span>달력</span></button>
         <button className={view === "ledger" ? "active" : ""} type="button" onClick={() => setViewAndScroll("ledger")}><Wallet size={19} /><span>가계부</span></button>
         <button className={view === "report" ? "active" : ""} type="button" onClick={() => setViewAndScroll("report")}><Repeat2 size={19} /><span>현금흐름</span></button>
-        <button className={view === "settings" ? "active" : ""} type="button" onClick={() => setViewAndScroll("settings")}><Settings2 size={19} /><span>설정</span></button>
       </nav>
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
