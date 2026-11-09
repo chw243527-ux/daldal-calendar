@@ -23,10 +23,10 @@ public class DaldalWidgetPlugin extends Plugin {
         String monthLabel = call.getString("monthLabel", "달달 캘린더");
         String calendarItems = call.getString("calendarItems", "[]");
         JSObject lockScreenConfig = call.getObject("lockScreenConfig");
-        boolean showCalendar = lockScreenConfig == null || lockScreenConfig.getBool("showCalendar", true);
-        boolean showSchedule = lockScreenConfig == null || lockScreenConfig.getBool("showSchedule", true);
-        boolean showTodo = lockScreenConfig == null || lockScreenConfig.getBool("showTodo", true);
-        boolean showMonthlyFunds = lockScreenConfig == null || lockScreenConfig.getBool("showMonthlyFunds", true);
+        boolean showCalendar = lockScreenConfig == null || !lockScreenConfig.has("showCalendar") || Boolean.TRUE.equals(lockScreenConfig.opt("showCalendar"));
+        boolean showSchedule = lockScreenConfig == null || !lockScreenConfig.has("showSchedule") || Boolean.TRUE.equals(lockScreenConfig.opt("showSchedule"));
+        boolean showTodo = lockScreenConfig == null || !lockScreenConfig.has("showTodo") || Boolean.TRUE.equals(lockScreenConfig.opt("showTodo"));
+        boolean showMonthlyFunds = lockScreenConfig == null || !lockScreenConfig.has("showMonthlyFunds") || Boolean.TRUE.equals(lockScreenConfig.opt("showMonthlyFunds"));
 
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()

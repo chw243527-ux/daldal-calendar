@@ -123,7 +123,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 JSONObject item = entries.optJSONObject(index);
                 if (item == null || !todayKey.equals(item.optString("date"))) continue;
                 String type = item.optString("type");
-                if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"todo".equals(type) && !"event".equals(type))) continue;
+                if (!"todo".equals(type) && !"event".equals(type)) continue;
                 if (visibleRow == targetRow && "todo".equals(type)) {
                     try {
                         item.put("completed", !item.optBoolean("completed", false));
@@ -215,7 +215,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 JSONObject item = entries.optJSONObject(itemIndex);
                 if (item == null || !todayKey.equals(item.optString("date"))) continue;
                 String type = item.optString("type");
-                if (!"todo".equals(type) && !"event".equals(type)) continue;
+                if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"todo".equals(type) && !"event".equals(type))) continue;
                 String title = safeTitle(item.optString("title", "기록"), 16);
                 int recordColor = itemColor(type);
                 float rowY = sectionTop + 23 + scheduleRow * 24;
