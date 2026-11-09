@@ -88,6 +88,14 @@ type CalendarItem = {
   updatedAt?: string;
 };
 
+type AssetBalance = {
+  id: string;
+  kind: "account" | "cash" | "localCurrency";
+  name: string;
+  initialBalance: number;
+  owner: string;
+};
+
 type Draft = {
   type: ItemType;
   title: string;
@@ -127,6 +135,7 @@ const STORAGE_KEY = "daldal-calendar-items";
 const CATEGORY_STORAGE_KEY = "daldal-calendar-custom-categories";
 const BUDGET_STORAGE_KEY = "daldal-calendar-monthly-budgets";
 const RESERVE_STORAGE_KEY = "daldal-calendar-emergency-reserve";
+const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 type CategoryMap = Record<ItemType, string[]>;
 
 const typeMeta: Record<ItemType, { label: string; color: string; soft: string; icon: LucideIcon }> = {
@@ -427,6 +436,7 @@ export default function Home() {
   const [customCategories, setCustomCategories] = useState<Partial<Record<ItemType, string[]>>>({ income: [], expense: [], loan: [] });
   const [monthlyBudgets, setMonthlyBudgets] = useState<Record<string, { expense: number; loan: number; categories?: Record<string, number> }>>({});
   const [emergencyReserve, setEmergencyReserve] = useState(0);
+  const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
@@ -435,6 +445,7 @@ export default function Home() {
   const [isGeneratingWallpaper, setIsGeneratingWallpaper] = useState(false);
   const [wallpaperMessage, setWallpaperMessage] = useState<string | null>(null);
   const [isCategoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [isAssetManagerOpen, setAssetManagerOpen] = useState(false);
   const [isFamilyOpen, setFamilyOpen] = useState(false);
   const [familyName, setFamilyName] = useState("우리 가족 가계부");
   const [familyInviteCode, setFamilyInviteCode] = useState("");
@@ -459,6 +470,8 @@ export default function Home() {
       if (savedBudgets) setMonthlyBudgets(JSON.parse(savedBudgets));
       const savedReserve = window.localStorage.getItem(RESERVE_STORAGE_KEY);
       if (savedReserve) setEmergencyReserve(Number(savedReserve) || 0);
+      const savedAssets = window.localStorage.getItem(ASSET_BALANCE_STORAGE_KEY);
+      if (savedAssets) setAssetBalances(JSON.parse(savedAssets) as AssetBalance[]);
     } catch {
       // Keep the starter entries if local storage is unavailable.
     } finally {
@@ -504,6 +517,10 @@ export default function Home() {
   useEffect(() => {
     if (isLoaded) window.localStorage.setItem(RESERVE_STORAGE_KEY, String(emergencyReserve));
   }, [emergencyReserve, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) window.localStorage.setItem(ASSET_BALANCE_STORAGE_KEY, JSON.stringify(assetBalances));
+  }, [assetBalances, isLoaded]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -801,6 +818,7 @@ export default function Home() {
             onEdit={openEdit}
             onCreate={openCreate}
             onManageCategories={() => setCategoryManagerOpen(true)}
+            onManageAssets={() => setAssetManagerOpen(true)}
           />
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} />}
@@ -836,6 +854,7 @@ export default function Home() {
         />
       )}
       {isCategoryManagerOpen && <CategoryManager customCategories={customCategories} onChange={setCustomCategories} onClose={() => setCategoryManagerOpen(false)} />}
+      {isAssetManagerOpen && <AssetManager assets={assetBalances} items={displayItems} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
     </div>
   );
 }
@@ -1015,6 +1034,7 @@ function LedgerView({
   onEdit,
   onCreate,
   onManageCategories,
+  onManageAssets,
 }: {
   month: Date;
   monthItems: CalendarItem[];
@@ -1023,6 +1043,7 @@ function LedgerView({
   onEdit: (item: CalendarItem) => void;
   onCreate: (type?: ItemType, date?: string) => void;
   onManageCategories: () => void;
+  onManageAssets: () => void;
 }) {
   const financeItems = monthItems.filter((item) => ["income", "expense", "loan", "savings"].includes(item.type)).sort((a, b) => b.date.localeCompare(a.date));
   const grouped = financeItems.reduce<Record<string, CalendarItem[]>>((groups, item) => {
@@ -1038,7 +1059,7 @@ function LedgerView({
   const analysisText = topCategory ? `이번 달은 ${topCategory[0]}에 ${formatWon(topCategory[1])}을 기록했어요.` : "기록이 쌓이면 카테고리별 패턴을 분석해 드려요.";
   return (
     <div className="view-stack ledger-view">
-      <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><div className="page-title-actions"><button className="text-button" type="button" onClick={onManageCategories}><Settings2 size={14} /> 카테고리</button><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div></div>
+      <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><div className="page-title-actions"><button className="text-button" type="button" onClick={onManageAssets}><WalletCards size={14} /> 자산</button><button className="text-button" type="button" onClick={onManageCategories}><Settings2 size={14} /> 카테고리</button><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div></div>
       <div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
       <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(summary.balance)}</strong><p>이번 달에 남은 금액이에요</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(summary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(summary.expense + summary.loan)}</span></div></section>
       <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="수입" amount={summary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={summary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={summary.loan} tone="loan" /></section>
@@ -1105,6 +1126,37 @@ function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve
   const chartHeight = 132;
   const barHeight = (value: number) => Math.max(value ? 5 : 0, Math.round(value / chartMax * chartHeight));
   return <div className="view-stack cashflow-report"><div className="page-title-row"><div><span className="section-eyebrow">CASHFLOW REPORT</span><h2>월별 현금흐름</h2></div><Repeat2 size={24} className="report-mark" /></div><div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div><section className="cashflow-hero surface-card"><span className="section-eyebrow">ESTIMATED MONTH-END</span><strong>{formatWon(income - outgoing)}</strong><p>수입에서 이번 달 예정된 모든 지출을 뺀 금액</p><div className="cashflow-bar"><i style={{ width: `${Math.min(100, income ? Math.max(0, outgoing / income * 100) : 0)}%` }} /></div><small>지출·고정지출·대출 납부 합계 {formatWon(outgoing)}</small></section><section className="cashflow-stat-grid"><div className="cashflow-stat income"><span>수입</span><strong>{formatWon(income)}</strong></div><div className="cashflow-stat fixed"><span>고정지출</span><strong>{formatWon(fixed)}</strong></div><div className="cashflow-stat expense"><span>일반지출</span><strong>{formatWon(expense)}</strong></div><div className="cashflow-stat loan"><span>대출 납부</span><strong>{formatWon(loan)}</strong></div></section><section className="budget-panel surface-card"><SectionHeading eyebrow="MONTHLY BUDGET" title="예산 대비 실제" /><div className="budget-inputs"><label>지출 예산<input inputMode="numeric" value={budget.expense || ""} onChange={(event) => onBudgetChange({ ...budget, expense: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 })} placeholder="예: 1500000" /></label><label>대출 예산<input inputMode="numeric" value={budget.loan || ""} onChange={(event) => onBudgetChange({ ...budget, loan: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 })} placeholder="예: 800000" /></label></div><div className="budget-compare"><div className="budget-compare-row"><div><strong>실제 지출</strong><span>{formatWon(actualExpense)} / {formatWon(budget.expense)}</span></div><div className="budget-track"><i className={expenseRatio > 100 ? "over" : ""} style={{ width: `${Math.min(100, expenseRatio)}%` }} /></div><b className={expenseRatio > 100 ? "over-text" : ""}>{budget.expense ? `${Math.round(expenseRatio)}%` : "예산 미설정"}</b></div><div className="budget-compare-row"><div><strong>실제 대출 상환</strong><span>{formatWon(loan)} / {formatWon(budget.loan)}</span></div><div className="budget-track loan-track"><i className={loanRatio > 100 ? "over" : ""} style={{ width: `${Math.min(100, loanRatio)}%` }} /></div><b className={loanRatio > 100 ? "over-text" : ""}>{budget.loan ? `${Math.round(loanRatio)}%` : "예산 미설정"}</b></div></div></section><section className="household-forecast surface-card"><div className="forecast-head"><div><span className="section-eyebrow">HOUSEHOLD SIMULATION</span><strong>가계 전체 순현금흐름 예측</strong></div><PiggyBank size={18} /></div><p className="forecast-note">나와 신랑의 수입을 합산하고, 반복 고정지출과 대출 납부 예정액을 반영한 기본 시뮬레이션이에요.</p><label className="reserve-input">월별 비상 예비비<input inputMode="numeric" value={emergencyReserve || ""} onChange={(event) => onEmergencyReserveChange(Number(event.target.value.replace(/[^0-9]/g, "")) || 0)} placeholder="예: 300000" /><small>예상치 못한 병원비·수리비 등을 대비해 매월 예측 지출에 포함합니다.</small></label><div className="forecast-chart">{householdForecast.map((forecast, index) => <div className="forecast-column" key={forecast.month.toISOString()}><div className="forecast-bars"><i className="forecast-income-bar" style={{ height: `${Math.max(forecast.income ? 7 : 0, forecast.income / forecastMax * 100)}%` }} /><i className="forecast-expense-bar" style={{ height: `${Math.max(forecast.expense ? 7 : 0, forecast.expense / forecastMax * 100)}%` }} /></div><strong>{monthShortLabel(forecast.month)}월</strong><b className={forecast.net < 0 ? "negative" : "positive"}>{forecast.net >= 0 ? "+" : "−"}{formatCompact(Math.abs(forecast.net))}</b><small>누적 {formatCompact(forecastCumulative[index])}</small></div>)}</div><div className="forecast-legend"><span><i className="forecast-income-dot" /> 합산 수입</span><span><i className="forecast-expense-dot" /> 지출·대출·예비비</span></div><div className="forecast-total"><span>3개월 후 예상 누적 잔액</span><b>{formatWon(forecastCumulative[forecastCumulative.length - 1] ?? 0)}</b></div></section><section className="net-worth-trend surface-card"><div className="forecast-head"><div><span className="section-eyebrow">YEAR-END NET WORTH</span><strong>연말 순자산 증가 추이</strong></div><Wallet size={18} /></div><p className="forecast-note">적금 납입 원금과 대출 원금 상환분을 합산했어요. 대출 이자는 순자산 증가에서 제외됩니다.</p><div className="net-worth-chart">{yearEndAssetTrend.map((trend, index) => <div className="net-worth-column" key={trend.month.toISOString()}><div className="net-worth-bar-wrap"><i style={{ height: `${Math.max(trend.increase ? 7 : 0, trend.increase / yearEndMax * 100)}%` }} /></div><strong>{monthShortLabel(trend.month)}월</strong><b>{formatCompact(trend.increase)}</b><small>누적 {formatCompact(yearEndCumulative[index])}</small></div>)}</div><div className="net-worth-legend"><span><i className="savings-dot" /> 적금 원금</span><span><i className="principal-dot" /> 대출 원금 감소</span></div><div className="forecast-total"><span>연말까지 예상 순자산 증가</span><b>{formatWon(yearEndCumulative[yearEndCumulative.length - 1] ?? 0)}</b></div></section><section className="next-budget-recommendation surface-card"><div className="recommendation-head"><div><span className="section-eyebrow">SMART FORECAST</span><strong>다음 달 예산 추천</strong></div><Sparkles size={18} /></div><p>이번 달 실제 지출에 5% 여유분을 더해 추천했어요. 현재 다음 달 예산은 {nextBudget.expense || nextBudget.loan ? "설정됨" : "아직 미설정"}이에요.</p><div className="recommendation-grid"><div><span>지출 추천</span><b>{formatWon(recommendedBudget.expense)}</b></div><div><span>대출 추천</span><b>{formatWon(recommendedBudget.loan)}</b></div></div><div className="recommendation-categories">{categoryStats.slice(0, 4).map((stat) => <span key={stat.category}>{stat.category} <b>{formatWon(recommendedCategories[stat.category])}</b></span>)}</div><button className="recommendation-button" type="button" onClick={() => onNextBudgetChange(recommendedBudget)}>추천 금액을 다음 달 예산으로 적용</button></section><section className="category-budget-panel surface-card"><SectionHeading eyebrow="CATEGORY DETAILS" title="카테고리별 지출" /><div className="category-budget-list">{categoryStats.length ? categoryStats.map((stat) => { const ratio = stat.budget ? stat.actual / stat.budget * 100 : 0; return <details className="category-budget-item" key={stat.category}><summary><span className="category-budget-title"><strong>{stat.category}</strong><small>{stat.records.length}건 · 실제 {formatWon(stat.actual)}</small></span><span className="category-budget-summary"><b className={ratio > 100 ? "over-text" : ""}>{stat.budget ? `${Math.round(ratio)}%` : "예산 없음"}</b><ChevronDown size={15} /></span></summary><div className="category-budget-body"><label>이번 달 예산<input inputMode="numeric" value={stat.budget || ""} onChange={(event) => onBudgetChange({ ...budget, categories: { ...(budget.categories ?? {}), [stat.category]: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 } })} placeholder="예산 입력" /></label><div className="category-budget-track"><i className={ratio > 100 ? "over" : ""} style={{ width: `${Math.min(100, ratio)}%` }} /></div><div className="category-detail-list">{stat.records.sort((a, b) => a.date.localeCompare(b.date)).map((item) => <button type="button" className="category-detail-row" key={item.id} onClick={() => onEdit(item)}><span>{fromISO(item.date).getDate()}일</span><strong>{item.title}</strong><b>{formatWon(item.amount)}</b><ChevronRight size={13} /></button>)}</div></div></details>; }) : <div className="soft-empty">이번 달 지출 내역이 없어요.</div>}</div></section><section className="owner-assets"><div className="owner-asset-card wife"><span>여자 모든 자산</span><strong>{formatWon(ownerNet("나"))}</strong><small>나로 등록된 수입·지출·대출</small></div><div className="owner-asset-card husband"><span>남자 모든 자산</span><strong>{formatWon(ownerNet("신랑"))}</strong><small>신랑으로 등록된 수입·지출·대출</small></div><div className="owner-asset-card joint"><span>공동 자산</span><strong>{formatWon(ownerNet("공동"))}</strong><small>공동으로 등록된 기록</small></div></section><section className="owner-stats surface-card"><SectionHeading eyebrow="OWNER BREAKDOWN" title="소유자별 통계" /><div className="owner-stat-list">{ownerStats.map((stat) => <div className="owner-stat-row" key={stat.owner}><div className="owner-stat-head"><strong>{stat.owner}</strong><b>{formatWon(stat.balance)}</b></div><div className="owner-stat-track"><i className={`owner-stat-bar ${stat.owner === "나" ? "wife-bar" : stat.owner === "신랑" ? "husband-bar" : "joint-bar"}`} style={{ width: `${Math.max(stat.balance ? 5 : 0, Math.abs(stat.balance) / ownerMaxBalance * 100)}%` }} /></div><div className="owner-stat-meta"><span>수입 {formatCompact(stat.income)}원</span><span>지출·대출 {formatCompact(stat.outgoing)}원</span><span>현금흐름 {Math.round((stat.income + stat.outgoing) / totalOwnerFlow * 100)}%</span></div></div>)}</div></section><section className="cashflow-chart surface-card"><SectionHeading eyebrow="TWO-MONTH VIEW" title="자산 잔액 추이" /><div className="chart-legend"><span><i className="income-chart-dot" /> 수입</span><span><i className="outgoing-chart-dot" /> 나갈 돈</span></div><div className="cashflow-bars"><div className="cashflow-bar-group"><div className="cashflow-bar-columns"><span className="chart-value income-value">{formatCompact(income)}</span><i className="chart-bar income-bar" style={{ height: barHeight(income) }} /><span className="chart-value outgoing-value">{formatCompact(outgoing)}</span><i className="chart-bar outgoing-bar" style={{ height: barHeight(outgoing) }} /></div><strong>{monthShortLabel(month)}월</strong><small>잔액 {formatCompact(income - outgoing)}</small></div><div className="cashflow-bar-group"><div className="cashflow-bar-columns"><span className="chart-value income-value">{formatCompact(nextIncome)}</span><i className="chart-bar income-bar" style={{ height: barHeight(nextIncome) }} /><span className="chart-value outgoing-value">{formatCompact(nextOutgoing)}</span><i className="chart-bar outgoing-bar" style={{ height: barHeight(nextOutgoing) }} /></div><strong>{monthShortLabel(addMonths(month, 1))}월</strong><small>잔액 {formatCompact(nextIncome - nextOutgoing)}</small></div></div><div className="chart-insight"><PiggyBank size={15} /> 다음 달 예상 잔액은 <b>{formatWon(nextIncome - nextOutgoing)}</b>이에요.</div></section><section className="cashflow-next surface-card"><div><span className="section-eyebrow">NEXT MONTH</span><strong>다음 달 예정 지출</strong></div><b>{formatWon(nextOutgoing)}</b></section><section className="cashflow-list surface-card"><SectionHeading eyebrow="MONTHLY TIMELINE" title="날짜별 현금흐름" />{monthItems.length ? monthItems.map((item) => <button className="cashflow-row" type="button" key={item.id} onClick={() => onEdit(item)}><span className="cashflow-date">{fromISO(item.date).getDate()}일</span><span className="cashflow-row-dot" style={{ backgroundColor: typeMeta[item.type].color }} /><span className="cashflow-row-copy"><strong>{item.title}</strong><small>{item.type === "income" ? "수입" : item.type === "loan" ? `${item.paymentNumber ? `${item.paymentNumber}회차 · ` : ""}대출 납부` : item.type === "savings" ? "매월 적금 납입" : item.recurrence === "monthly" ? "매월 고정지출" : "일반지출"}</small></span><b className={item.type === "income" ? "positive" : ""}>{item.type === "income" ? "+" : "−"}{formatWon(item.amount)}</b><ChevronRight size={15} /></button>) : <div className="soft-empty">이번 달 현금흐름 기록이 없어요.</div>}</section></div>;
+}
+
+function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[]) {
+  return items.reduce((balance, item) => {
+    const matches = asset.kind === "localCurrency"
+      ? item.localCurrencyTarget === asset.name || (item.paymentMethod === "localCurrency" && item.assetName === asset.name)
+      : item.assetName === asset.name && item.assetKind === asset.kind;
+    if (!matches) return balance;
+    if (asset.kind === "localCurrency") {
+      if (item.category === "지역화폐 충전") return balance + (item.localCurrencyLoadedAmount ?? item.amount ?? 0);
+      if (item.paymentMethod === "localCurrency") return balance - (item.amount ?? 0) + (item.localCurrencyCashbackAmount ?? 0);
+      return balance;
+    }
+    if (item.type === "income") return balance + (item.amount ?? 0);
+    if (["expense", "loan", "savings"].includes(item.type)) return balance - (item.amount ?? 0);
+    return balance;
+  }, asset.initialBalance);
+}
+
+function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalance[]; items: CalendarItem[]; onChange: (value: AssetBalance[]) => void; onClose: () => void }) {
+  const [kind, setKind] = useState<AssetBalance["kind"]>("account");
+  const [name, setName] = useState("");
+  const [balance, setBalance] = useState("");
+  const [owner, setOwner] = useState("나");
+  const addAsset = () => {
+    if (!name.trim()) return;
+    const next = { id: `asset-${Date.now()}`, kind, name: name.trim(), initialBalance: Number(balance.replace(/[^0-9]/g, "")) || 0, owner };
+    onChange([...assets, next]);
+    setName(""); setBalance("");
+  };
+  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet asset-manager-sheet" role="dialog" aria-modal="true" aria-label="자산 잔액 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MY ASSETS</span><h2>현재 가진 돈을 입력해요</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">초기 잔액은 이후 입력하는 수입·지출·충전·사용 내역에 자동으로 반영돼요.</p><div className="asset-manager-form"><div className="manager-tabs">{([['account','계좌'],['cash','현금'],['localCurrency','지역화폐']] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? "active" : ""} onClick={() => setKind(value)}>{label}</button>)}</div><div className="field-row"><label className="field-label">자산 이름<input value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "account" ? "예: 신한 주거래" : kind === "cash" ? "예: 지갑" : "예: 경기지역화폐"} /></label><label className="field-label">초기 잔액<input inputMode="numeric" value={balance} onChange={(event) => setBalance(event.target.value.replace(/[^0-9]/g, ""))} placeholder="0" /></label></div><div className="asset-owner-row"><span>소유자</span><div>{["나", "신랑", "공동"].map((value) => <button type="button" className={owner === value ? "selected" : ""} key={value} onClick={() => setOwner(value)}>{value}</button>)}</div></div><button className="save-button asset-add-button" type="button" onClick={addAsset}>자산 추가 <Plus size={16} /></button></div><div className="asset-balance-list">{assets.length ? assets.map((asset) => <div className="asset-balance-row" key={asset.id}><div><strong>{asset.name}</strong><small>{asset.kind === "account" ? "계좌" : asset.kind === "cash" ? "현금" : "지역화폐"} · {asset.owner}</small></div><div className="asset-balance-values"><b>{formatWon(getAssetCurrentBalance(asset, items))}</b><button type="button" onClick={() => onChange(assets.filter((item) => item.id !== asset.id))} aria-label={`${asset.name} 삭제`}><X size={14} /></button></div></div>) : <div className="soft-empty">등록된 자산이 아직 없어요.</div>}</div><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
 }
 
 function CategoryManager({ customCategories, onChange, onClose }: { customCategories: Partial<Record<ItemType, string[]>>; onChange: (value: Partial<Record<ItemType, string[]>>) => void; onClose: () => void }) {
