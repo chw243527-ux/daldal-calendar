@@ -123,7 +123,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 JSONObject item = entries.optJSONObject(index);
                 if (item == null || !todayKey.equals(item.optString("date"))) continue;
                 String type = item.optString("type");
-                if (!"todo".equals(type) && !"event".equals(type)) continue;
+                if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"todo".equals(type) && !"event".equals(type))) continue;
                 if (visibleRow == targetRow && "todo".equals(type)) {
                     try {
                         item.put("completed", !item.optBoolean("completed", false));
@@ -164,6 +164,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String calendarItems = preferences.getString("calendarItems", "[]");
+            boolean showCalendar = preferences.getBoolean("showCalendar", true);
+            boolean showSchedule = preferences.getBoolean("showSchedule", true);
+            boolean showTodo = preferences.getBoolean("showTodo", true);
+            boolean showMonthlyFunds = preferences.getBoolean("showMonthlyFunds", true);
 
             float margin = width * 0.075f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
@@ -179,6 +183,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float cellWidth = (width - margin * 2) / 7f;
             float cellHeight = Math.max(43f, Math.min(56f, height * 0.055f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
+            if (showCalendar) {
             drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, Color.rgb(82, 73, 78), true);
             for (int index = 0; index < weekdays.length; index++) {
                 drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 11, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : Color.rgb(143,136,133), true);
@@ -201,9 +206,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     markerCount++;
                 }
             }
+            }
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, now.get(Calendar.DAY_OF_MONTH));
             float sectionTop = gridTop + 28 + 6 * cellHeight + 22;
-            drawText(canvas, "일정 · 할 일", margin + 24, sectionTop, 13, Color.rgb(82, 73, 78), true);
+            if (showSchedule || showTodo) drawText(canvas, "일정 · 할 일", margin + 24, sectionTop, 13, Color.rgb(82, 73, 78), true);
             int scheduleRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && scheduleRow < 3; itemIndex++) {
                 JSONObject item = entries.optJSONObject(itemIndex);
@@ -219,7 +225,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 drawText(canvas, "event".equals(type) ? item.optString("time", "일정") : "할 일", width - margin - 24, rowY, 11, recordColor, false, true);
                 scheduleRow++;
             }
-            if (scheduleRow == 0) drawText(canvas, "오늘 등록된 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, Color.rgb(143,136,133), false);
+            if ((showSchedule || showTodo) && scheduleRow == 0) drawText(canvas, "표시할 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, Color.rgb(143,136,133), false);
             // 잠금화면에는 일정·할 일만 표시하고, 월간 자금 요약은 그 바로 아래에 배치합니다.
             float chartTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
             int monthlyIncome = 0, monthlyExpense = 0, monthlyOutgoing = 0;
@@ -232,7 +238,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if ("expense".equals(type)) monthlyExpense += amount;
                 if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
             }
-            drawFinanceChart(canvas, width - margin - 151, chartTop, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
+            if (showMonthlyFunds) drawFinanceChart(canvas, width - margin - 151, chartTop, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
             if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
         }

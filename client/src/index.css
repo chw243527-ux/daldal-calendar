@@ -302,3 +302,11 @@ body { background: var(--ivory); }
 .home-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .finance-today-card .item-row-amount { color: var(--coral); }
 @media (max-width: 560px) { .home-category-grid { grid-template-columns: 1fr; } }
+
+.lockscreen-settings { padding: 18px 16px; }
+.lockscreen-toggle-list { display: grid; gap: 0; margin-top: 10px; }
+.lockscreen-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; border-top: 1px solid #eee7e1; cursor: pointer; }
+.lockscreen-toggle-row span { display: grid; gap: 3px; }
+.lockscreen-toggle-row strong { font-size: 14px; }
+.lockscreen-toggle-row small { color: var(--muted); font-size: 11px; }
+.lockscreen-toggle-row input { width: 20px; height: 20px; accent-color: var(--coral); }

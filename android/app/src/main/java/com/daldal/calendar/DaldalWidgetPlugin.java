@@ -22,6 +22,11 @@ public class DaldalWidgetPlugin extends Plugin {
         String dateLabel = call.getString("dateLabel", "오늘");
         String monthLabel = call.getString("monthLabel", "달달 캘린더");
         String calendarItems = call.getString("calendarItems", "[]");
+        JSObject lockScreenConfig = call.getObject("lockScreenConfig");
+        boolean showCalendar = lockScreenConfig == null || lockScreenConfig.getBool("showCalendar", true);
+        boolean showSchedule = lockScreenConfig == null || lockScreenConfig.getBool("showSchedule", true);
+        boolean showTodo = lockScreenConfig == null || lockScreenConfig.getBool("showTodo", true);
+        boolean showMonthlyFunds = lockScreenConfig == null || lockScreenConfig.getBool("showMonthlyFunds", true);
 
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -31,6 +36,10 @@ public class DaldalWidgetPlugin extends Plugin {
                 .putString("dateLabel", dateLabel)
                 .putString("monthLabel", monthLabel)
                 .putString("calendarItems", calendarItems)
+                .putBoolean("showCalendar", showCalendar)
+                .putBoolean("showSchedule", showSchedule)
+                .putBoolean("showTodo", showTodo)
+                .putBoolean("showMonthlyFunds", showMonthlyFunds)
                 .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(getContext());
