@@ -163,13 +163,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             paint.setStyle(Paint.Style.FILL);
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
-            String dateLabel = preferences.getString("dateLabel", "");
             String calendarItems = preferences.getString("calendarItems", "[]");
 
             float margin = width * 0.075f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
-            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.15f, 12, Color.rgb(96, 87, 84), false);
-
             float cardTop = height * 0.18f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);

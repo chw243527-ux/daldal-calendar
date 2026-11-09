@@ -848,6 +848,8 @@ export default function Home() {
             todayEvents={todayEvents}
             todayItems={todayItems}
             nextItems={nextItems}
+            month={month}
+            calendarItems={displayItems}
             monthSummary={monthSummary}
             onCreate={openCreate}
             onEdit={openEdit}
@@ -936,6 +938,8 @@ function HomeView({
   todayEvents,
   todayItems,
   nextItems,
+  month,
+  calendarItems,
   monthSummary,
   onCreate,
   onEdit,
@@ -950,6 +954,8 @@ function HomeView({
   todayEvents: CalendarItem[];
   todayItems: CalendarItem[];
   nextItems: CalendarItem[];
+  month: Date;
+  calendarItems: CalendarItem[];
   monthSummary: { income: number; expense: number; loan: number; balance: number };
   onCreate: (type?: ItemType, date?: string) => void;
   onEdit: (item: CalendarItem) => void;
@@ -959,44 +965,39 @@ function HomeView({
 }) {
   const clockText = clock.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
   const dateNumber = today.getDate();
-  const weekday = today.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const homeCells = getCalendarCells(month);
+  const homeMonthPrefix = `${month.getFullYear()}-${pad(month.getMonth() + 1)}`;
+  const homeMonthItems = calendarItems.filter((item) => item.date.startsWith(homeMonthPrefix));
+  const homeFinanceItems = todayItems.filter((item) => ["income", "expense", "loan"].includes(item.type));
   return (
     <div className="view-stack home-view">
-      <section className="lock-card">
-        <div className="lock-card-topline"><span>MY DAY</span><span className="live-dot"><i /> synced</span></div>
-        <div className="lock-date-row">
-          <div className="lock-date-number">{pad(dateNumber)}</div>
-          <div className="lock-date-copy"><span>{weekday}</span><strong>{formatLongDate(todayISO).replace(/^[^ ]+ /, "")}</strong><small>오늘의 달달한 기록</small></div>
-          <div className="lock-clock"><Clock3 size={15} />{clockText}</div>
-        </div>
-        <div className="lock-divider" />
-        <div className="lock-summary-grid">
-          <div><span>오늘 할 일</span><strong>{todayTodos.filter((item) => !item.completed).length}<small>개 남음</small></strong></div>
-          <div><span>오늘 일정</span><strong>{todayEvents.length}<small>개 있어요</small></strong></div>
-          <div><span>이번 달 잔액</span><strong className={monthSummary.balance >= 0 ? "is-positive" : "is-negative"}>{formatCompact(monthSummary.balance)}<small>원</small></strong></div>
-        </div>
-        <div className="lock-sticker">달달<br />한 칸</div>
-      </section>
-
-      <div className="today-intro">
-        <div><span className="section-eyebrow">{today.toLocaleDateString("ko-KR", { month: "long" })} {dateNumber}일</span><h2>오늘은 이렇게 보내요</h2></div>
-        <button className="text-button" type="button" onClick={onGoCalendar}>달력 보기 <ChevronRight size={16} /></button>
-      </div>
-
-      <section className="today-grid">
-        <div className="surface-card today-list-card">
-          <SectionHeading eyebrow="CHECKLIST" title="오늘 할 일" action={<button className="mini-add" type="button" onClick={() => onCreate("todo", todayISO)}><Plus size={15} /></button>} />
-          <div className="list-stack">
-            {todayTodos.length ? todayTodos.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="오늘 할 일을 적어볼까요?" onClick={() => onCreate("todo", todayISO)} />}
-          </div>
-        </div>
-        <div className="surface-card today-list-card event-card">
-          <SectionHeading eyebrow="SCHEDULE" title="오늘 일정" action={<button className="mini-add" type="button" onClick={() => onCreate("event", todayISO)}><Plus size={15} /></button>} />
-          <div className="list-stack">
-            {todayEvents.length ? todayEvents.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="가벼운 약속을 추가해요" onClick={() => onCreate("event", todayISO)} />}
-          </div>
+      <section className="home-calendar-first surface-card">
+        <div className="home-calendar-heading"><div><span className="section-eyebrow">MONTHLY PLANNER</span><h2>{monthLabel(month)}</h2></div><button className="text-button" type="button" onClick={onGoCalendar}>전체 달력 <ChevronRight size={16} /></button></div>
+        <div className="weekday-row">{WEEKDAYS.map((day, index) => <span className={index === 0 ? "sun" : index === 6 ? "sat" : ""} key={day}>{day}</span>)}</div>
+        <div className="calendar-grid home-calendar-grid">
+          {homeCells.map((date, index) => {
+            if (!date) return <div className="calendar-cell empty" key={`home-empty-${index}`} />;
+            const iso = toISO(date);
+            const dayItems = homeMonthItems.filter((item) => item.date === iso);
+            const isToday = iso === todayISO;
+            return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
+              <span className="calendar-day-number">{date.getDate()}</span>
+              <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: typeMeta[item.type].color }} />)}</span>
+              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"}`} key={item.id}>{item.title}</span>)}</span>
+            </button>;
+          })}
         </div>
       </section>
+
+      <section className="home-category-section">
+        <div className="home-category-heading"><span className="section-eyebrow">TODAY</span><h2>오늘의 항목</h2></div>
+        <div className="home-category-grid">
+          <div className="surface-card today-list-card"><SectionHeading eyebrow="SCHEDULE · TODO" title="일정 · 할 일" action={<button className="mini-add" type="button" onClick={() => onCreate("todo", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{[...todayEvents, ...todayTodos].length ? [...todayEvents, ...todayTodos].map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="오늘 일정과 할 일을 추가해요" onClick={() => onCreate("todo", todayISO)} />}</div></div>
+          <div className="surface-card today-list-card finance-today-card"><SectionHeading eyebrow="MONEY" title="수입 · 지출 · 대출" action={<button className="mini-add" type="button" onClick={() => onCreate("expense", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{homeFinanceItems.length ? homeFinanceItems.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="오늘 금융 기록을 추가해요" onClick={() => onCreate("expense", todayISO)} />}</div></div>
+        </div>
+      </section>
+
+      <div className="today-intro"><div><span className="section-eyebrow">{today.toLocaleDateString("ko-KR", { month: "long" })} {today.getDate()}일</span><h2>오늘은 이렇게 보내요</h2></div></div>
 
       <section className="surface-card flow-card">
         <SectionHeading eyebrow="MONEY FLOW" title="이번 달 흐름" action={<button className="icon-link" type="button" onClick={onGoCalendar}>자세히 <ChevronRight size={15} /></button>} />
