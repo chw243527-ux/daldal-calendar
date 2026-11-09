@@ -139,12 +139,12 @@ const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 type CategoryMap = Record<ItemType, string[]>;
 
 const typeMeta: Record<ItemType, { label: string; color: string; soft: string; icon: LucideIcon }> = {
-  todo: { label: "할 일", color: "#6f63b6", soft: "#f0edff", icon: ClipboardCheck },
-  event: { label: "일정", color: "#e98272", soft: "#fff0ed", icon: CalendarDays },
-  income: { label: "수입", color: "#4c9d83", soft: "#e8f7f0", icon: ArrowUpRight },
-  expense: { label: "지출", color: "#d87568", soft: "#fff0ed", icon: ArrowDownRight },
-  loan: { label: "대출", color: "#b8894d", soft: "#fff6e5", icon: Landmark },
-  savings: { label: "적금", color: "#5ca9d6", soft: "#eaf7ff", icon: Wallet },
+  todo: { label: "할 일", color: "#716a65", soft: "#f1eeeb", icon: ClipboardCheck },
+  event: { label: "일정", color: "#c96f64", soft: "#fff0ed", icon: CalendarDays },
+  income: { label: "수입", color: "#668a7b", soft: "#edf5f0", icon: ArrowUpRight },
+  expense: { label: "지출", color: "#c96f64", soft: "#fff0ed", icon: ArrowDownRight },
+  loan: { label: "대출", color: "#89766a", soft: "#f3eeea", icon: Landmark },
+  savings: { label: "적금", color: "#668a7b", soft: "#edf5f0", icon: Wallet },
 };
 
 const categories: Record<ItemType, string[]> = {
