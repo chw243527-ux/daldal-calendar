@@ -220,34 +220,20 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 scheduleRow++;
             }
             if (scheduleRow == 0) drawText(canvas, "오늘 등록된 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, Color.rgb(143,136,133), false);
-            float financeTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
-            drawText(canvas, "수입 · 지출 · 대출", margin + 24, financeTop, 13, Color.rgb(82,73,78), true);
-            int moneyRow = 0;
+            // 잠금화면에는 일정·할 일만 표시하고, 월간 자금 요약은 그 바로 아래에 배치합니다.
+            float chartTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
             int monthlyIncome = 0, monthlyExpense = 0, monthlyOutgoing = 0;
             for (int itemIndex = 0; itemIndex < entries.length(); itemIndex++) {
                 JSONObject item = entries.optJSONObject(itemIndex);
-                if (item == null) continue;
-                String itemDate = item.optString("date", "");
+                if (item == null || !item.optString("date", "").startsWith(String.format(Locale.US, "%04d-%02d-", year, month + 1))) continue;
+                int amount = item.optInt("amount", 0);
                 String type = item.optString("type");
-                if (itemDate.startsWith(String.format(Locale.US, "%04d-%02d-", year, month + 1))) {
-                    if ("income".equals(type)) monthlyIncome += item.optInt("amount", 0);
-                    if ("expense".equals(type)) monthlyExpense += item.optInt("amount", 0);
-                    if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += item.optInt("amount", 0);
-                }
-                if (!todayKey.equals(itemDate) || (!"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) || moneyRow >= 3) continue;
-                String title = safeTitle(item.optString("title", "기록"), 14);
-                int recordColor = itemColor(type);
-                float rowY = financeTop + 23 + moneyRow * 24;
-                paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
-                drawText(canvas, title, margin + 45, rowY, 12, Color.rgb(47,42,49), false);
-                String label = "income".equals(type) ? "수입 +" : "loan".equals(type) ? "대출 −" : "지출 −";
-                drawText(canvas, label + compactWon(item.optInt("amount", 0)), width - margin - 24, rowY, 11, recordColor, false, true);
-                moneyRow++;
+                if ("income".equals(type)) monthlyIncome += amount;
+                if ("expense".equals(type)) monthlyExpense += amount;
+                if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
             }
-            if (moneyRow == 0) drawText(canvas, "오늘 등록된 금융 내역이 없어요", margin + 24, financeTop + 23, 12, Color.rgb(143,136,133), false);
-            float chartTop = Math.min(height - 115, financeTop + 23 + Math.max(1, moneyRow) * 24 + 12);
             drawFinanceChart(canvas, width - margin - 151, chartTop, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
-            if (selectedFinanceType != null) drawFinanceDetails(canvas, entries, margin, Math.min(height - 210, chartTop + 78), width - margin * 2, selectedFinanceType);
+            if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
         }
 
