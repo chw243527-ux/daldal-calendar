@@ -190,3 +190,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   .calendar-day-number { align-self: center; }
   .calendar-dots { justify-content: center; }
 }
+
+.rate-source { padding: 8px 10px; border-radius: 10px; font-size: 10px; font-weight: 750; line-height: 1.35; }
+.rate-source.verified { background: #e8f7f0; color: #438c75; }
+.rate-source.manual { background: #fff6e5; color: #9b7438; }

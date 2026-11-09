@@ -93,6 +93,18 @@ const categories: Record<ItemType, string[]> = {
   loan: ["대출", "카드값", "할부", "저축"],
 };
 const CARD_COMPANIES = ["신한카드", "삼성카드", "현대카드", "KB국민카드", "롯데카드", "우리카드", "하나카드", "NH농협카드"];
+const CARD_RATE_SOURCES: Record<string, { rates: Record<number, number>; basis: string }> = {
+  "신한카드": { rates: { 2: 12.5, 3: 17.5, 4: 17.9, 5: 17.9, 6: 18.9, 7: 18.9, 8: 18.9, 9: 18.9 }, basis: "공식 이용안내 연간 할부수수료율 · 확인일 2026-11-09" },
+};
+
+function getOfficialCardRate(company: string, installments: number) {
+  return CARD_RATE_SOURCES[company]?.rates[installments];
+}
+
+function getCardRateBasis(company: string, installments: number) {
+  if (getOfficialCardRate(company, installments) !== undefined) return CARD_RATE_SOURCES[company].basis;
+  return "회원·상품·가맹점별 실제 요율을 카드사에서 확인해 입력해 주세요.";
+}
 
 const aiCategoryKeywords: Partial<Record<ItemType, Record<string, string[]>>> = {
   income: { "급여": ["월급", "급여", "연봉", "보너스", "상여"], "용돈": ["용돈", "생활비"], "부수입": ["판매", "알바", "프리랜서", "부수입", "이자"], "환급": ["환급", "캐시백", "취소", "돌려받"] },
@@ -796,8 +808,14 @@ function Composer({
   const cardInstallments = Math.max(1, Number(draft.installments || 1));
   const cardTotal = Math.round(cardAmount * (1 + cardFee / 100));
   const cardMonthly = Math.ceil(cardTotal / cardInstallments);
+  const officialCardRate = draft.type === "loan" && draft.category === "카드값" && draft.cardMode === "installment" ? getOfficialCardRate(draft.cardCompany, cardInstallments) : undefined;
   const update = (patch: Partial<Draft>) => {
-    const next = { ...draft, ...patch };
+    let next = { ...draft, ...patch };
+    const cardSettingChanged = patch.cardCompany !== undefined || patch.cardMode !== undefined || patch.installments !== undefined || patch.category === "카드값";
+    if (next.type === "loan" && next.category === "카드값" && cardSettingChanged) {
+      const officialRate = getOfficialCardRate(next.cardCompany, Math.max(1, Number(next.installments || 1)));
+      next = { ...next, cardFeeRate: next.cardMode === "lumpSum" ? "0" : officialRate === undefined ? "" : String(officialRate) };
+    }
     const shouldAutoClassify = isFinance && typeof patch.title === "string" && patch.title.trim().length >= 2;
     onChange(shouldAutoClassify ? { ...next, category: aiSuggestCategory(draft.type, `${next.title} ${next.note}`, categoryMap).category } : next);
   };
@@ -812,7 +830,7 @@ function Composer({
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           {draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">다음 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div></div>}
-          {draft.type === "loan" && draft.category === "카드값" && <div className="detail-block"><div className="detail-block-title">카드 결제 상세</div><div className="field-row"><label className="field-label">카드사<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제 방식<select value={draft.cardMode} onChange={(event) => update({ cardMode: event.target.value as Draft["cardMode"] })}><option value="lumpSum">일시불</option><option value="installment">할부</option></select></label></div><div className="field-row"><label className="field-label">수수료율(%)<input inputMode="decimal" value={draft.cardFeeRate} onChange={(event) => update({ cardFeeRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="카드사 안내 수수료" /></label>{draft.cardMode === "installment" && <label className="field-label">할부 개월<input inputMode="numeric" value={draft.installments} onChange={(event) => update({ installments: event.target.value.replace(/[^0-9]/g, "") })} /></label>}</div><div className="detail-estimate">예상 총 결제액 {formatWon(cardTotal)} · {draft.cardMode === "installment" ? `월 ${formatWon(cardMonthly)}` : "일시불 결제"}</div></div>}
+          {draft.type === "loan" && draft.category === "카드값" && <div className="detail-block"><div className="detail-block-title">카드 결제 상세</div><div className="field-row"><label className="field-label">카드사<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제 방식<select value={draft.cardMode} onChange={(event) => update({ cardMode: event.target.value as Draft["cardMode"] })}><option value="lumpSum">일시불</option><option value="installment">할부</option></select></label></div><div className="field-row"><label className="field-label">수수료율(%)<input inputMode="decimal" value={draft.cardFeeRate} onChange={(event) => update({ cardFeeRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="카드사 안내 수수료" /></label>{draft.cardMode === "installment" && <label className="field-label">할부 개월<input inputMode="numeric" value={draft.installments} onChange={(event) => update({ installments: event.target.value.replace(/[^0-9]/g, "") })} /></label>}</div>{draft.cardMode === "installment" && <div className={`rate-source ${officialCardRate !== undefined ? "verified" : "manual"}`}>{officialCardRate !== undefined ? `공식 기준 자동 적용 · 연 ${officialCardRate}%` : getCardRateBasis(draft.cardCompany, cardInstallments)}</div>}<div className="detail-estimate">예상 총 결제액 {formatWon(cardTotal)} · {draft.cardMode === "installment" ? `월 ${formatWon(cardMonthly)}` : "일시불 결제"}</div></div>}
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>
         </div>
         <div className="sheet-actions"><button className="save-button" type="button" style={{ backgroundColor: meta.color }} onClick={onSave}>{editing ? "수정 저장" : "기록 저장"}<Check size={17} /></button>{editing && <button className="delete-button" type="button" onClick={onDelete}><Trash2 size={16} /> 삭제</button>}</div>
