@@ -32,7 +32,7 @@ import { syncNativeWidget } from "@/lib/widget";
 import { createMonthlyWallpaper, downloadWallpaper, openNativeLiveWallpaperSettings, setNativeLockScreenWallpaper } from "@/lib/wallpaper";
 
 type ItemType = "todo" | "event" | "income" | "expense" | "loan";
-type View = "home" | "calendar" | "ledger";
+type View = "home" | "calendar" | "ledger" | "report";
 
 type CalendarItem = {
   id: string;
@@ -602,6 +602,7 @@ export default function Home() {
             onManageCategories={() => setCategoryManagerOpen(true)}
           />
         )}
+        {view === "report" && <CashflowReportView month={month} items={displayItems} onMonthChange={changeMonth} onEdit={openEdit} />}
       </main>
 
       <button className="record-button" type="button" onClick={() => openCreate("todo")}>
@@ -613,7 +614,7 @@ export default function Home() {
         <button className={view === "home" ? "active" : ""} type="button" onClick={() => setViewAndScroll("home")}><LayoutGrid size={19} /><span>오늘</span></button>
         <button className={view === "calendar" ? "active" : ""} type="button" onClick={() => setViewAndScroll("calendar")}><CalendarDays size={19} /><span>달력</span></button>
         <button className={view === "ledger" ? "active" : ""} type="button" onClick={() => setViewAndScroll("ledger")}><Wallet size={19} /><span>가계부</span></button>
-        <button type="button" onClick={() => openCreate("event")}><Menu size={19} /><span>더보기</span></button>
+        <button className={view === "report" ? "active" : ""} type="button" onClick={() => setViewAndScroll("report")}><Repeat2 size={19} /><span>현금흐름</span></button>
       </nav>
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
@@ -844,6 +845,18 @@ function LedgerView({
 
 function LedgerStat({ icon: Icon, label, amount, tone }: { icon: LucideIcon; label: string; amount: number; tone: "income" | "expense" | "loan" }) {
   return <div className={`ledger-stat ${tone}`}><span className="stat-icon"><Icon size={16} /></span><span>{label}</span><strong>{formatCompact(amount)}<small>원</small></strong></div>;
+}
+
+function CashflowReportView({ month, items, onMonthChange, onEdit }: { month: Date; items: CalendarItem[]; onMonthChange: (offset: number) => void; onEdit: (item: CalendarItem) => void }) {
+  const monthItems = getMonthItems(items, month).filter((item) => ["income", "expense", "loan"].includes(item.type)).sort((a, b) => a.date.localeCompare(b.date));
+  const income = monthItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const fixed = monthItems.filter((item) => item.type === "expense" && item.recurrence === "monthly").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const expense = monthItems.filter((item) => item.type === "expense" && item.recurrence !== "monthly").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const loan = monthItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const outgoing = fixed + expense + loan;
+  const nextMonthItems = getMonthItems(items, addMonths(month, 1)).filter((item) => ["expense", "loan"].includes(item.type));
+  const nextOutgoing = nextMonthItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  return <div className="view-stack cashflow-report"><div className="page-title-row"><div><span className="section-eyebrow">CASHFLOW REPORT</span><h2>월별 현금흐름</h2></div><Repeat2 size={24} className="report-mark" /></div><div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div><section className="cashflow-hero surface-card"><span className="section-eyebrow">ESTIMATED MONTH-END</span><strong>{formatWon(income - outgoing)}</strong><p>수입에서 이번 달 예정된 모든 지출을 뺀 금액</p><div className="cashflow-bar"><i style={{ width: `${Math.min(100, income ? Math.max(0, outgoing / income * 100) : 0)}%` }} /></div><small>지출·고정지출·대출 납부 합계 {formatWon(outgoing)}</small></section><section className="cashflow-stat-grid"><div className="cashflow-stat income"><span>수입</span><strong>{formatWon(income)}</strong></div><div className="cashflow-stat fixed"><span>고정지출</span><strong>{formatWon(fixed)}</strong></div><div className="cashflow-stat expense"><span>일반지출</span><strong>{formatWon(expense)}</strong></div><div className="cashflow-stat loan"><span>대출 납부</span><strong>{formatWon(loan)}</strong></div></section><section className="cashflow-next surface-card"><div><span className="section-eyebrow">NEXT MONTH</span><strong>다음 달 예정 지출</strong></div><b>{formatWon(nextOutgoing)}</b></section><section className="cashflow-list surface-card"><SectionHeading eyebrow="MONTHLY TIMELINE" title="날짜별 현금흐름" />{monthItems.length ? monthItems.map((item) => <button className="cashflow-row" type="button" key={item.id} onClick={() => onEdit(item)}><span className="cashflow-date">{fromISO(item.date).getDate()}일</span><span className="cashflow-row-dot" style={{ backgroundColor: typeMeta[item.type].color }} /><span className="cashflow-row-copy"><strong>{item.title}</strong><small>{item.type === "income" ? "수입" : item.type === "loan" ? `${item.paymentNumber ? `${item.paymentNumber}회차 · ` : ""}대출 납부` : item.recurrence === "monthly" ? "매월 고정지출" : "일반지출"}</small></span><b className={item.type === "income" ? "positive" : ""}>{item.type === "income" ? "+" : "−"}{formatWon(item.amount)}</b><ChevronRight size={15} /></button>) : <div className="soft-empty">이번 달 현금흐름 기록이 없어요.</div>}</section></div>;
 }
 
 function CategoryManager({ customCategories, onChange, onClose }: { customCategories: Partial<Record<ItemType, string[]>>; onChange: (value: Partial<Record<ItemType, string[]>>) => void; onClose: () => void }) {
