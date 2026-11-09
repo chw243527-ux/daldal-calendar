@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { familyMembers, familySpaces, InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -88,4 +88,47 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+const newInviteCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+
+export async function getFamilyForUser(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const membership = await db.select({ spaceId: familyMembers.spaceId }).from(familyMembers).where(eq(familyMembers.userId, userId)).limit(1);
+  if (!membership[0]) return null;
+  const space = await db.select().from(familySpaces).where(eq(familySpaces.id, membership[0].spaceId)).limit(1);
+  return space[0] ?? null;
+}
+
+export async function createFamilyForUser(userId: number, name = "우리 가족 가계부") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  let inviteCode = newInviteCode();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existing = await db.select({ id: familySpaces.id }).from(familySpaces).where(eq(familySpaces.inviteCode, inviteCode)).limit(1);
+    if (!existing[0]) break;
+    inviteCode = newInviteCode();
+  }
+  const inserted = await db.insert(familySpaces).values({ inviteCode, name, ownerUserId: userId, ledgerJson: "[]", updatedBy: userId });
+  const spaceId = Number(inserted[0].insertId);
+  await db.insert(familyMembers).values({ spaceId, userId, role: "owner" });
+  return (await getFamilyForUser(userId))!;
+}
+
+export async function joinFamilyForUser(userId: number, inviteCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const space = await db.select().from(familySpaces).where(eq(familySpaces.inviteCode, inviteCode.trim().toUpperCase())).limit(1);
+  if (!space[0]) return null;
+  const current = await db.select({ id: familyMembers.id }).from(familyMembers).where(and(eq(familyMembers.spaceId, space[0].id), eq(familyMembers.userId, userId))).limit(1);
+  if (!current[0]) await db.insert(familyMembers).values({ spaceId: space[0].id, userId, role: "member" });
+  return space[0];
+}
+
+export async function saveFamilyLedger(userId: number, records: unknown[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const family = await getFamilyForUser(userId);
+  if (!family) return null;
+  await db.update(familySpaces).set({ ledgerJson: JSON.stringify(records), updatedBy: userId }).where(eq(familySpaces.id, family.id));
+  return getFamilyForUser(userId);
+}

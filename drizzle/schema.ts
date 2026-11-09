@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, uniqueIndex } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,25 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const familySpaces = mysqlTable("familySpaces", {
+  id: int("id").autoincrement().primaryKey(),
+  inviteCode: varchar("inviteCode", { length: 12 }).notNull().unique(),
+  name: varchar("name", { length: 80 }).notNull().default("우리 가족 가계부"),
+  ownerUserId: int("ownerUserId").notNull(),
+  ledgerJson: text("ledgerJson").notNull(),
+  updatedBy: int("updatedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const familyMembers = mysqlTable("familyMembers", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["owner", "member"]).default("member").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  spaceUserUnique: uniqueIndex("familyMembers_space_user_unique").on(table.spaceId, table.userId),
+}));
+
+export type FamilySpace = typeof familySpaces.$inferSelect;
