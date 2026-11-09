@@ -4,6 +4,8 @@ def releaseStoreFile = System.getenv('DALDAL_KEYSTORE_FILE') ?: project.findProp
 def releaseStorePassword = System.getenv('DALDAL_KEYSTORE_PASSWORD') ?: project.findProperty('DALDAL_KEYSTORE_PASSWORD')
 def releaseKeyAlias = System.getenv('DALDAL_KEY_ALIAS') ?: project.findProperty('DALDAL_KEY_ALIAS')
 def releaseKeyPassword = System.getenv('DALDAL_KEY_PASSWORD') ?: project.findProperty('DALDAL_KEY_PASSWORD')
+def appVersionCode = (System.getenv('DALDAL_VERSION_CODE') ?: '1').toString().toInteger()
+def appVersionName = (System.getenv('DALDAL_VERSION_NAME') ?: '1.0').toString()
 
 android {
     namespace = "com.daldal.calendar"
@@ -12,8 +14,8 @@ android {
         applicationId "com.daldal.calendar"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv('DALDAL_VERSION_CODE') ?: '1') as Integer
-        versionName System.getenv('DALDAL_VERSION_NAME') ?: "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
