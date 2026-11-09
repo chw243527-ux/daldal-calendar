@@ -167,7 +167,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             canvas.drawCircle(0, height - 76, 148, paint);
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
-            String monthLabel = preferences.getString("monthLabel", "달달 캘린더");
             String dateLabel = preferences.getString("dateLabel", "");
             int todoCount = preferences.getInt("todoCount", 0);
             int eventCount = preferences.getInt("eventCount", 0);
@@ -176,8 +175,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             float margin = width * 0.075f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
-            drawText(canvas, monthLabel, margin, height * 0.15f, 26, Color.rgb(47, 42, 49), true);
-            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.195f, 12, Color.rgb(96, 87, 84), false);
+            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.15f, 12, Color.rgb(96, 87, 84), false);
 
             float cardTop = height * 0.24f;
             paint.setColor(Color.rgb(112, 103, 177));
