@@ -158,9 +158,10 @@ function addDays(date: Date, amount: number) {
 }
 
 function addMonths(date: Date, amount: number) {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + amount);
-  return result;
+  const target = new Date(date.getFullYear(), date.getMonth() + amount, 1, 12);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(date.getDate(), lastDay));
+  return target;
 }
 
 function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
