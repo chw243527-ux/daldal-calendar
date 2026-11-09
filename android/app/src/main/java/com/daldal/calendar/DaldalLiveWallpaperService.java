@@ -94,7 +94,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int width = Math.round(pixelWidth / scale);
             int height = Math.round(pixelHeight / scale);
             float margin = width * 0.075f;
-            float cardTop = height * 0.24f;
+            float cardTop = height * 0.18f;
             float chartX = width - margin - 161;
             float chartY = cardTop + 110;
             if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
@@ -111,7 +111,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float scale = pixelWidth / 360f;
             float logicalY = pixelY / scale;
             int logicalHeight = Math.round(getSurfaceHolder().getSurfaceFrame().height() / scale);
-            float cardTop = logicalHeight * 0.24f;
+            float cardTop = logicalHeight * 0.18f;
             int targetRow = Math.round((logicalY - (cardTop + 143f)) / 23f);
             if (targetRow < 0 || targetRow > 2) return;
 
@@ -177,21 +177,19 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
             drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.15f, 12, Color.rgb(96, 87, 84), false);
 
-            float cardTop = height * 0.24f;
-            paint.setColor(Color.rgb(112, 103, 177));
-            canvas.drawRoundRect(new RectF(margin, cardTop, width - margin, cardTop + 222), 24, 24, paint);
+            float cardTop = height * 0.18f;
             float columnWidth = (width - margin * 2) / 3f;
             float leftColumn = margin + 22;
             float middleColumn = margin + columnWidth + 10;
             float rightColumn = margin + columnWidth * 2 + 5;
-            drawText(canvas, "오늘 할 일", margin + 24, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, String.valueOf(todoCount) + "개", leftColumn, cardTop + 73, 24, Color.WHITE, true);
-            drawText(canvas, "오늘 일정", middleColumn, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, String.valueOf(eventCount) + "개", middleColumn, cardTop + 73, 24, Color.WHITE, true);
-            drawText(canvas, "잔액", rightColumn, cardTop + 32, 13, 0xB8FFFFFF, false);
-            drawText(canvas, compactWon(balance), rightColumn, cardTop + 73, 18, Color.WHITE, true);
+            drawText(canvas, "오늘 할 일", margin + 24, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
+            drawText(canvas, String.valueOf(todoCount) + "개", leftColumn, cardTop + 73, 24, Color.rgb(111, 99, 182), true);
+            drawText(canvas, "오늘 일정", middleColumn, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
+            drawText(canvas, String.valueOf(eventCount) + "개", middleColumn, cardTop + 73, 24, Color.rgb(216, 117, 104), true);
+            drawText(canvas, "잔액", rightColumn, cardTop + 32, 13, Color.rgb(121, 111, 106), false);
+            drawText(canvas, compactWon(balance), rightColumn, cardTop + 73, 18, Color.rgb(76, 157, 131), true);
 
-            drawText(canvas, "오늘의 기록", margin + 24, cardTop + 112, 13, 0xB8FFFFFF, true);
+            drawText(canvas, "오늘의 기록", margin + 24, cardTop + 112, 13, Color.rgb(82, 73, 78), true);
             JSONArray entries = parseItems(calendarItems);
             int monthlyIncome = 0;
             int monthlyExpense = 0;
@@ -220,12 +218,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (!"todo".equals(type) && !"event".equals(type) && !"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) continue;
                 String title = item.optString("title", "기록");
                 if (title.length() > 11) title = title.substring(0, 10) + "…";
-                paint.setColor(itemColor(type));
+                int recordColor = "지역화폐 충전".equals(item.optString("category")) ? Color.rgb(63, 143, 141) : itemColor(type);
+                paint.setColor(recordColor);
                 canvas.drawCircle(margin + 31, cardTop + 143 + todayRow * 23, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 143 + todayRow * 23, 14, completed ? 0xB8FFFFFF : Color.WHITE, false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 143 + todayRow * 23, 14, completed ? Color.rgb(143, 136, 133) : Color.rgb(47, 42, 49), false);
                 if (completed) {
-                    paint.setColor(0xB8FFFFFF);
+                    paint.setColor(Color.rgb(143, 136, 133));
                     paint.setStrokeWidth(1.5f);
                     canvas.drawLine(margin + 45, cardTop + 143 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 143 + todayRow * 23, paint);
                 }
@@ -235,11 +234,11 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     detail = ("income".equals(type) ? "+" : "−") + compactWon(amount);
                 }
                 if (!detail.isEmpty()) {
-                    drawText(canvas, detail, width - margin - 24, cardTop + 143 + todayRow * 23, 12, 0xCFFFFFFF, false, true);
+                    drawText(canvas, detail, width - margin - 24, cardTop + 143 + todayRow * 23, 12, recordColor, false, true);
                 }
                 todayRow++;
             }
-            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 145, 13, 0xCFFFFFFF, false);
+            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 145, 13, Color.rgb(143, 136, 133), false);
 
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
@@ -247,7 +246,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             first.set(year, month, 1);
             int firstDay = first.get(Calendar.DAY_OF_WEEK) - 1;
             int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
-            float gridTop = cardTop + 276;
+            float gridTop = cardTop + 238;
             float cellWidth = (width - margin * 2) / 7f;
             float cellHeight = Math.max(47f, Math.min(68f, height * 0.06f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
@@ -280,8 +279,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if (selectedFinanceType != null) {
                 drawFinanceDetails(canvas, entries, margin, Math.min(height - 210, gridTop + 170), width - margin * 2, selectedFinanceType);
             }
-            drawText(canvas, "잠금화면에서 달력을 바로 확인해요", margin, footerY, 14, Color.rgb(121,111,106), false);
-            drawText(canvas, "달달", width - margin, footerY, 18, Color.rgb(216,117,104), true, true);
             canvas.restore();
         }
 
@@ -341,15 +338,15 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         }
 
         private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
-            drawText(canvas, "월간 자금", x, y, 11, 0xB8FFFFFF, true);
+            drawText(canvas, "월간 자금", x, y, 11, Color.rgb(82, 73, 78), true);
             int max = Math.max(1, Math.max(income, Math.max(expense, loan)));
             String[] labels = {"수입", "지출", "나갈 돈"};
             int[] values = {income, expense, loan};
             int[] colors = {Color.rgb(137, 218, 183), Color.rgb(255, 184, 166), Color.rgb(244, 205, 125)};
             for (int index = 0; index < labels.length; index++) {
                 float rowY = y + 19 + index * 22;
-                drawText(canvas, labels[index], x, rowY + 9, 9, 0xCFFFFFFF, false);
-                paint.setColor(0x35FFFFFF);
+                drawText(canvas, labels[index], x, rowY + 9, 9, Color.rgb(121, 111, 106), false);
+                paint.setColor(0x2A8F8885);
                 canvas.drawRoundRect(new RectF(x + 29, rowY + 2, x + chartWidth, rowY + 9), 4, 4, paint);
                 paint.setColor(colors[index]);
                 float barWidth = (chartWidth - 29) * values[index] / (float) max;
