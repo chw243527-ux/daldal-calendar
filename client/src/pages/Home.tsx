@@ -55,6 +55,9 @@ type CalendarItem = {
   principalPaid?: number;
   interestPaid?: number;
   remainingBalance?: number;
+  recurrence?: "none" | "monthly";
+  repeatUntil?: string;
+  owner?: string;
   cardCompany?: string;
   cardMode?: "lumpSum" | "installment";
   installments?: number;
@@ -75,6 +78,9 @@ type Draft = {
   repaymentDate: string;
   repaymentMethod: "equalPayment" | "equalPrincipal";
   termMonths: string;
+  recurrence: "none" | "monthly";
+  repeatUntil: string;
+  owner: string;
   cardCompany: string;
   cardMode: "lumpSum" | "installment";
   installments: string;
@@ -181,9 +187,20 @@ function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
 
 function getDisplayItems(items: CalendarItem[]) {
   return items.flatMap((item) => {
-    if (item.type !== "loan" || !item.termMonths || !item.loanPrincipal) return [item];
-    const schedule = calculateLoanSchedule(item);
-    return schedule.length ? schedule : [item];
+    if (item.type === "loan" && item.termMonths && item.loanPrincipal) {
+      const schedule = calculateLoanSchedule(item);
+      return schedule.length ? schedule : [item];
+    }
+    if (item.recurrence === "monthly" && item.repeatUntil) {
+      const recurring: CalendarItem[] = [];
+      const start = fromISO(item.date);
+      const end = fromISO(item.repeatUntil);
+      for (let cursor = new Date(start), index = 0; cursor <= end; cursor = addMonths(cursor, 1), index += 1) {
+        recurring.push({ ...item, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(cursor), title: index ? `${item.title} · ${index + 1}회차` : item.title });
+      }
+      return recurring;
+    }
+    return [item];
   });
 }
 
@@ -249,6 +266,9 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
     repaymentDate: date,
     repaymentMethod: "equalPayment",
     termMonths: "60",
+    recurrence: "none",
+    repeatUntil: "",
+    owner: "나",
     cardCompany: CARD_COMPANIES[0],
     cardMode: "lumpSum",
     installments: "2",
@@ -425,6 +445,9 @@ export default function Home() {
       repaymentDate: sourceItem.repaymentDate ?? sourceItem.date,
       repaymentMethod: sourceItem.repaymentMethod ?? "equalPayment",
       termMonths: sourceItem.termMonths ? String(sourceItem.termMonths) : "60",
+      recurrence: sourceItem.recurrence ?? "none",
+      repeatUntil: sourceItem.repeatUntil ?? "",
+      owner: sourceItem.owner ?? "나",
       cardCompany: sourceItem.cardCompany ?? CARD_COMPANIES[0],
       cardMode: sourceItem.cardMode ?? "lumpSum",
       installments: sourceItem.installments ? String(sourceItem.installments) : "2",
@@ -451,6 +474,9 @@ export default function Home() {
       repaymentDate: draft.type === "loan" ? draft.repaymentDate : undefined,
       repaymentMethod: draft.type === "loan" ? draft.repaymentMethod : undefined,
       termMonths: draft.type === "loan" && draft.termMonths ? Number(draft.termMonths) : undefined,
+      recurrence: ["expense", "loan"].includes(draft.type) ? draft.recurrence : undefined,
+      repeatUntil: ["expense", "loan"].includes(draft.type) && draft.recurrence === "monthly" ? draft.repeatUntil : undefined,
+      owner: draft.type === "loan" ? draft.owner : undefined,
       cardCompany: draft.type === "loan" && draft.category === "카드값" ? draft.cardCompany : undefined,
       cardMode: draft.type === "loan" && draft.category === "카드값" ? draft.cardMode : undefined,
       installments: draft.type === "loan" && draft.category === "카드값" ? Number(draft.installments) : undefined,
@@ -882,6 +908,7 @@ function Composer({
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
+          {(["expense", "loan"] as ItemType[]).includes(draft.type) && <div className="detail-block recurring-block"><div className="detail-block-title">고정지출·가족 부담 설정</div><div className="field-row"><label className="field-label">반복 주기<select value={draft.recurrence} onChange={(event) => update({ recurrence: event.target.value as Draft["recurrence"] })}><option value="none">한 번만</option><option value="monthly">매월 반복</option></select></label>{draft.type === "loan" && <label className="field-label">부담자<select value={draft.owner} onChange={(event) => update({ owner: event.target.value })}><option>나</option><option>신랑</option><option>공동</option></select></label>}</div>{draft.recurrence === "monthly" && <label className="field-label">반복 종료일<input type="date" value={draft.repeatUntil} min={draft.date} onChange={(event) => update({ repeatUntil: event.target.value })} /></label>}<span className="field-hint">카드값·관리비·통신비처럼 매달 나가는 금액을 달력에 자동 표시해요.</span></div>}
           {draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">첫 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div><div className="field-row"><label className="field-label">상환방식<select value={draft.repaymentMethod} onChange={(event) => update({ repaymentMethod: event.target.value as Draft["repaymentMethod"] })}><option value="equalPayment">원리금균등</option><option value="equalPrincipal">원금균등</option></select></label><label className="field-label">상환기간(개월)<input inputMode="numeric" value={draft.termMonths} onChange={(event) => update({ termMonths: event.target.value.replace(/[^0-9]/g, "") })} /></label></div>{draft.loanPrincipal && draft.interestRate && draft.termMonths && <div className="schedule-preview"><strong>{draft.repaymentMethod === "equalPayment" ? "원리금균등" : "원금균등"} · 총 {Number(draft.termMonths) + Number(draft.gracePeriod || 0)}회</strong><span>거치기간은 이자만 납부하고, 이후 월별 상환일을 달력에 자동 표시해요.</span></div>}</div>}
           {draft.type === "loan" && draft.category === "카드값" && <div className="detail-block"><div className="detail-block-title">카드 결제 상세</div><div className="field-row"><label className="field-label">카드사<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제 방식<select value={draft.cardMode} onChange={(event) => update({ cardMode: event.target.value as Draft["cardMode"] })}><option value="lumpSum">일시불</option><option value="installment">할부</option></select></label></div><div className="field-row"><label className="field-label">수수료율(%)<input inputMode="decimal" value={draft.cardFeeRate} onChange={(event) => update({ cardFeeRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="카드사 안내 수수료" /></label>{draft.cardMode === "installment" && <label className="field-label">할부 개월<input inputMode="numeric" value={draft.installments} onChange={(event) => update({ installments: event.target.value.replace(/[^0-9]/g, "") })} /></label>}</div>{draft.cardMode === "installment" && <div className={`rate-source ${officialCardRate !== undefined ? "verified" : "manual"}`}>{officialCardRate !== undefined ? `공식 기준 자동 적용 · 연 ${officialCardRate}%` : getCardRateBasis(draft.cardCompany, cardInstallments)}</div>}<div className="detail-estimate">예상 총 결제액 {formatWon(cardTotal)} · {draft.cardMode === "installment" ? `월 ${formatWon(cardMonthly)}` : "일시불 결제"}</div></div>}
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>

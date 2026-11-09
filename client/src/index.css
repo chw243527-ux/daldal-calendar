@@ -197,3 +197,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 
 .schedule-preview { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 11px; background: #f4eee6; color: #8f6b45; font-size: 10px; line-height: 1.35; }
 .schedule-preview strong { font-size: 11px; }
+
+.recurring-block { background: #f8f4ff; border-color: #ebe3fb; }
+.field-hint { color: #887da6; font-size: 10px; font-weight: 650; line-height: 1.35; }
