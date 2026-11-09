@@ -95,93 +95,92 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int height = Math.round(pixelHeight / scale);
             float margin = width * 0.075f;
             float cardTop = height * 0.18f;
-            float chartX = width - margin - 161;
-            float chartY = cardTop + 30;
-            if (x < chartX || x > width - margin + 4 || y < chartY + 5 || y > chartY + 88) return false;
-            int row = (int) ((y - (chartY + 12)) / 22f);
-            if (row < 0 || row > 2) return false;
-            selectedFinanceType = row == 0 ? "income" : row == 1 ? "expense" : "outgoing";
-            drawWallpaper();
-            return true;
-        }
+            JSONArray entries = parseItems(calendarItems);
+            int year = now.get(Calendar.YEAR);
+            int month = now.get(Calendar.MONTH);
+            Calendar first = Calendar.getInstance();
+            first.set(year, month, 1);
+            int firstDay = first.get(Calendar.DAY_OF_WEEK) - 1;
+            int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
+            float gridTop = cardTop + 18;
+            float cellWidth = (width - margin * 2) / 7f;
+            float cellHeight = Math.max(43f, Math.min(56f, height * 0.055f));
+            String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
+            drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, Color.rgb(82, 73, 78), true);
+            for (int index = 0; index < weekdays.length; index++) {
+                drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 11, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : Color.rgb(143,136,133), true);
+            }
+            for (int day = 1; day <= days; day++) {
+                int index = firstDay + day - 1;
+                int column = index % 7;
+                int row = index / 7;
+                float x = margin + column * cellWidth;
+                float y = gridTop + 28 + row * cellHeight;
+                boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
+                if (isToday) {
+                    paint.setColor(Color.rgb(216,117,104));
+                    canvas.drawCircle(x + cellWidth / 2, y, 14, paint);
+                }
+                drawCenteredText(canvas, String.valueOf(day), x + cellWidth / 2, y, 12, isToday ? Color.WHITE : Color.rgb(47,42,49), true);
+                int markerCount = 0;
+                for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
+                    JSONObject item = entries.optJSONObject(itemIndex);
+                    if (item == null || !dateMatches(item.optString("date"), year, month, day)) continue;
+                    paint.setColor(itemColor(item.optString("type")));
+                    canvas.drawCircle(x + cellWidth / 2 - 7 + markerCount * 7, y + 17, 3, paint);
+                    markerCount++;
+                }
+            }
 
-        private void toggleTodoAt(float pixelY) {
-            int pixelWidth = getSurfaceHolder().getSurfaceFrame().width();
-            if (pixelWidth <= 0) return;
-            float scale = pixelWidth / 360f;
-            float logicalY = pixelY / scale;
-            int logicalHeight = Math.round(getSurfaceHolder().getSurfaceFrame().height() / scale);
-            float cardTop = logicalHeight * 0.18f;
-            int targetRow = Math.round((logicalY - (cardTop + 63f)) / 23f);
-            if (targetRow < 0 || targetRow > 2) return;
-
-            SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
-            JSONArray entries = parseItems(preferences.getString("calendarItems", "[]"));
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
-            int visibleRow = 0;
-            for (int index = 0; index < entries.length(); index++) {
-                JSONObject item = entries.optJSONObject(index);
+            float sectionTop = gridTop + 28 + 6 * cellHeight + 22;
+            drawText(canvas, "일정 · 할 일", margin + 24, sectionTop, 13, Color.rgb(82, 73, 78), true);
+            int scheduleRow = 0;
+            for (int itemIndex = 0; itemIndex < entries.length() && scheduleRow < 3; itemIndex++) {
+                JSONObject item = entries.optJSONObject(itemIndex);
                 if (item == null || !todayKey.equals(item.optString("date"))) continue;
                 String type = item.optString("type");
                 if (!"todo".equals(type) && !"event".equals(type)) continue;
-                if (visibleRow == targetRow && "todo".equals(type)) {
-                    try {
-                        item.put("completed", !item.optBoolean("completed", false));
-                        preferences.edit().putString("calendarItems", entries.toString()).apply();
-                        drawWallpaper();
-                    } catch (Exception ignored) {
-                        // Keep the existing wallpaper state when a malformed record is tapped.
-                    }
-                    return;
-                }
-                visibleRow++;
+                String title = safeTitle(item.optString("title", "기록"), 16);
+                int recordColor = itemColor(type);
+                float rowY = sectionTop + 23 + scheduleRow * 24;
+                paint.setColor(recordColor);
+                canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
+                boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? Color.rgb(143, 136, 133) : Color.rgb(47, 42, 49), false);
+                String detail = "event".equals(type) ? item.optString("time", "일정") : "할 일";
+                drawText(canvas, detail, width - margin - 24, rowY, 11, recordColor, false, true);
+                scheduleRow++;
             }
-        }
+            if (scheduleRow == 0) drawText(canvas, "오늘 등록된 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, Color.rgb(143,136,133), false);
 
-        private void drawWallpaper() {
-            SurfaceHolder holder = getSurfaceHolder();
-            Canvas canvas = null;
-            try {
-                canvas = holder.lockCanvas();
-                if (canvas == null) return;
-                drawCanvas(canvas);
-            } finally {
-                if (canvas != null) holder.unlockCanvasAndPost(canvas);
+            float financeTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
+            drawText(canvas, "수입 · 지출 · 대출", margin + 24, financeTop, 13, Color.rgb(82, 73, 78), true);
+            int moneyRow = 0;
+            for (int itemIndex = 0; itemIndex < entries.length() && moneyRow < 3; itemIndex++) {
+                JSONObject item = entries.optJSONObject(itemIndex);
+                if (item == null || !todayKey.equals(item.optString("date"))) continue;
+                String type = item.optString("type");
+                if (!"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) continue;
+                String title = safeTitle(item.optString("title", "기록"), 14);
+                int recordColor = itemColor(type);
+                float rowY = financeTop + 23 + moneyRow * 24;
+                paint.setColor(recordColor);
+                canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
+                drawText(canvas, title, margin + 45, rowY, 12, Color.rgb(47,42,49), false);
+                String label = "income".equals(type) ? "수입 +" : "loan".equals(type) ? "대출 −" : "지출 −";
+                drawText(canvas, label + compactWon(item.optInt("amount", 0)), width - margin - 24, rowY, 11, recordColor, false, true);
+                moneyRow++;
             }
-        }
+            if (moneyRow == 0) drawText(canvas, "오늘 등록된 금융 내역이 없어요", margin + 24, financeTop + 23, 12, Color.rgb(143,136,133), false);
 
-        private void drawCanvas(Canvas canvas) {
-            int pixelWidth = canvas.getWidth();
-            int pixelHeight = canvas.getHeight();
-            float scale = pixelWidth / 360f;
-            canvas.save();
-            canvas.scale(scale, scale);
-            int width = Math.round(pixelWidth / scale);
-            int height = Math.round(pixelHeight / scale);
-            canvas.drawColor(Color.rgb(249, 246, 242));
-
-            paint.setStyle(Paint.Style.FILL);
-
-            SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
-            String dateLabel = preferences.getString("dateLabel", "");
-            String calendarItems = preferences.getString("calendarItems", "[]");
-
-            float margin = width * 0.075f;
-            drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, Color.rgb(82, 73, 78), true);
-            drawText(canvas, dateLabel.isEmpty() ? "오늘도 차곡차곡" : dateLabel, margin, height * 0.15f, 12, Color.rgb(96, 87, 84), false);
-
-            float cardTop = height * 0.18f;
-            drawText(canvas, "오늘의 기록", margin + 24, cardTop + 32, 13, Color.rgb(82, 73, 78), true);
-            JSONArray entries = parseItems(calendarItems);
             int monthlyIncome = 0;
             int monthlyExpense = 0;
             int monthlyLoan = 0;
             int monthlyOutgoing = 0;
-            int currentYear = now.get(Calendar.YEAR);
-            int currentMonth = now.get(Calendar.MONTH) + 1;
             for (int itemIndex = 0; itemIndex < entries.length(); itemIndex++) {
                 JSONObject item = entries.optJSONObject(itemIndex);
-                if (item == null || !item.optString("date", "").startsWith(String.format(Locale.US, "%04d-%02d-", currentYear, currentMonth))) continue;
+                if (item == null || !item.optString("date", "").startsWith(String.format(Locale.US, "%04d-%02d-", year, month + 1))) continue;
                 int amount = item.optInt("amount", 0);
                 if ("income".equals(item.optString("type"))) monthlyIncome += amount;
                 if ("expense".equals(item.optString("type"))) monthlyExpense += amount;
@@ -190,76 +189,12 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     if (isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
                 }
             }
-            drawFinanceChart(canvas, width - margin - 151, cardTop + 30, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
-            String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
-            int todayRow = 0;
-            for (int itemIndex = 0; itemIndex < entries.length() && todayRow < 3; itemIndex++) {
-                JSONObject item = entries.optJSONObject(itemIndex);
-                if (item == null || !todayKey.equals(item.optString("date"))) continue;
-                String type = item.optString("type");
-                if (!"todo".equals(type) && !"event".equals(type) && !"income".equals(type) && !"expense".equals(type) && !"loan".equals(type)) continue;
-                String title = item.optString("title", "기록");
-                if (title.length() > 11) title = title.substring(0, 10) + "…";
-                int recordColor = "지역화폐 충전".equals(item.optString("category")) ? Color.rgb(63, 143, 141) : itemColor(type);
-                paint.setColor(recordColor);
-                canvas.drawCircle(margin + 31, cardTop + 63 + todayRow * 23, 4, paint);
-                boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, cardTop + 63 + todayRow * 23, 14, completed ? Color.rgb(143, 136, 133) : Color.rgb(47, 42, 49), false);
-                if (completed) {
-                    paint.setColor(Color.rgb(143, 136, 133));
-                    paint.setStrokeWidth(1.5f);
-                    canvas.drawLine(margin + 45, cardTop + 63 + todayRow * 23, margin + 45 + Math.min(190, title.length() * 8), cardTop + 63 + todayRow * 23, paint);
-                }
-                String detail = item.optString("time", "");
-                if ("income".equals(type) || "expense".equals(type) || "loan".equals(type)) {
-                    int amount = item.optInt("amount", 0);
-                    detail = ("income".equals(type) ? "+" : "−") + compactWon(amount);
-                }
-                if (!detail.isEmpty()) {
-                    drawText(canvas, detail, width - margin - 24, cardTop + 63 + todayRow * 23, 12, recordColor, false, true);
-                }
-                todayRow++;
-            }
-            if (todayRow == 0) drawText(canvas, "오늘 기록 없음", margin + 24, cardTop + 65, 13, Color.rgb(143, 136, 133), false);
-
-            int year = now.get(Calendar.YEAR);
-            int month = now.get(Calendar.MONTH);
-            Calendar first = Calendar.getInstance();
-            first.set(year, month, 1);
-            int firstDay = first.get(Calendar.DAY_OF_WEEK) - 1;
-            int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
-            float gridTop = cardTop + 158;
-            float cellWidth = (width - margin * 2) / 7f;
-            float cellHeight = Math.max(47f, Math.min(68f, height * 0.06f));
-            String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
-            for (int index = 0; index < weekdays.length; index++) {
-                drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 12, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : Color.rgb(143,136,133), true);
-            }
-            for (int day = 1; day <= days; day++) {
-                int index = firstDay + day - 1;
-                int column = index % 7;
-                int row = index / 7;
-                float x = margin + column * cellWidth;
-                float y = gridTop + 31 + row * cellHeight;
-                boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
-                if (isToday) {
-                    paint.setColor(Color.rgb(216,117,104));
-                    canvas.drawCircle(x + cellWidth / 2, y, 15, paint);
-                }
-                drawCenteredText(canvas, String.valueOf(day), x + cellWidth / 2, y, 13, isToday ? Color.WHITE : Color.rgb(47,42,49), true);
-                int markerCount = 0;
-                for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
-                    JSONObject item = entries.optJSONObject(itemIndex);
-                    if (item == null || !dateMatches(item.optString("date"), year, month, day)) continue;
-                    paint.setColor(itemColor(item.optString("type")));
-                    canvas.drawCircle(x + cellWidth / 2 - 8 + markerCount * 8, y + 20, 3.5f, paint);
-                    markerCount++;
-                }
-            }
+            float chartTop = Math.min(height - 115, financeTop + 23 + Math.max(1, moneyRow) * 24 + 12);
+            drawFinanceChart(canvas, width - margin - 151, chartTop, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
 
             float footerY = Math.min(height - 92, gridTop + 6 * cellHeight + 54);
             if (selectedFinanceType != null) {
-                drawFinanceDetails(canvas, entries, margin, Math.min(height - 210, gridTop + 170), width - margin * 2, selectedFinanceType);
+                drawFinanceDetails(canvas, entries, margin, Math.min(height - 210, chartTop + 78), width - margin * 2, selectedFinanceType);
             }
             canvas.restore();
         }
@@ -283,6 +218,12 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         private boolean isOutgoingCategory(String category) {
             return "카드값".equals(category) || "대출".equals(category);
+        }
+
+        private String safeTitle(String value, int maxLength) {
+            if (value == null || value.trim().isEmpty()) return "기록";
+            String clean = value.trim();
+            return clean.length() > maxLength ? clean.substring(0, Math.max(1, maxLength - 1)) + "…" : clean;
         }
 
         private void drawFinanceDetails(Canvas canvas, JSONArray entries, float x, float y, float panelWidth, String type) {
