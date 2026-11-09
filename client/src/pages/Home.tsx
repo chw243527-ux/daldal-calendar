@@ -721,6 +721,19 @@ export default function Home() {
     setSelectedDate(toISO(next));
   };
 
+  const resetAppData = () => {
+    lastSyncedRecords.current = JSON.stringify([]);
+    setItems([]);
+    setCustomCategories({ income: [], expense: [], loan: [] });
+    setMonthlyBudgets({});
+    setEmergencyReserve(0);
+    setAssetBalances([]);
+    setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
+    setSelectedDate(todayISO);
+    setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setViewAndScroll("home");
+  };
+
   const setViewAndScroll = (nextView: View) => {
     setView(nextView);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -900,7 +913,7 @@ export default function Home() {
           />
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} onCreate={(type) => openCreate(type, toISO(month))} />}
-        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} />}
+        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} />}
       </main>
 
       <button className="record-button" type="button" onClick={() => openCreate("todo")}>
@@ -938,7 +951,15 @@ export default function Home() {
   );
 }
 
-function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null> }) {
+function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef, onReset }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void }) {
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetText, setResetText] = useState("");
+  const confirmReset = () => {
+    if (resetText.trim() !== "초기화") return;
+    onReset();
+    setResetOpen(false);
+    setResetText("");
+  };
   return <div className="settings-view view-stack"><div className="page-title-row"><div><span className="section-eyebrow">SETTINGS</span><h1>설정과 관리</h1><p>자주 쓰는 순서대로 정리해 두었어요.</p></div></div><section className="settings-steps"><button type="button" onClick={() => onCreate("expense")}><span className="settings-step-number">01</span><span><strong>기록 추가</strong><small>일정·할 일·입금·출금·이체를 바로 기록해요.</small></span><Plus size={17} /></button><button type="button" onClick={onManageAssets}><span className="settings-step-number">02</span><span><strong>자산 관리</strong><small>계좌·카드·현금·지역화폐와 초기 잔액을 관리해요.</small></span><WalletCards size={17} /></button><button type="button" onClick={onManageCategories}><span className="settings-step-number">03</span><span><strong>카테고리 관리</strong><small>AI 분류에 사용할 카테고리를 추가하거나 정리해요.</small></span><ListChecks size={17} /></button><button type="button" onClick={onFamily}><span className="settings-step-number">04</span><span><strong>가족 공유</strong><small>신랑과 장부를 공유하고 충돌·백업을 관리해요.</small></span><Users size={17} /></button></section><section className="lockscreen-settings surface-card"><SectionHeading eyebrow="LIVE LOCKSCREEN" title="잠금화면 구성" /><p className="settings-description">잠금화면에 보일 요소를 직접 선택할 수 있어요. 변경하면 잠금화면에 자동으로 반영됩니다.</p><div className="lockscreen-toggle-list">{([
   ["showCalendar", "월간 달력", "달력과 날짜별 기록 표시"],
   ["showSchedule", "일정", "오늘 일정 표시"],
@@ -949,7 +970,7 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
   ["blush", "살구 핑크", "#fff0ed"],
   ["sage", "세이지", "#edf5f0"],
   ["night", "차분한 밤", "#25232a"],
-] as const).map(([value, label, color]) => <button type="button" className={`theme-choice ${lockScreenConfig.backgroundTheme === value ? "selected" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: value })} key={value}><i style={{ backgroundColor: color }} /><span>{label}</span></button>)}</div></div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section></div>;
+] as const).map(([value, label, color]) => <button type="button" className={`theme-choice ${lockScreenConfig.backgroundTheme === value ? "selected" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: value })} key={value}><i style={{ backgroundColor: color }} /><span>{label}</span></button>)}</div></div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section><section className="reset-section surface-card"><div><span className="section-eyebrow">DANGER ZONE</span><h2>앱 초기화</h2><p>이 기기의 기록·카테고리·예산·자산·잠금화면 설정을 지웁니다. 로그인 계정과 가족 공유 서버 데이터는 삭제하지 않습니다.</p></div><button className="danger-button" type="button" onClick={() => setResetOpen(true)}><Trash2 size={15} /> 초기화</button></section>{resetOpen && <div className="reset-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title"><div className="reset-dialog"><button className="reset-close" type="button" aria-label="닫기" onClick={() => { setResetOpen(false); setResetText(""); }}><X size={18} /></button><span className="reset-icon"><Trash2 size={20} /></span><h2 id="reset-title">앱 데이터를 초기화할까요?</h2><p>삭제한 데이터는 되돌릴 수 없습니다. 먼저 백업 파일을 저장했는지 확인하세요.</p><label>확인을 위해 <strong>초기화</strong>를 입력하세요<input value={resetText} onChange={(event) => setResetText(event.target.value)} placeholder="초기화" autoFocus /></label><div className="reset-actions"><button className="secondary-button" type="button" onClick={() => { setResetOpen(false); setResetText(""); }}>취소</button><button className="danger-button" type="button" disabled={resetText.trim() !== "초기화"} onClick={confirmReset}>데이터 지우기</button></div></div></div>}</div>;
 }
 
 function HomeView({
