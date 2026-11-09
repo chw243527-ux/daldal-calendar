@@ -8,7 +8,7 @@ type DaldalWidgetPlugin = {
     dateLabel: string;
     monthLabel?: string;
     calendarItems?: Array<{
-      type: "todo" | "event" | "income" | "expense" | "loan" | "savings";
+      type: "todo" | "event" | "income" | "expense" | "transfer" | "loan" | "savings";
       title: string;
       date: string;
       time?: string;
@@ -27,7 +27,7 @@ export async function syncNativeWidget(data: {
   dateLabel: string;
   monthLabel?: string;
   calendarItems?: Array<{
-    type: "todo" | "event" | "income" | "expense" | "loan" | "savings";
+    type: "todo" | "event" | "income" | "expense" | "transfer" | "loan" | "savings";
     title: string;
     date: string;
     time?: string;
