@@ -1,4 +1,4 @@
-name: Build Android debug APK
+name: Build Android signed APK and AAB
 
 on:
   push:
@@ -59,4 +59,34 @@ jobs:
         with:
           name: daldal-calendar-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Restore release keystore
+        if: ${{ secrets.DALDAL_KEYSTORE_BASE64 != '' }}
+        env:
+          DALDAL_KEYSTORE_BASE64: ${{ secrets.DALDAL_KEYSTORE_BASE64 }}
+        run: |
+          echo "$DALDAL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/daldal-release-key.jks"
+          test -s "$RUNNER_TEMP/daldal-release-key.jks"
+
+      - name: Build signed release APK and Play AAB
+        if: ${{ secrets.DALDAL_KEYSTORE_BASE64 != '' }}
+        working-directory: android
+        env:
+          DALDAL_KEYSTORE_FILE: ${{ runner.temp }}/daldal-release-key.jks
+          DALDAL_KEYSTORE_PASSWORD: ${{ secrets.DALDAL_KEYSTORE_PASSWORD }}
+          DALDAL_KEY_ALIAS: ${{ secrets.DALDAL_KEY_ALIAS }}
+          DALDAL_KEY_PASSWORD: ${{ secrets.DALDAL_KEY_PASSWORD }}
+          DALDAL_VERSION_CODE: ${{ github.run_number }}
+          DALDAL_VERSION_NAME: "1.5.${{ github.run_number }}"
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Upload signed APK and AAB artifacts
+        if: ${{ secrets.DALDAL_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: daldal-calendar-release-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
