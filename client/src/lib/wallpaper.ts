@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
 export type WallpaperItem = {
-  type: "todo" | "event" | "income" | "expense" | "loan";
+  type: "todo" | "event" | "income" | "expense" | "loan" | "savings";
   title: string;
   date: string;
   time?: string;
