@@ -76,12 +76,13 @@ type CalendarItem = {
   savingsMaturityDate?: string;
   savingsInterestRate?: number;
   savingsTermMonths?: number;
-  assetKind?: "account" | "card" | "cash" | "savings" | "loan" | "other";
+  assetKind?: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "other";
   assetName?: string;
-  paymentMethod?: "card" | "cash" | "account" | "other";
+  paymentMethod?: "card" | "cash" | "account" | "localCurrency" | "other";
   localCurrencyDiscountRate?: number;
   localCurrencySource?: string;
   localCurrencyTarget?: string;
+  localCurrencyLoadedAmount?: number;
   updatedAt?: string;
 };
 
@@ -110,9 +111,9 @@ type Draft = {
   savingsMaturityDate: string;
   savingsInterestRate: string;
   savingsTermMonths: string;
-  assetKind: "account" | "card" | "cash" | "savings" | "loan" | "other";
+  assetKind: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "other";
   assetName: string;
-  paymentMethod: "card" | "cash" | "account" | "other";
+  paymentMethod: "card" | "cash" | "account" | "localCurrency" | "other";
   localCurrencyDiscountRate: string;
   localCurrencySource: string;
   localCurrencyTarget: string;
@@ -143,8 +144,8 @@ const categories: Record<ItemType, string[]> = {
   savings: ["적금", "목돈", "여행", "주택"],
 };
 const CARD_COMPANIES = ["신한카드", "삼성카드", "현대카드", "KB국민카드", "롯데카드", "우리카드", "하나카드", "NH농협카드"];
-const ASSET_KINDS = [{ value: "account", label: "계좌" }, { value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "savings", label: "적금" }, { value: "loan", label: "대출" }, { value: "other", label: "기타" }] as const;
-const PAYMENT_METHODS = [{ value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "account", label: "계좌이체" }, { value: "other", label: "기타" }] as const;
+const ASSET_KINDS = [{ value: "account", label: "계좌" }, { value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "savings", label: "적금" }, { value: "loan", label: "대출" }, { value: "localCurrency", label: "지역화폐" }, { value: "other", label: "기타" }] as const;
+const PAYMENT_METHODS = [{ value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "account", label: "계좌이체" }, { value: "localCurrency", label: "지역화폐" }, { value: "other", label: "기타" }] as const;
 const CARD_BENEFITS: Record<string, { threshold: number; cap: number; categories: string[] }> = {
   "신한카드": { threshold: 300000, cap: 10000, categories: ["식비", "교통", "쇼핑", "생활"] },
   "삼성카드": { threshold: 300000, cap: 12000, categories: ["식비", "쇼핑", "생활"] },
@@ -507,6 +508,12 @@ export default function Home() {
 
   const displayItems = useMemo(() => getDisplayItems(items), [items]);
   const monthItems = useMemo(() => getMonthItems(displayItems, month), [displayItems, month]);
+  const localCurrencyBalances = useMemo(() => displayItems.reduce<Record<string, number>>((balances, item) => {
+    const target = item.localCurrencyTarget || (item.paymentMethod === "localCurrency" ? item.assetName : undefined);
+    if (!target) return balances;
+    const amount = item.category === "지역화폐 충전" ? (item.localCurrencyLoadedAmount ?? item.amount ?? 0) : item.paymentMethod === "localCurrency" ? -(item.amount ?? 0) : 0;
+    return { ...balances, [target]: (balances[target] ?? 0) + amount };
+  }, {}), [displayItems]);
   const monthlyCardSpend = useMemo(() => monthItems.filter((item) => item.type === "expense" && !isLocalCurrencyTransfer(item) && item.paymentMethod === "card" && item.cardCompany).reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.cardCompany as string]: (totals[item.cardCompany as string] ?? 0) + (item.amount ?? 0) }), {}), [monthItems]);
   const selectedItems = useMemo(() => displayItems.filter((item) => item.date === selectedDate), [displayItems, selectedDate]);
   const todayItems = useMemo(() => displayItems.filter((item) => item.date === todayISO), [displayItems, todayISO]);
@@ -582,7 +589,9 @@ export default function Home() {
   const saveItem = () => {
     if (!draft.title.trim()) return;
     const isLocalCurrency = draft.type === "expense" && draft.category === "지역화폐 충전";
+    const isLocalCurrencyPurchase = draft.type === "expense" && draft.paymentMethod === "localCurrency";
     const localCurrencyRate = isLocalCurrency ? Math.min(100, Math.max(0, Number(draft.localCurrencyDiscountRate || 0))) : undefined;
+    const localCurrencyLoadedAmount = isLocalCurrency ? Math.round(Number(draft.amount || 0) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) : undefined;
     const nextItem: CalendarItem = {
       id: editingId ?? `item-${Date.now()}`,
       updatedAt: new Date().toISOString(),
@@ -611,12 +620,13 @@ export default function Home() {
       savingsMaturityDate: draft.type === "savings" ? draft.savingsMaturityDate || undefined : undefined,
       savingsInterestRate: draft.type === "savings" && draft.savingsInterestRate ? Number(draft.savingsInterestRate) : undefined,
       savingsTermMonths: draft.type === "savings" && draft.savingsTermMonths ? Number(draft.savingsTermMonths) : undefined,
-      assetKind: isLocalCurrency ? "account" : ["income", "expense", "loan", "savings"].includes(draft.type) ? draft.assetKind : undefined,
-      assetName: isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() || "주거래 계좌" : ["income", "expense", "loan", "savings"].includes(draft.type) && draft.assetName.trim() ? draft.assetName.trim() : undefined,
+      assetKind: isLocalCurrency ? "account" : isLocalCurrencyPurchase ? "localCurrency" : ["income", "expense", "loan", "savings"].includes(draft.type) ? draft.assetKind : undefined,
+      assetName: isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() || "주거래 계좌" : isLocalCurrencyPurchase ? draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐" : ["income", "expense", "loan", "savings"].includes(draft.type) && draft.assetName.trim() ? draft.assetName.trim() : undefined,
       paymentMethod: isLocalCurrency ? "account" : draft.type === "expense" ? draft.paymentMethod : undefined,
       localCurrencyDiscountRate: localCurrencyRate,
       localCurrencySource: isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() || "주거래 계좌" : undefined,
-      localCurrencyTarget: isLocalCurrency ? draft.localCurrencyTarget.trim() || "지역화폐" : undefined,
+      localCurrencyTarget: isLocalCurrency || isLocalCurrencyPurchase ? draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐" : undefined,
+      localCurrencyLoadedAmount,
     };
 
     setItems((current) => editingId ? current.map((item) => item.id === editingId ? nextItem : item) : [nextItem, ...current]);
@@ -810,6 +820,7 @@ export default function Home() {
           onChange={setDraft}
           categoryMap={categoryMap}
           monthlyCardSpend={monthlyCardSpend}
+          localCurrencyBalances={localCurrencyBalances}
           onClose={() => setComposerOpen(false)}
           onSave={saveItem}
           onDelete={deleteItem}
@@ -1146,6 +1157,7 @@ function Composer({
   onSave,
   onDelete,
   monthlyCardSpend,
+  localCurrencyBalances,
 }: {
   draft: Draft;
   editing: boolean;
@@ -1155,6 +1167,7 @@ function Composer({
   onSave: () => void;
   onDelete: () => void;
   monthlyCardSpend: Record<string, number>;
+  localCurrencyBalances: Record<string, number>;
 }) {
   const meta = typeMeta[draft.type];
   const isFinance = ["income", "expense", "loan", "savings"].includes(draft.type);
@@ -1171,6 +1184,8 @@ function Composer({
   const cardSpendProgress = Math.min(100, Math.round((previewCardSpend / cardBenefit.threshold) * 100));
   const cardBenefitReady = previewCardSpend >= cardBenefit.threshold;
   const categoryBenefitReady = cardBenefit.categories.includes(draft.category);
+  const localCurrencyName = draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐";
+  const localCurrencyBalance = localCurrencyBalances[localCurrencyName] ?? 0;
   const update = (patch: Partial<Draft>) => {
     let next = { ...draft, ...patch };
     const cardSettingChanged = patch.cardCompany !== undefined || patch.cardMode !== undefined || patch.installments !== undefined || patch.category === "카드값";
@@ -1192,7 +1207,7 @@ function Composer({
           <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           {(["income", "expense", "loan", "savings"] as ItemType[]).includes(draft.type) && <div className="asset-owner-row"><span>자산 소유자</span><div>{["나", "신랑", "공동"].map((owner) => <button className={draft.owner === owner ? "selected" : ""} type="button" key={owner} onClick={() => update({ owner })}>{owner}</button>)}</div></div>}
-          {isFinance && <div className="detail-block asset-block"><div className="detail-block-title"><WalletCards size={15} /> 어떤 자산으로 기록할까요?</div><div className="field-row"><label className="field-label">자산 종류<select value={draft.assetKind} onChange={(event) => update({ assetKind: event.target.value as Draft["assetKind"] })}>{ASSET_KINDS.map((asset) => <option value={asset.value} key={asset.value}>{asset.label}</option>)}</select></label><label className="field-label">자산 이름<span className="optional">선택</span><input value={draft.assetName} onChange={(event) => update({ assetName: event.target.value })} placeholder={draft.assetKind === "card" ? "예: 삼성카드" : draft.assetKind === "account" ? "예: 신한 주거래" : "예: 생활비"} /></label></div>{draft.type === "expense" && <label className="field-label">결제수단<select value={draft.paymentMethod} onChange={(event) => update({ paymentMethod: event.target.value as Draft["paymentMethod"] })}>{PAYMENT_METHODS.map((method) => <option value={method.value} key={method.value}>{method.label}</option>)}</select></label>}{draft.type === "expense" && draft.category === "지역화폐 충전" && <div className="detail-block local-currency-block"><div className="detail-block-title">지역화폐 충전 설정</div><div className="field-row"><label className="field-label">출금 계좌<input value={draft.localCurrencySource} onChange={(event) => update({ localCurrencySource: event.target.value, assetKind: "account", paymentMethod: "account" })} placeholder="예: 신한 주거래" /></label><label className="field-label">지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value })} placeholder="예: 경기지역화폐" /></label></div><label className="field-label">충전 할인율(%)<input inputMode="decimal" value={draft.localCurrencyDiscountRate} onChange={(event) => update({ localCurrencyDiscountRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 10" /></label>{draft.amount && <div className="local-currency-estimate">계좌에서 {formatWon(Number(draft.amount))} 출금 · {formatWon(Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)))} 충전 · 할인 {formatWon(Math.max(0, Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) - Number(draft.amount)))}</div>}</div>}{draft.type === "expense" && draft.paymentMethod === "card" && <><label className="field-label">결제 카드<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value, assetKind: "card", assetName: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><div className="card-benefit-panel"><div className="card-benefit-head"><span><CreditCard size={14} /> {draft.cardCompany} 이번 달 실적</span><strong className={cardBenefitReady ? "ready" : "pending"}>{cardBenefitReady ? "혜택 조건 충족" : `${formatWon(Math.max(0, cardBenefit.threshold - previewCardSpend))} 부족`}</strong></div><div className="card-benefit-progress"><i style={{ width: `${cardSpendProgress}%` }} /></div><div className="card-benefit-meta"><span>{formatWon(previewCardSpend)} / {formatWon(cardBenefit.threshold)}</span><span>예상 할인 한도 {formatWon(cardBenefit.cap)}</span></div><small>{categoryBenefitReady ? "현재 카테고리는 할인 대상에 포함된 것으로 설정되어 있어요." : "현재 카테고리는 등록된 참고 혜택 대상과 다를 수 있어요."} 카드 상품별 실제 조건은 카드사 약관을 확인해 주세요.</small></div></>}</div>}
+          {isFinance && <div className="detail-block asset-block"><div className="detail-block-title"><WalletCards size={15} /> 어떤 자산으로 기록할까요?</div><div className="field-row"><label className="field-label">자산 종류<select value={draft.assetKind} onChange={(event) => update({ assetKind: event.target.value as Draft["assetKind"] })}>{ASSET_KINDS.map((asset) => <option value={asset.value} key={asset.value}>{asset.label}</option>)}</select></label><label className="field-label">자산 이름<span className="optional">선택</span><input value={draft.assetName} onChange={(event) => update({ assetName: event.target.value })} placeholder={draft.assetKind === "card" ? "예: 삼성카드" : draft.assetKind === "account" ? "예: 신한 주거래" : "예: 생활비"} /></label></div>{draft.type === "expense" && <label className="field-label">결제수단<select value={draft.paymentMethod} onChange={(event) => update({ paymentMethod: event.target.value as Draft["paymentMethod"] })}>{PAYMENT_METHODS.map((method) => <option value={method.value} key={method.value}>{method.label}</option>)}</select></label>}{draft.type === "expense" && draft.category === "지역화폐 충전" && <div className="detail-block local-currency-block"><div className="detail-block-title">지역화폐 충전 설정</div><div className="field-row"><label className="field-label">출금 계좌<input value={draft.localCurrencySource} onChange={(event) => update({ localCurrencySource: event.target.value, assetKind: "account", paymentMethod: "account" })} placeholder="예: 신한 주거래" /></label><label className="field-label">지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value })} placeholder="예: 경기지역화폐" /></label></div><label className="field-label">충전 할인율(%)<input inputMode="decimal" value={draft.localCurrencyDiscountRate} onChange={(event) => update({ localCurrencyDiscountRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 10" /></label>{draft.amount && <div className="local-currency-estimate">계좌에서 {formatWon(Number(draft.amount))} 출금 · {formatWon(Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)))} 충전 · 할인 {formatWon(Math.max(0, Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) - Number(draft.amount)))}</div>}</div>}{draft.type === "expense" && draft.paymentMethod === "localCurrency" && <div className="detail-block local-currency-use-block"><div className="detail-block-title">지역화폐로 결제</div><label className="field-label">사용할 지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value, assetKind: "localCurrency", assetName: event.target.value })} placeholder="예: 경기지역화폐" /></label><div className={`local-currency-balance ${localCurrencyBalance < Number(draft.amount || 0) ? "insufficient" : ""}`}><span>{localCurrencyName} 현재 잔액</span><strong>{formatWon(localCurrencyBalance)}</strong>{draft.amount && localCurrencyBalance < Number(draft.amount) && <small>잔액이 {formatWon(Number(draft.amount) - localCurrencyBalance)} 부족해요.</small>}</div></div>}{draft.type === "expense" && draft.paymentMethod === "card" && <><label className="field-label">결제 카드<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value, assetKind: "card", assetName: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><div className="card-benefit-panel"><div className="card-benefit-head"><span><CreditCard size={14} /> {draft.cardCompany} 이번 달 실적</span><strong className={cardBenefitReady ? "ready" : "pending"}>{cardBenefitReady ? "혜택 조건 충족" : `${formatWon(Math.max(0, cardBenefit.threshold - previewCardSpend))} 부족`}</strong></div><div className="card-benefit-progress"><i style={{ width: `${cardSpendProgress}%` }} /></div><div className="card-benefit-meta"><span>{formatWon(previewCardSpend)} / {formatWon(cardBenefit.threshold)}</span><span>예상 할인 한도 {formatWon(cardBenefit.cap)}</span></div><small>{categoryBenefitReady ? "현재 카테고리는 할인 대상에 포함된 것으로 설정되어 있어요." : "현재 카테고리는 등록된 참고 혜택 대상과 다를 수 있어요."} 카드 상품별 실제 조건은 카드사 약관을 확인해 주세요.</small></div></>}</div>}
           {(["todo", "event"] as ItemType[]).includes(draft.type) && <div className="asset-owner-row"><span>{draft.type === "todo" ? "할 일" : "일정"} 색상</span><div className="color-choice">{["#6f63b6", "#e98272", "#4c9d83", "#5ca9d6", "#e2b34f", "#d26aa2"].map((color) => <button className={draft.accentColor === color ? "selected" : ""} style={{ backgroundColor: color }} type="button" key={color} onClick={() => update({ accentColor: color })} aria-label={`${color} 색상`} />)}</div></div>}
           {(["expense", "loan"] as ItemType[]).includes(draft.type) && <div className="detail-block recurring-block"><div className="detail-block-title">고정지출·가족 부담 설정</div><label className="field-label">반복 주기<select value={draft.recurrence} onChange={(event) => update({ recurrence: event.target.value as Draft["recurrence"] })}><option value="none">한 번만</option><option value="monthly">매월 반복</option></select></label>{draft.recurrence === "monthly" && <label className="field-label">반복 종료일<input type="date" value={draft.repeatUntil} min={draft.date} onChange={(event) => update({ repeatUntil: event.target.value })} /></label>}<span className="field-hint">카드값·관리비·통신비처럼 매달 나가는 금액을 달력에 자동 표시해요.</span></div>}
           {draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">첫 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div><div className="field-row"><label className="field-label">상환방식<select value={draft.repaymentMethod} onChange={(event) => update({ repaymentMethod: event.target.value as Draft["repaymentMethod"] })}><option value="equalPayment">원리금균등</option><option value="equalPrincipal">원금균등</option></select></label><label className="field-label">상환기간(개월)<input inputMode="numeric" value={draft.termMonths} onChange={(event) => update({ termMonths: event.target.value.replace(/[^0-9]/g, "") })} /></label></div>{draft.loanPrincipal && draft.interestRate && draft.termMonths && <div className="schedule-preview"><strong>{draft.repaymentMethod === "equalPayment" ? "원리금균등" : "원금균등"} · 총 {Number(draft.termMonths) + Number(draft.gracePeriod || 0)}회</strong><span>거치기간은 이자만 납부하고, 이후 월별 상환일을 달력에 자동 표시해요.</span></div>}</div>}
