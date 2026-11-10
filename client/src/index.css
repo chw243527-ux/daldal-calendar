@@ -461,3 +461,19 @@ body { background: var(--ivory); }
 .topbar { position: relative; z-index: 5; }
 .topbar-actions, .profile-chip-button { position: relative; z-index: 6; }
 .profile-chip-button { cursor: pointer; touch-action: manipulation; }
+
+/* 모바일 하단 네비게이션 안전영역: 마지막 콘텐츠가 바 뒤에 숨지 않도록 보정 */
+@media (max-width: 600px) {
+  .page-content {
+    padding-bottom: calc(220px + env(safe-area-inset-bottom));
+  }
+  .bottom-nav {
+    z-index: 20;
+    min-height: 74px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .record-button {
+    z-index: 21;
+    bottom: calc(108px + env(safe-area-inset-bottom));
+  }
+}
