@@ -470,6 +470,7 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
   const accountStorageScope = auth.user?.openId ?? "";
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -496,6 +497,13 @@ export default function Home() {
     loan: [...categories.loan, ...(customCategories.loan ?? [])],
   }), [customCategories]);
 
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); void accountCloudQuery.refetch(); };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("offline", handleOffline); };
+  }, [accountCloudQuery]);
   useEffect(() => {
     cloudHydratedScopeRef.current = null;
     cloudVersionRef.current = 0;
@@ -580,7 +588,7 @@ export default function Home() {
 
   const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig]);
   useEffect(() => {
-    if (!auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || cloudPayloadJson === cloudSignatureRef.current) return;
+    if (!isOnline || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || cloudPayloadJson === cloudSignatureRef.current) return;
     const timer = window.setTimeout(() => {
       accountCloudSync.mutate({ payloadJson: cloudPayloadJson, baseVersion: cloudVersionRef.current }, { onSuccess: (result) => {
         if (result.conflict) {
@@ -602,7 +610,7 @@ export default function Home() {
       } });
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, items, loadedStorageScope]);
+  }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, isOnline, items, loadedStorageScope]);
 
   useEffect(() => {
     if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items));
