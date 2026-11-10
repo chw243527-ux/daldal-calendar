@@ -3,9 +3,9 @@ import { OAUTH_STATE_COOKIE, encodeOAuthState } from "@shared/const";
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
 export const getLoginUrl = () => {
-  const oauthPortalUrl = window.__MANUS_CONFIG__?.oauthPortalUrl;
-  const appId = window.__MANUS_CONFIG__?.projectId;
-  if (!oauthPortalUrl || !appId) throw new Error("Manus login is not configured");
+  // Capacitor APK에서는 platform config script가 늦게 로드될 수 있어 공개 식별자 fallback을 사용합니다.
+  const oauthPortalUrl = window.__MANUS_CONFIG__?.oauthPortalUrl ?? "https://manus.im";
+  const appId = window.__MANUS_CONFIG__?.projectId ?? "bSqJsoxWZ7wwBW42Vmn9aC";
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const nonce = crypto.randomUUID();
   document.cookie = `${OAUTH_STATE_COOKIE}=${nonce}; Path=/; Max-Age=600; SameSite=None; Secure`;
