@@ -23,6 +23,7 @@ type WidgetData = {
     amount?: number;
     completed?: boolean;
     expectedIncome?: boolean;
+    expectedExpense?: boolean;
     accentColor?: string;
   }>;
 };

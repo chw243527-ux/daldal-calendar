@@ -544,3 +544,19 @@ body { background: var(--ivory); }
 .calendar-chip.is-complete { opacity: .62; text-decoration: line-through; }
 .expected-income-toggle { margin-top: 4px; padding: 9px 11px; border-radius: 10px; background: #edf5f0; color: #4c806e; }
 .expected-income-toggle input { accent-color: var(--mint); }
+
+/* 예상 수입·지출과 실제 수입·지출 비교 */
+.expected-actual-panel { padding: 16px; }
+.expected-actual-note { margin: -3px 0 13px; color: #9a908c; font-size: 10px; line-height: 1.45; }
+.expected-actual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.expected-actual-card { display: flex; min-height: 83px; flex-direction: column; gap: 5px; padding: 12px; border-left: 3px solid #d8cec7; background: #fbf8f5; }
+.expected-actual-card.income { border-left-color: var(--mint); background: #f3f8f5; }
+.expected-actual-card.expense { border-left-color: var(--coral); background: #fff5f2; }
+.expected-actual-card span { color: #817773; font-size: 10px; font-weight: 800; }
+.expected-actual-card strong { color: var(--ink); font-size: 15px; letter-spacing: -.05em; }
+.expected-actual-card small { color: #a49a95; font-size: 9px; line-height: 1.35; }
+.expected-actual-difference { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: #807570; font-size: 10px; font-weight: 750; }
+.expected-actual-difference b { color: var(--mint); font-size: 15px; }
+.expected-actual-difference b.negative { color: var(--coral); }
+.expected-actual-difference small { grid-column: 1 / -1; color: #aaa09b; font-size: 9px; font-weight: 550; }
+@media (max-width: 380px) { .expected-actual-grid { gap: 7px; }.expected-actual-card { padding: 10px; }.expected-actual-card strong { font-size: 13px; } }
