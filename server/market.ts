@@ -4,12 +4,16 @@ export type MarketQuote = {
   symbol: string;
   price: number;
   currency: string;
+  nativePrice?: number;
+  nativeCurrency?: string;
+  fxRate?: number;
   name?: string;
   observedAt: string;
   source: "YahooFinance";
 };
 
 const quoteCache = new Map<string, { expiresAt: number; quote: MarketQuote }>();
+const fxCache = new Map<string, { expiresAt: number; rate: number }>();
 const CACHE_TTL_MS = 60_000;
 
 function normalizeSymbol(symbol: string) {
@@ -44,24 +48,41 @@ export async function getMarketQuotes(symbols: string[]) {
 }
 
 async function fetchQuote(symbol: string): Promise<MarketQuote | null> {
-  const payload = await callDataApi("YahooFinance/get_stock_chart", {
-    query: {
-      symbol,
-      interval: "1d",
-      range: "5d",
-      includeAdjustedClose: "true",
-      includePrePost: "false",
-    },
-  }) as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; currency?: string; longName?: string; shortName?: string; regularMarketTime?: number; symbol?: string } }> } };
-  const meta = payload.chart?.result?.[0]?.meta;
-  const price = Number(meta?.regularMarketPrice);
-  if (!meta || !Number.isFinite(price) || price <= 0) return null;
+  const meta = await fetchYahooMeta(symbol);
+  const nativePrice = Number(meta?.regularMarketPrice);
+  const nativeCurrency = String(meta?.currency ?? "UNKNOWN");
+  if (!meta || !Number.isFinite(nativePrice) || nativePrice <= 0) return null;
+  const normalizedCurrency = nativeCurrency.toUpperCase() === "GBX" || nativeCurrency.toUpperCase() === "GBP" && symbol.endsWith(".L") ? "GBP" : nativeCurrency.toUpperCase();
+  const fxRate = normalizedCurrency === "KRW" ? 1 : await getKrwRate(normalizedCurrency);
+  if (!fxRate) throw new Error(`KRW exchange rate unavailable for ${nativeCurrency}`);
+  const adjustedNativePrice = normalizedCurrency === "GBP" && nativeCurrency.toUpperCase() === "GBX" ? nativePrice / 100 : nativePrice;
+  const price = adjustedNativePrice * fxRate;
   return {
     symbol: String(meta.symbol ?? symbol).toUpperCase(),
     price,
-    currency: meta.currency ?? "UNKNOWN",
+    currency: "KRW",
+    nativePrice,
+    nativeCurrency,
+    fxRate,
     name: meta.longName ?? meta.shortName,
     observedAt: new Date((Number(meta.regularMarketTime) || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
     source: "YahooFinance",
   };
+}
+
+async function fetchYahooMeta(symbol: string) {
+  const payload = await callDataApi("YahooFinance/get_stock_chart", {
+    query: { symbol, interval: "1d", range: "5d", includeAdjustedClose: "true", includePrePost: "false" },
+  }) as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; currency?: string; longName?: string; shortName?: string; regularMarketTime?: number; symbol?: string } }> } };
+  return payload.chart?.result?.[0]?.meta;
+}
+
+async function getKrwRate(currency: string) {
+  const cached = fxCache.get(currency);
+  if (cached && cached.expiresAt > Date.now()) return cached.rate;
+  const fxMeta = await fetchYahooMeta(`${currency}KRW=X`);
+  const rate = Number(fxMeta?.regularMarketPrice);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+  fxCache.set(currency, { expiresAt: Date.now() + CACHE_TTL_MS, rate });
+  return rate;
 }
