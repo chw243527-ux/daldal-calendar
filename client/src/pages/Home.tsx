@@ -68,8 +68,11 @@ type CalendarItem = {
   principalPaid?: number;
   interestPaid?: number;
   remainingBalance?: number;
-  recurrence?: "none" | "monthly";
+  recurrence?: "none" | "daily" | "weekly" | "monthly" | "yearly";
   repeatUntil?: string;
+  calendarKind?: "solar" | "lunar";
+  lunarMonth?: number;
+  lunarDay?: number;
   owner?: string;
   accentColor?: string;
   cardCompany?: string;
@@ -129,8 +132,11 @@ type Draft = {
   repaymentDate: string;
   repaymentMethod: "equalPayment" | "equalPrincipal";
   termMonths: string;
-  recurrence: "none" | "monthly";
+  recurrence: "none" | "daily" | "weekly" | "monthly" | "yearly";
   repeatUntil: string;
+  calendarKind: "solar" | "lunar";
+  lunarMonth?: number;
+  lunarDay?: number;
   owner: string;
   accentColor: string;
   cardCompany: string;
@@ -254,6 +260,43 @@ function addMonths(date: Date, amount: number) {
   target.setDate(Math.min(date.getDate(), lastDay));
   return target;
 }
+function addYears(date: Date, amount: number) {
+  return new Date(date.getFullYear() + amount, date.getMonth(), Math.min(date.getDate(), new Date(date.getFullYear() + amount, date.getMonth() + 1, 0).getDate()), 12);
+}
+const lunarFormatter = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" });
+function getLunarMonthDay(date: Date) {
+  const parts = lunarFormatter.formatToParts(date);
+  const month = Number(parts.find((part) => part.type === "month")?.value ?? 0);
+  const day = Number(parts.find((part) => part.type === "day")?.value ?? 0);
+  return { month, day };
+}
+function findLunarDate(year: number, month: number, day: number) {
+  for (let index = 0; index < 366; index += 1) {
+    const candidate = new Date(year, 0, 1 + index, 12);
+    if (candidate.getFullYear() !== year) break;
+    const lunar = getLunarMonthDay(candidate);
+    if (lunar.month === month && lunar.day === day) return candidate;
+  }
+  return undefined;
+}
+function getRecurringDates(item: CalendarItem) {
+  const start = fromISO(item.date);
+  const end = item.repeatUntil ? fromISO(item.repeatUntil) : start;
+  if (!item.recurrence || item.recurrence === "none" || end < start) return [start];
+  const dates: Date[] = [];
+  const limit = 1000;
+  for (let index = 0; index < limit; index += 1) {
+    let date: Date;
+    if (item.recurrence === "daily") date = addDays(start, index);
+    else if (item.recurrence === "weekly") date = addDays(start, index * 7);
+    else if (item.recurrence === "monthly") date = addMonths(start, index);
+    else if (item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay) ?? addMonths(start, index * 12);
+    else date = new Date(start.getFullYear() + index, start.getMonth(), Math.min(start.getDate(), new Date(start.getFullYear() + index, start.getMonth() + 1, 0).getDate()), 12);
+    if (date > end) break;
+    if (date >= start) dates.push(date);
+  }
+  return dates.length ? dates : [start];
+}
 
 function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
   if (item.type !== "loan" || !item.loanPrincipal || item.interestRate === undefined || !item.repaymentDate || !item.termMonths) return [];
@@ -283,14 +326,8 @@ function getDisplayItems(items: CalendarItem[]) {
       const schedule = calculateLoanSchedule(item);
       return schedule.length ? schedule : [item];
     }
-    if (item.recurrence === "monthly" && item.repeatUntil) {
-      const recurring: CalendarItem[] = [];
-      const start = fromISO(item.date);
-      const end = fromISO(item.repeatUntil);
-      for (let cursor = new Date(start), index = 0; cursor <= end; cursor = addMonths(cursor, 1), index += 1) {
-        recurring.push({ ...item, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(cursor), title: index ? `${item.title} · ${index + 1}회차` : item.title });
-      }
-      return recurring;
+    if (item.recurrence && item.recurrence !== "none" && item.repeatUntil) {
+      return getRecurringDates(item).map((date, index) => ({ ...item, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(date), title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
     }
     return [item];
   });
@@ -382,6 +419,9 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
     transferTo: "",
     dueDate: date,
     autopay: false,
+    calendarKind: "solar",
+    lunarMonth: undefined,
+    lunarDay: undefined,
     autopayAccount: "",
   };
 }
@@ -756,6 +796,9 @@ export default function Home() {
       termMonths: sourceItem.termMonths ? String(sourceItem.termMonths) : "60",
       recurrence: sourceItem.recurrence ?? "none",
       repeatUntil: sourceItem.repeatUntil ?? "",
+      calendarKind: sourceItem.calendarKind ?? "solar",
+      lunarMonth: sourceItem.lunarMonth,
+      lunarDay: sourceItem.lunarDay,
       owner: sourceItem.owner ?? "나",
       accentColor: sourceItem.accentColor ?? (sourceItem.type === "todo" ? "#6f63b6" : "#e98272"),
       cardCompany: sourceItem.cardCompany ?? CARD_COMPANIES[0],
@@ -808,8 +851,11 @@ export default function Home() {
       repaymentDate: draft.type === "loan" ? draft.repaymentDate : undefined,
       repaymentMethod: draft.type === "loan" ? draft.repaymentMethod : undefined,
       termMonths: draft.type === "loan" && draft.termMonths ? Number(draft.termMonths) : undefined,
-      recurrence: ["expense", "loan", "savings"].includes(draft.type) ? (draft.type === "savings" ? "monthly" : draft.recurrence) : undefined,
-      repeatUntil: ["expense", "loan", "savings"].includes(draft.type) && (draft.type === "savings" || draft.recurrence === "monthly") ? draft.type === "savings" ? draft.savingsMaturityDate || toISO(addMonths(fromISO(draft.date), Math.max(1, Number(draft.savingsTermMonths || 12)) - 1)) : draft.repeatUntil : undefined,
+      recurrence: ["todo", "event", "expense", "loan", "savings"].includes(draft.type) ? (draft.type === "savings" ? "monthly" : draft.recurrence) : undefined,
+      repeatUntil: ["todo", "event", "expense", "loan", "savings"].includes(draft.type) && (draft.type === "savings" || draft.recurrence !== "none") ? draft.type === "savings" ? draft.savingsMaturityDate || toISO(addMonths(fromISO(draft.date), Math.max(1, Number(draft.savingsTermMonths || 12)) - 1)) : draft.repeatUntil : undefined,
+      calendarKind: ["todo", "event"].includes(draft.type) ? draft.calendarKind : undefined,
+      lunarMonth: ["todo", "event"].includes(draft.type) && draft.calendarKind === "lunar" ? draft.lunarMonth : undefined,
+      lunarDay: ["todo", "event"].includes(draft.type) && draft.calendarKind === "lunar" ? draft.lunarDay : undefined,
       owner: ["income", "expense", "loan", "savings"].includes(draft.type) ? draft.owner : undefined,
       accentColor: ["todo", "event"].includes(draft.type) ? draft.accentColor : undefined,
       cardCompany: draft.type === "expense" && draft.paymentMethod === "card" ? draft.cardCompany : draft.type === "loan" && draft.category === "카드값" ? draft.cardCompany : undefined,
@@ -1591,12 +1637,12 @@ function Composer({
         <div className="transaction-mode-strip"><span>금융 기록</span><div>{(["income", "expense", "transfer"] as ItemType[]).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? `active ${type}` : ""} type="button" key={type} onClick={() => update({ type, category: categoryMap[type][0], assetKind: type === "expense" ? "card" : "account" })}><TypeIcon size={14} />{type === "income" ? "입금" : type === "expense" ? "출금" : "이체"}</button>; })}</div></div><div className="type-tabs">{(Object.keys(typeMeta) as ItemType[]).filter((type) => !["income", "expense", "transfer"].includes(type)).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? "active" : ""} type="button" key={type} onClick={() => update({ type, category: categoryMap[type][0], time: type === "event" ? draft.time || "12:00" : "", assetKind: type === "loan" ? "loan" : type === "savings" ? "savings" : draft.assetKind, accentColor: type === "todo" ? "#716a65" : type === "event" ? "#c96f64" : "" })}><TypeIcon size={15} />{typeMeta[type].label}</button>; })}</div>
         <div className="composer-form">
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
-          <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>{draft.type === "income" && <label className="toggle-field expected-income-toggle"><span>예상 수입으로 표시</span><input type="checkbox" checked={draft.expectedIncome} onChange={(event) => update({ expectedIncome: event.target.checked })} /></label>}{draft.type === "expense" && <label className="toggle-field expected-expense-toggle"><span>예상 지출로 표시</span><input type="checkbox" checked={draft.expectedExpense} onChange={(event) => update({ expectedExpense: event.target.checked })} /></label>}
+          <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => { const date = event.target.value; const lunar = getLunarMonthDay(fromISO(date)); update({ date, ...(draft.calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day } : {}) }); }} /></label>{["todo", "event"].includes(draft.type) && <label className="field-label">달력 기준<select value={draft.calendarKind} onChange={(event) => { const calendarKind = event.target.value as Draft["calendarKind"]; const lunar = getLunarMonthDay(fromISO(draft.date)); update({ calendarKind, ...(calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day, recurrence: draft.recurrence === "none" ? "yearly" : draft.recurrence } : {}) }); }}><option value="solar">양력</option><option value="lunar">음력</option></select></label>}{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>{draft.type === "income" && <label className="toggle-field expected-income-toggle"><span>예상 수입으로 표시</span><input type="checkbox" checked={draft.expectedIncome} onChange={(event) => update({ expectedIncome: event.target.checked })} /></label>}{draft.type === "expense" && <label className="toggle-field expected-expense-toggle"><span>예상 지출로 표시</span><input type="checkbox" checked={draft.expectedExpense} onChange={(event) => update({ expectedExpense: event.target.checked })} /></label>}
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           {draft.type === "transfer" && <div className="detail-block transfer-block"><div className="detail-block-title">계좌·자산 간 이체</div><div className="field-row"><label className="field-label">출발 자산<input value={draft.transferFrom} onChange={(event) => update({ transferFrom: event.target.value })} placeholder="예: 신한 주거래" /></label><label className="field-label">도착 자산<input value={draft.transferTo} onChange={(event) => update({ transferTo: event.target.value })} placeholder="예: 비상금 통장" /></label></div><span className="field-hint">입금·출금으로 중복 집계하지 않고, 두 자산 사이의 이동으로만 기록해요.</span></div>}{(["income", "expense", "loan", "savings"] as ItemType[]).includes(draft.type) && <div className="asset-owner-row"><span>자산 소유자</span><div>{["나", "신랑", "공동"].map((owner) => <button className={draft.owner === owner ? "selected" : ""} type="button" key={owner} onClick={() => update({ owner })}>{owner}</button>)}</div></div>}
           {isFinance && draft.type !== "transfer" && <div className="detail-block asset-block"><div className="detail-block-title"><WalletCards size={15} /> 어떤 자산으로 기록할까요?</div><div className="field-row"><label className="field-label">자산 종류<select value={draft.assetKind} onChange={(event) => update({ assetKind: event.target.value as Draft["assetKind"] })}>{ASSET_KINDS.map((asset) => <option value={asset.value} key={asset.value}>{asset.label}</option>)}</select></label><label className="field-label">자산 이름<span className="optional">선택</span><input value={draft.assetName} onChange={(event) => update({ assetName: event.target.value })} placeholder={draft.assetKind === "card" ? "예: 삼성카드" : draft.assetKind === "account" ? "예: 신한 주거래" : "예: 생활비"} /></label></div>{draft.type === "expense" && <label className="field-label">결제수단<select value={draft.paymentMethod} onChange={(event) => update({ paymentMethod: event.target.value as Draft["paymentMethod"] })}>{PAYMENT_METHODS.map((method) => <option value={method.value} key={method.value}>{method.label}</option>)}</select></label>}{draft.type === "expense" && draft.category === "지역화폐 충전" && <div className="detail-block local-currency-block"><div className="detail-block-title">지역화폐 충전 설정</div><div className="field-row"><label className="field-label">출금 계좌<input value={draft.localCurrencySource} onChange={(event) => update({ localCurrencySource: event.target.value, assetKind: "account", paymentMethod: "account" })} placeholder="예: 신한 주거래" /></label><label className="field-label">지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value })} placeholder="예: 경기지역화폐" /></label></div><label className="field-label">충전 할인율(%)<input inputMode="decimal" value={draft.localCurrencyDiscountRate} onChange={(event) => update({ localCurrencyDiscountRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 10" /></label>{draft.amount && <div className="local-currency-estimate">계좌에서 {formatWon(Number(draft.amount))} 출금 · {formatWon(Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)))} 충전 · 할인 {formatWon(Math.max(0, Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) - Number(draft.amount)))}</div>}</div>}{draft.type === "expense" && draft.paymentMethod === "localCurrency" && <div className="detail-block local-currency-use-block"><div className="detail-block-title">지역화폐로 결제</div><label className="field-label">사용할 지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value, assetKind: "localCurrency", assetName: event.target.value })} placeholder="예: 경기지역화폐" /></label><label className="field-label">캐시백률(%)<input inputMode="decimal" value={draft.localCurrencyCashbackRate} onChange={(event) => update({ localCurrencyCashbackRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 5" /></label><div className="local-currency-cashback-preview">이번 결제 예상 캐시백 {formatWon(Math.round(Number(draft.amount || 0) * Number(draft.localCurrencyCashbackRate || 0) / 100))} · 결제 후 잔액에 자동 재적립</div><div className={`local-currency-balance ${localCurrencyBalance < Number(draft.amount || 0) ? "insufficient" : ""}`}><span>{localCurrencyName} 현재 잔액</span><strong>{formatWon(localCurrencyBalance)}</strong>{draft.amount && localCurrencyBalance < Number(draft.amount) && <small>잔액이 {formatWon(Number(draft.amount) - localCurrencyBalance)} 부족해요.</small>}</div></div>}{draft.type === "expense" && draft.paymentMethod === "card" && <><label className="field-label">결제 카드<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value, assetKind: "card", assetName: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><div className="card-benefit-panel"><div className="card-benefit-head"><span><CreditCard size={14} /> {draft.cardCompany} 이번 달 실적</span><strong className={cardBenefitReady ? "ready" : "pending"}>{cardBenefitReady ? "혜택 조건 충족" : `${formatWon(Math.max(0, cardBenefit.threshold - previewCardSpend))} 부족`}</strong></div><div className="card-benefit-progress"><i style={{ width: `${cardSpendProgress}%` }} /></div><div className="card-benefit-meta"><span>{formatWon(previewCardSpend)} / {formatWon(cardBenefit.threshold)}</span><span>예상 할인 한도 {formatWon(cardBenefit.cap)}</span></div><small>{categoryBenefitReady ? "현재 카테고리는 할인 대상에 포함된 것으로 설정되어 있어요." : "현재 카테고리는 등록된 참고 혜택 대상과 다를 수 있어요."} 카드 상품별 실제 조건은 카드사 약관을 확인해 주세요.</small></div></>}</div>}
           {(["todo", "event"] as ItemType[]).includes(draft.type) && <div className="asset-owner-row"><span>{draft.type === "todo" ? "할 일" : "일정"} 색상</span><div className="color-choice">{["#6f63b6", "#e98272", "#4c9d83", "#5ca9d6", "#e2b34f", "#d26aa2"].map((color) => <button className={draft.accentColor === color ? "selected" : ""} style={{ backgroundColor: color }} type="button" key={color} onClick={() => update({ accentColor: color })} aria-label={`${color} 색상`} />)}</div></div>}
-          {(["expense", "loan"] as ItemType[]).includes(draft.type) && <div className="detail-block recurring-block"><div className="detail-block-title">고정지출·가족 부담 설정</div><label className="field-label">반복 주기<select value={draft.recurrence} onChange={(event) => update({ recurrence: event.target.value as Draft["recurrence"] })}><option value="none">한 번만</option><option value="monthly">매월 반복</option></select></label>{draft.recurrence === "monthly" && <label className="field-label">반복 종료일<input type="date" value={draft.repeatUntil} min={draft.date} onChange={(event) => update({ repeatUntil: event.target.value })} /></label>}<span className="field-hint">카드값·관리비·통신비처럼 매달 나가는 금액을 달력에 자동 표시해요.</span></div>}
+          {(["todo", "event", "expense", "loan"] as ItemType[]).includes(draft.type) && <div className="detail-block recurring-block"><div className="detail-block-title">반복 일정 설정</div><label className="field-label">반복 주기<select value={draft.recurrence} onChange={(event) => { const recurrence = event.target.value as Draft["recurrence"]; update({ recurrence, repeatUntil: recurrence !== "none" && !draft.repeatUntil ? toISO(addYears(fromISO(draft.date), 5)) : draft.repeatUntil }); }}><option value="none">한 번만</option><option value="daily">매일 반복</option><option value="weekly">매주 반복</option><option value="monthly">매월 반복</option><option value="yearly">매년 반복</option></select></label>{draft.recurrence !== "none" && <label className="field-label">반복 종료일<input type="date" value={draft.repeatUntil} min={draft.date} onChange={(event) => update({ repeatUntil: event.target.value })} /></label>}<span className="field-hint">일정·할 일은 매일, 매주, 매월, 매년 반복할 수 있어요. 음력 일정은 매년 음력 날짜에 맞춰 표시해요.</span></div>}
           {(["expense", "loan"] as ItemType[]).includes(draft.type) && <div className="detail-block payment-schedule-block"><div className="detail-block-title">{draft.type === "loan" ? "상환일·자동이체" : "결제 예정일·자동이체"}</div><div className="field-row"><label className="field-label">{draft.type === "loan" ? "상환 예정일" : "결제 예정일"}<input type="date" value={draft.dueDate} onChange={(event) => update({ dueDate: event.target.value })} /></label><label className="toggle-field"><span>자동이체</span><input type="checkbox" checked={draft.autopay} onChange={(event) => update({ autopay: event.target.checked })} /></label></div>{draft.autopay && <label className="field-label">출금 계좌<span className="optional">선택</span><input value={draft.autopayAccount} onChange={(event) => update({ autopayAccount: event.target.value })} placeholder="예: 신한 주거래 계좌" /></label>}<span className="field-hint">예정일에 맞춰 달력과 현금흐름 리포트에 표시해요.</span></div>}{draft.type === "loan" && draft.category === "대출" && <div className="detail-block"><div className="detail-block-title">대출 상세 설정</div><div className="field-row"><label className="field-label">대출 원금<input inputMode="numeric" value={draft.loanPrincipal} onChange={(event) => update({ loanPrincipal: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.interestRate} onChange={(event) => update({ interestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 4.5" /></label></div><div className="field-row"><label className="field-label">거치기간(개월)<input inputMode="numeric" value={draft.gracePeriod} onChange={(event) => update({ gracePeriod: event.target.value.replace(/[^0-9]/g, "") })} /></label><label className="field-label">첫 상환일<input type="date" value={draft.repaymentDate} onChange={(event) => update({ repaymentDate: event.target.value })} /></label></div><div className="field-row"><label className="field-label">상환방식<select value={draft.repaymentMethod} onChange={(event) => update({ repaymentMethod: event.target.value as Draft["repaymentMethod"] })}><option value="equalPayment">원리금균등</option><option value="equalPrincipal">원금균등</option></select></label><label className="field-label">상환기간(개월)<input inputMode="numeric" value={draft.termMonths} onChange={(event) => update({ termMonths: event.target.value.replace(/[^0-9]/g, "") })} /></label></div>{draft.loanPrincipal && draft.interestRate && draft.termMonths && <div className="schedule-preview"><strong>{draft.repaymentMethod === "equalPayment" ? "원리금균등" : "원금균등"} · 총 {Number(draft.termMonths) + Number(draft.gracePeriod || 0)}회</strong><span>거치기간은 이자만 납부하고, 이후 월별 상환일을 달력에 자동 표시해요.</span></div>}</div>}
           {draft.type === "loan" && draft.category === "카드값" && <div className="detail-block"><div className="detail-block-title">카드 결제 상세</div><div className="field-row"><label className="field-label">카드사<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제 방식<select value={draft.cardMode} onChange={(event) => update({ cardMode: event.target.value as Draft["cardMode"] })}><option value="lumpSum">일시불</option><option value="installment">할부</option></select></label></div><div className="field-row"><label className="field-label">수수료율(%)<input inputMode="decimal" value={draft.cardFeeRate} onChange={(event) => update({ cardFeeRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="카드사 안내 수수료" /></label>{draft.cardMode === "installment" && <label className="field-label">할부 개월<input inputMode="numeric" value={draft.installments} onChange={(event) => update({ installments: event.target.value.replace(/[^0-9]/g, "") })} /></label>}</div>{draft.cardMode === "installment" && <div className={`rate-source ${officialCardRate !== undefined ? "verified" : "manual"}`}>{officialCardRate !== undefined ? `공식 기준 자동 적용 · 연 ${officialCardRate}%` : getCardRateBasis(draft.cardCompany, cardInstallments)}</div>}<div className="detail-estimate">예상 총 결제액 {formatWon(cardTotal)} · {draft.cardMode === "installment" ? `월 ${formatWon(cardMonthly)}` : "일시불 결제"}</div></div>}
           {draft.type === "savings" && <div className="detail-block savings-block"><div className="detail-block-title">적금 상세 설정</div><div className="field-row"><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.savingsInterestRate} onChange={(event) => update({ savingsInterestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 3.5" /></label><label className="field-label">납입 기간(개월)<input inputMode="numeric" value={draft.savingsTermMonths} onChange={(event) => update({ savingsTermMonths: event.target.value.replace(/[^0-9]/g, "") })} placeholder="12" /></label></div><label className="field-label">만기일<input type="date" value={draft.savingsMaturityDate} onChange={(event) => update({ savingsMaturityDate: event.target.value })} /></label>{draft.amount && draft.savingsTermMonths && <div className="detail-estimate">예상 원금 {formatWon(Number(draft.amount) * Number(draft.savingsTermMonths))} · 월 {formatWon(Number(draft.amount))} 납입</div>}</div>}
