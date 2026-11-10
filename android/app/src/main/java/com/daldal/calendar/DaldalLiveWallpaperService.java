@@ -168,7 +168,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String backgroundTheme = preferences.getString("backgroundTheme", "ivory");
-            boolean darkTheme = "night".equals(backgroundTheme);
+            boolean darkTheme = isDarkTheme(backgroundTheme);
             canvas.drawColor(backgroundColor(backgroundTheme));
 
             paint.setStyle(Paint.Style.FILL);
@@ -194,9 +194,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float cellHeight = Math.max(43f, Math.min(56f, height * 0.055f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
             if (showCalendar) {
-            drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, Color.rgb(82, 73, 78), true);
+            drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, primaryTextColor(darkTheme), true);
             for (int index = 0; index < weekdays.length; index++) {
-                drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 11, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : Color.rgb(143,136,133), true);
+                drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 11, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
             }
             for (int day = 1; day <= days; day++) {
                 int index = firstDay + day - 1;
@@ -219,7 +219,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, now.get(Calendar.DAY_OF_MONTH));
             float sectionTop = gridTop + 28 + 6 * cellHeight + 22;
-            if (showSchedule || showTodo) drawText(canvas, "일정 · 할 일", margin + 24, sectionTop, 13, Color.rgb(82, 73, 78), true);
+            if (showSchedule || showTodo) drawText(canvas, "일정 · 할 일", margin + 24, sectionTop, 13, primaryTextColor(darkTheme), true);
             int scheduleRow = 0;
             for (int itemIndex = 0; itemIndex < entries.length() && scheduleRow < 3; itemIndex++) {
                 JSONObject item = entries.optJSONObject(itemIndex);
@@ -231,11 +231,11 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float rowY = sectionTop + 23 + scheduleRow * 24;
                 paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? Color.rgb(143,136,133) : primaryTextColor(darkTheme), false);
+                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? secondaryTextColor(darkTheme) : primaryTextColor(darkTheme), false);
                 drawText(canvas, "event".equals(type) ? item.optString("time", "일정") : "할 일", width - margin - 24, rowY, 11, recordColor, false, true);
                 scheduleRow++;
             }
-            if ((showSchedule || showTodo) && scheduleRow == 0) drawText(canvas, "표시할 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, Color.rgb(143,136,133), false);
+            if ((showSchedule || showTodo) && scheduleRow == 0) drawText(canvas, "표시할 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, secondaryTextColor(darkTheme), false);
             // 잠금화면에는 일정·할 일만 표시하고, 월간 자금 요약은 그 바로 아래에 배치합니다.
             float chartTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
             int monthlyIncome = 0, monthlyExpense = 0, monthlyOutgoing = 0;
@@ -248,7 +248,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if ("expense".equals(type)) monthlyExpense += amount;
                 if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
             }
-            if (showMonthlyFunds) drawFinanceChart(canvas, margin + 24, chartTop, width - margin * 2 - 24, monthlyIncome, monthlyExpense, monthlyOutgoing);
+            if (showMonthlyFunds) drawFinanceChart(canvas, margin + 24, chartTop, width - margin * 2 - 24, monthlyIncome, monthlyExpense, monthlyOutgoing, darkTheme);
             if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
         }
@@ -276,8 +276,18 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return Color.rgb(216, 117, 104);
         }
 
+        private boolean isDarkTheme(String theme) {
+            int color = backgroundColor(theme);
+            double luminance = (0.2126 * Color.red(color) + 0.7152 * Color.green(color) + 0.0722 * Color.blue(color)) / 255.0;
+            return luminance < 0.52;
+        }
+
         private int primaryTextColor(boolean darkTheme) {
             return darkTheme ? Color.rgb(248, 242, 238) : Color.rgb(47, 42, 49);
+        }
+
+        private int secondaryTextColor(boolean darkTheme) {
+            return darkTheme ? Color.rgb(210, 201, 205) : Color.rgb(143, 136, 133);
         }
 
         private int itemColor(String type) {
@@ -313,7 +323,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     count++;
                 }
             }
-            drawText(canvas, label + " 상세", x + 18, y + 27, 14, Color.rgb(47,42,49), true);
+            boolean darkTheme = isDarkTheme(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("backgroundTheme", "ivory"));
+            drawText(canvas, label + " 상세", x + 18, y + 27, 14, primaryTextColor(darkTheme), true);
             drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type), true, true);
             int row = 0;
             for (int index = 0; index < entries.length() && row < 5; index++) {
@@ -323,24 +334,24 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String title = item.optString("title", "기록");
                 if (title.length() > 17) title = title.substring(0, 16) + "…";
                 float rowY = y + 53 + row * 24;
-                drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, Color.rgb(143,136,133), false);
-                drawText(canvas, title, x + 61, rowY, 13, Color.rgb(47,42,49), false);
+                drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, secondaryTextColor(darkTheme), false);
+                drawText(canvas, title, x + 61, rowY, 13, primaryTextColor(darkTheme), false);
                 drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type), true, true);
                 row++;
             }
-            if (row == 0) drawText(canvas, "이번 달 내역이 없어요", x + 18, y + 67, 13, Color.rgb(143,136,133), false);
-            drawText(canvas, "차트 밖을 터치하면 닫혀요", x + 18, y + 169, 10, Color.rgb(143,136,133), false);
+            if (row == 0) drawText(canvas, "이번 달 내역이 없어요", x + 18, y + 67, 13, secondaryTextColor(darkTheme), false);
+            drawText(canvas, "차트 밖을 터치하면 닫혀요", x + 18, y + 169, 10, secondaryTextColor(darkTheme), false);
         }
 
         private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
-            drawText(canvas, "월간 자금", x, y, 11, Color.rgb(82, 73, 78), true);
+            drawText(canvas, "월간 자금", x, y, 11, primaryTextColor(darkTheme), true);
             int max = Math.max(1, Math.max(income, Math.max(expense, loan)));
             String[] labels = {"수입", "지출", "나갈 돈"};
             int[] values = {income, expense, loan};
             int[] colors = {Color.rgb(137, 218, 183), Color.rgb(255, 184, 166), Color.rgb(244, 205, 125)};
             for (int index = 0; index < labels.length; index++) {
                 float rowY = y + 19 + index * 22;
-                drawText(canvas, labels[index], x, rowY + 9, 9, Color.rgb(121, 111, 106), false);
+                drawText(canvas, labels[index], x, rowY + 9, 9, secondaryTextColor(darkTheme), false);
                 paint.setColor(0x2A8F8885);
                 canvas.drawRoundRect(new RectF(x + 29, rowY + 2, x + chartWidth, rowY + 9), 4, 4, paint);
                 paint.setColor(colors[index]);
