@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { sdk } from "./_core/sdk";
+import { getMarketQuotes } from "./market";
 
 const passwordHash = (password: string) => {
   const salt = randomBytes(16);
@@ -58,6 +59,10 @@ export const appRouter = router({
   accountCloud: router({
     get: protectedProcedure.query(({ ctx }) => getAccountCloudData(ctx.user.id)),
     sync: protectedProcedure.input(z.object({ payloadJson: z.string().min(2).max(2_000_000), baseVersion: z.number().int().nonnegative() })).mutation(({ ctx, input }) => saveAccountCloudData(ctx.user.id, input.payloadJson, input.baseVersion)),
+  }),
+
+  market: router({
+    quotes: publicProcedure.input(z.object({ symbols: z.array(z.string().trim().min(1).max(32)).max(40) })).query(({ input }) => getMarketQuotes(input.symbols)),
   }),
 
   family: router({
