@@ -507,3 +507,34 @@ body { background: var(--ivory); }
     max-height: calc(100dvh - 24px);
   }
 }
+
+/* 전체 투자 포트폴리오 요약 */
+.portfolio-summary { padding: 18px; background: linear-gradient(135deg, #fffdfb, #fff7f3); border-color: #f0ddd7; }
+.portfolio-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.portfolio-head > div { display: flex; flex-direction: column; gap: 4px; }
+.portfolio-head strong { color: var(--ink); font-size: 15px; font-weight: 850; }
+.portfolio-head > svg { color: var(--coral); }
+.portfolio-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.portfolio-kpis > div { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.portfolio-kpis span { color: #9b908c; font-size: 9px; font-weight: 750; }
+.portfolio-kpis b { overflow: hidden; color: var(--ink); font-size: clamp(13px, 3.3vw, 17px); font-weight: 850; letter-spacing: -.05em; text-overflow: ellipsis; white-space: nowrap; }
+.portfolio-kpis small { color: inherit; font-size: 10px; font-weight: 850; }
+.portfolio-profit, .portfolio-profit b { color: var(--mint) !important; }
+.portfolio-loss, .portfolio-loss b { color: #d45561 !important; }
+.portfolio-return-track { height: 7px; overflow: hidden; margin-top: 15px; border-radius: 99px; background: #f1e7e3; }
+.portfolio-return-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #73b99a, var(--mint)); }
+.portfolio-return-track i.loss { background: linear-gradient(90deg, #efaaa0, #d45561); }
+.portfolio-chart { display: grid; gap: 12px; margin-top: 17px; }
+.portfolio-row { min-width: 0; }
+.portfolio-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.portfolio-row-head > span { display: inline-flex; align-items: center; min-width: 0; gap: 6px; overflow: hidden; color: #5c5351; font-size: 11px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.portfolio-row-head > b { flex: 0 0 auto; font-size: 10px; font-weight: 850; }
+.portfolio-row-head i { width: 7px; height: 7px; display: inline-block; flex: 0 0 auto; border-radius: 50%; }
+.stock-dot { background: var(--coral); }.crypto-dot { background: var(--lavender); }
+.portfolio-bar-track { height: 8px; overflow: hidden; margin-top: 6px; border-radius: 99px; background: #f1e9e6; }
+.portfolio-bar-track i { display: block; height: 100%; min-width: 0; border-radius: inherit; }
+.stock-bar { background: linear-gradient(90deg, #efaa9d, var(--coral)); }.crypto-bar { background: linear-gradient(90deg, #a69bdd, var(--lavender)); }
+.portfolio-row > small { display: block; margin-top: 4px; color: #9d928e; font-size: 9px; text-align: right; }
+.portfolio-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 15px; color: #a29894; font-size: 9px; }
+.portfolio-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 15px; color: #9a908d; font-size: 11px; line-height: 1.5; }
+@media (max-width: 380px) { .portfolio-kpis { gap: 7px; }.portfolio-kpis b { font-size: 12px; }.portfolio-foot { flex-direction: column; gap: 3px; } }

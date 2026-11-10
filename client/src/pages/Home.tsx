@@ -1039,6 +1039,8 @@ export default function Home() {
             month={month}
             monthItems={monthItems}
             summary={monthSummary}
+            assets={assetBalances}
+            items={displayItems}
             onMonthChange={changeMonth}
             onEdit={openEdit}
             onCreate={openCreate}
@@ -1277,6 +1279,8 @@ function LedgerView({
   month,
   monthItems,
   summary,
+  assets,
+  items,
   onMonthChange,
   onEdit,
   onCreate,
@@ -1286,6 +1290,8 @@ function LedgerView({
   month: Date;
   monthItems: CalendarItem[];
   summary: { income: number; expense: number; loan: number; balance: number };
+  assets: AssetBalance[];
+  items: CalendarItem[];
   onMonthChange: (offset: number) => void;
   onEdit: (item: CalendarItem) => void;
   onCreate: (type?: ItemType, date?: string) => void;
@@ -1310,6 +1316,7 @@ function LedgerView({
       <div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
       <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(summary.balance)}</strong><p>이번 달에 남은 금액이에요</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(summary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(summary.expense + summary.loan)}</span></div></section>
       <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="수입" amount={summary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={summary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={summary.loan} tone="loan" /></section>
+      <PortfolioSummary assets={assets} items={items} />
       <section className="ai-analysis-card surface-card"><div className="ai-analysis-head"><span className="ai-spark"><Sparkles size={15} /></span><div><span className="section-eyebrow">AI MONEY INSIGHT</span><strong>카테고리별로 살펴봤어요</strong></div><span className="ai-live">자동 분석</span></div><p>{analysisText}</p><div className="category-analysis-bars">{categoryTotals.length ? categoryTotals.map(([category, amount]) => <div className="category-analysis-row" key={category}><span>{category}</span><div><i style={{ width: `${Math.max(8, (amount / categoryTotals[0][1]) * 100)}%` }} /></div><b>{formatCompact(amount)}원</b></div>) : <span className="analysis-empty">금융 기록을 추가해 보세요.</span>}</div></section>
       <section className="ledger-list-section"><SectionHeading eyebrow="TRANSACTIONS" title="이번 달 기록" action={<button className="text-button" type="button" onClick={() => onCreate("expense", toISO(new Date()))}>빠른 입력 <Plus size={15} /></button>} /><div className="ledger-groups">{Object.keys(grouped).length ? Object.entries(grouped).map(([date, entries]) => <div className="ledger-group" key={date}><div className="ledger-date"><strong>{fromISO(date).getDate()}</strong><span>{fromISO(date).toLocaleDateString("ko-KR", { weekday: "short" })}</span></div><div className="ledger-entries">{entries.map((item) => <button className="ledger-entry" type="button" key={item.id} onClick={() => onEdit(item)}><span className="item-icon" style={{ backgroundColor: typeMeta[item.type].soft, color: typeMeta[item.type].color }}>{(() => { const Icon = typeMeta[item.type].icon; return <Icon size={16} />; })()}</span><span><strong>{item.title}</strong><small>{item.category}{item.assetName ? ` · ${item.assetName}` : ""}{item.type === "expense" && item.paymentMethod ? ` · ${PAYMENT_METHODS.find((method) => method.value === item.paymentMethod)?.label ?? ""}` : ""}</small></span><b className={item.type === "income" ? "positive" : ""}>{item.type === "income" ? "+" : "−"}{formatWon(item.amount)}</b><ChevronRight size={15} /></button>)}</div></div>) : <div className="soft-empty">이번 달 금융 기록이 아직 없어요.</div>}</div></section>
     </div>
@@ -1318,6 +1325,21 @@ function LedgerView({
 
 function LedgerStat({ icon: Icon, label, amount, tone }: { icon: LucideIcon; label: string; amount: number; tone: "income" | "expense" | "loan" }) {
   return <div className={`ledger-stat ${tone}`}><span className="stat-icon"><Icon size={16} /></span><span>{label}</span><strong>{formatCompact(amount)}<small>원</small></strong></div>;
+}
+
+function PortfolioSummary({ assets, items }: { assets: AssetBalance[]; items: CalendarItem[] }) {
+  const investments = assets.filter((asset) => asset.kind === "stock" || asset.kind === "crypto").map((asset) => {
+    const cost = (asset.quantity ?? 0) * (asset.averagePurchasePrice ?? 0);
+    const value = getAssetCurrentBalance(asset, items);
+    return { asset, cost, value, profit: value - cost };
+  }).filter((entry) => entry.cost > 0 || entry.value > 0).sort((a, b) => b.value - a.value);
+  const totalCost = investments.reduce((sum, entry) => sum + entry.cost, 0);
+  const totalValue = investments.reduce((sum, entry) => sum + entry.value, 0);
+  const totalProfit = totalValue - totalCost;
+  const returnRate = totalCost > 0 ? totalProfit / totalCost * 100 : 0;
+  const maxValue = Math.max(...investments.map((entry) => entry.value), 1);
+  const lastUpdated = investments.map((entry) => entry.asset.priceUpdatedAt).filter(Boolean).sort().at(-1);
+  return <section className="portfolio-summary surface-card"><div className="portfolio-head"><div><span className="section-eyebrow">MY PORTFOLIO</span><strong>투자자산 전체 수익률</strong></div><WalletCards size={18} /></div>{investments.length ? <><div className="portfolio-kpis"><div><span>총 평가액</span><b>{formatWon(totalValue)}</b></div><div><span>총 매수원가</span><b>{formatWon(totalCost)}</b></div><div className={totalProfit >= 0 ? "portfolio-profit" : "portfolio-loss"}><span>평가손익</span><b>{totalProfit >= 0 ? "▲" : "▼"} {formatWon(Math.abs(totalProfit))}</b><small>{totalProfit >= 0 ? "+" : "−"}{Math.abs(returnRate).toFixed(2)}%</small></div></div><div className="portfolio-return-track"><i className={totalProfit < 0 ? "loss" : ""} style={{ width: `${Math.min(100, Math.max(4, Math.abs(returnRate) / Math.max(Math.abs(returnRate), 100) * 100))}%` }} /></div><div className="portfolio-chart">{investments.map(({ asset, value, profit }) => <div className="portfolio-row" key={asset.id}><div className="portfolio-row-head"><span><i className={asset.kind === "crypto" ? "crypto-dot" : "stock-dot"} />{asset.name}</span><b className={profit >= 0 ? "portfolio-profit" : "portfolio-loss"}>{profit >= 0 ? "+" : "−"}{formatCompact(Math.abs(profit))}원</b></div><div className="portfolio-bar-track"><i className={asset.kind === "crypto" ? "crypto-bar" : "stock-bar"} style={{ width: `${Math.max(value ? 6 : 0, value / maxValue * 100)}%` }} /></div><small>{formatWon(value)} · {totalValue ? Math.round(value / totalValue * 100) : 0}%</small></div>)}</div><div className="portfolio-foot"><span>보유 {investments.length}개 · 현재가 기준 자동 갱신</span><span>{lastUpdated ? `최근 ${new Date(lastUpdated).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "현재가 갱신 대기"}</span></div></> : <div className="portfolio-empty">주식이나 코인 자산을 등록하면 전체 평가액과 수익률을 한눈에 보여드려요.<span className="portfolio-empty-hint">톱니바퀴 → 자산 관리에서 주식·코인을 추가하세요.</span></div>}</section>;
 }
 
 function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve, onEmergencyReserveChange, onBudgetChange, onNextBudgetChange, onMonthChange, onEdit, onCreate }: { month: Date; items: CalendarItem[]; budget: { expense: number; loan: number; categories?: Record<string, number> }; nextBudget: { expense: number; loan: number; categories?: Record<string, number> }; emergencyReserve: number; onEmergencyReserveChange: (amount: number) => void; onBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onNextBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onMonthChange: (offset: number) => void; onEdit: (item: CalendarItem) => void; onCreate: (type: ItemType) => void }) {
