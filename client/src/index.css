@@ -420,3 +420,17 @@ body { background: var(--ivory); }
 .ledger-view .ledger-entry small { color: #8f8581 !important; }
 .ledger-view .ai-analysis-card { background: linear-gradient(135deg, #fffdfb, #f7f4ff) !important; border-color: #e9e2fb !important; }
 .ledger-view .ai-analysis-card strong, .ledger-view .ai-analysis-card p { color: #403b40 !important; }
+
+/* 소형 모바일·세로 태블릿 보정: 헤더와 입력 탭이 폭을 밀어내지 않도록 함 */
+@media (max-width: 380px) {
+  .topbar { gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .brand-lockup { min-width: 0; gap: 7px; }
+  .brand-name { font-size: 15px; white-space: nowrap; }
+  .topbar-actions { flex-shrink: 0; gap: 4px; }
+  .sync-button { width: 34px; justify-content: center; padding: 0; }
+  .sync-button span { display: none; }
+}
+@media (min-width: 601px) and (max-width: 759px) {
+  .type-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .type-tabs button { min-height: 45px; }
+}
