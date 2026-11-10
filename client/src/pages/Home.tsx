@@ -300,7 +300,7 @@ function getRecurringDates(item: CalendarItem) {
     let date: Date;
     if (item.recurrence === "daily") date = addDays(start, index);
     else if (item.recurrence === "weekly") date = addDays(start, index * 7);
-    else if (item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay, item.lunarLeapMonth) ?? addYears(start, index);
+    else if (item.recurrence === "yearly" && item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay, item.lunarLeapMonth) ?? addYears(start, index);
     else if (item.recurrence === "monthly") date = addMonths(start, index);
     else date = new Date(start.getFullYear() + index, start.getMonth(), Math.min(start.getDate(), new Date(start.getFullYear() + index, start.getMonth() + 1, 0).getDate()), 12);
     if (date > end) break;
@@ -346,6 +346,10 @@ function getDisplayItems(items: CalendarItem[]) {
 
 function formatWon(value = 0) {
   return `${new Intl.NumberFormat("ko-KR").format(value)}원`;
+}
+function formatLunarDate(date: Date) {
+  const lunar = getLunarMonthDay(date);
+  return `${lunar.lunarLeapMonth ? "윤" : ""}${lunar.month}.${lunar.day}`;
 }
 
 function formatCompact(value = 0) {
@@ -1248,7 +1252,7 @@ function HomeView({
             const dayItems = homeMonthItems.filter((item) => item.date === iso);
             const isToday = iso === todayISO;
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
-              <span className="calendar-day-number">{date.getDate()}</span>
+              <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
               <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
               <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
             </button>;
@@ -1342,7 +1346,7 @@ function CalendarView({
             const chips = dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 2);
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
-                <span className="calendar-day-number">{date.getDate()}</span>
+                <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
                 <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
                 <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
                 {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
