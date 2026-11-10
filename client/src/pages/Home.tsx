@@ -279,18 +279,26 @@ function findLunarDate(year: number, month: number, day: number) {
   }
   return undefined;
 }
+function getCalendarDateLabel(item: CalendarItem) {
+  if (item.calendarKind !== "lunar") return "";
+  const solar = fromISO(item.date);
+  const lunar = getLunarMonthDay(solar);
+  return `양력 ${solar.getMonth() + 1}월 ${solar.getDate()}일 · 음력 ${lunar.month}월 ${lunar.day}일`;
+}
 function getRecurringDates(item: CalendarItem) {
   const start = fromISO(item.date);
-  const end = item.repeatUntil ? fromISO(item.repeatUntil) : start;
-  if (!item.recurrence || item.recurrence === "none" || end < start) return [start];
+  if (!item.recurrence || item.recurrence === "none") return [start];
+  const fallbackEnd = item.recurrence === "daily" ? addDays(start, 365) : item.recurrence === "weekly" ? addDays(start, 364) : item.recurrence === "monthly" ? addMonths(start, 12) : addYears(start, 3);
+  const end = item.repeatUntil ? fromISO(item.repeatUntil) : fallbackEnd;
+  if (end < start) return [start];
   const dates: Date[] = [];
   const limit = 1000;
   for (let index = 0; index < limit; index += 1) {
     let date: Date;
     if (item.recurrence === "daily") date = addDays(start, index);
     else if (item.recurrence === "weekly") date = addDays(start, index * 7);
+    else if (item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay) ?? addYears(start, index);
     else if (item.recurrence === "monthly") date = addMonths(start, index);
-    else if (item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay) ?? addMonths(start, index * 12);
     else date = new Date(start.getFullYear() + index, start.getMonth(), Math.min(start.getDate(), new Date(start.getFullYear() + index, start.getMonth() + 1, 0).getDate()), 12);
     if (date > end) break;
     if (date >= start) dates.push(date);
@@ -326,7 +334,7 @@ function getDisplayItems(items: CalendarItem[]) {
       const schedule = calculateLoanSchedule(item);
       return schedule.length ? schedule : [item];
     }
-    if (item.recurrence && item.recurrence !== "none" && item.repeatUntil) {
+    if (item.recurrence && item.recurrence !== "none") {
       return getRecurringDates(item).map((date, index) => ({ ...item, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(date), title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
     }
     return [item];
@@ -470,12 +478,13 @@ function CalendarItemRow({
       <span className="item-icon" style={{ backgroundColor: meta.soft, color: meta.color }}>
         <Icon size={16} strokeWidth={2.3} />
       </span>
-      <span className="item-copy">
-        <span className="item-title">{item.title}</span>
-        <span className="item-meta">
+        <span className="item-copy">
+          <span className="item-title">{item.title}</span>
+          <span className="item-meta">
           {meta.label}{item.category ? ` · ${item.category}` : ""}{item.time ? ` · ${item.time}` : ""}{item.paymentNumber ? ` · ${item.paymentNumber}회차 · 원금 ${formatCompact(item.principalPaid)} · 이자 ${formatCompact(item.interestPaid)}` : ""}
+          </span>
+          {getCalendarDateLabel(item) && <span className="item-calendar-date">{getCalendarDateLabel(item)}</span>}
         </span>
-      </span>
       {isFinance && <span className={`item-amount ${item.type === "income" ? "positive" : ""}`}>{item.type === "income" ? "+" : "−"}{formatCompact(item.amount)}{item.type === "income" && item.expectedIncome ? " · 예상" : ""}</span>}
       {item.type === "todo" && (
         <span
@@ -1237,7 +1246,7 @@ function HomeView({
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
               <span className="calendar-day-number">{date.getDate()}</span>
               <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
-              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
+              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}{getCalendarDateLabel(item) && <small>{getCalendarDateLabel(item)}</small>}</span>)}</span>
             </button>;
           })}
         </div>
@@ -1331,7 +1340,7 @@ function CalendarView({
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className="calendar-day-number">{date.getDate()}</span>
                 <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
-                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
+                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}{getCalendarDateLabel(item) && <small>{getCalendarDateLabel(item)}</small>}</span>)}</span>
                 {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
               </button>
             );

@@ -560,3 +560,8 @@ body { background: var(--ivory); }
 .expected-actual-difference b.negative { color: var(--coral); }
 .expected-actual-difference small { grid-column: 1 / -1; color: #aaa09b; font-size: 9px; font-weight: 550; }
 @media (max-width: 380px) { .expected-actual-grid { gap: 7px; }.expected-actual-card { padding: 10px; }.expected-actual-card strong { font-size: 13px; } }
+
+/* 음력 일정은 실제 발생일의 양력·음력을 함께 확인 */
+.item-calendar-date { display: block; margin-top: 3px; color: #8e817d; font-size: 9px; font-weight: 700; line-height: 1.35; }
+.calendar-chip { display: flex; flex-direction: column; align-items: flex-start; max-width: 100%; overflow: hidden; }
+.calendar-chip small { display: block; max-width: 100%; overflow: hidden; font-size: 7px; font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
