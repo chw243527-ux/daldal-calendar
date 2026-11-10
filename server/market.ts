@@ -49,8 +49,8 @@ async function fetchQuote(symbol: string): Promise<MarketQuote | null> {
       symbol,
       interval: "1d",
       range: "5d",
-      includeAdjustedClose: true,
-      includePrePost: false,
+      includeAdjustedClose: "true",
+      includePrePost: "false",
     },
   }) as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; currency?: string; longName?: string; shortName?: string; regularMarketTime?: number; symbol?: string } }> } };
   const meta = payload.chart?.result?.[0]?.meta;
