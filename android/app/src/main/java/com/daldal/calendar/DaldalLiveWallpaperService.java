@@ -241,7 +241,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if ("expense".equals(type)) monthlyExpense += amount;
                 if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
             }
-            if (showMonthlyFunds) drawFinanceChart(canvas, width - margin - 151, chartTop, 139, monthlyIncome, monthlyExpense, monthlyOutgoing);
+            if (showMonthlyFunds) drawFinanceChart(canvas, margin + 24, chartTop, width - margin * 2 - 24, monthlyIncome, monthlyExpense, monthlyOutgoing);
             if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
         }

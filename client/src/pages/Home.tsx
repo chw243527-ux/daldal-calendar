@@ -799,7 +799,7 @@ export default function Home() {
     setIsGeneratingWallpaper(true);
     setWallpaperMessage(null);
     try {
-      const dataUrl = await createMonthlyWallpaper({ month, items, ...monthSummary });
+      const dataUrl = await createMonthlyWallpaper({ month, items, ...monthSummary, backgroundTheme: lockScreenConfig.backgroundTheme });
       const appliedNatively = await setNativeLockScreenWallpaper(dataUrl);
       if (!appliedNatively) downloadWallpaper(dataUrl, month);
       setWallpaperMessage(appliedNatively ? "잠금화면 배경으로 적용했어요." : "월간 달력 이미지를 저장했어요. 잠금화면으로 설정해 보세요.");

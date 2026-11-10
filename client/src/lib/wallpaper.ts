@@ -17,6 +17,7 @@ type WallpaperOptions = {
   income: number;
   expense: number;
   loan: number;
+  backgroundTheme?: "ivory" | "blush" | "sage" | "night";
 };
 
 type WallpaperPlugin = {
@@ -65,17 +66,28 @@ function itemColor(type: WallpaperItem["type"]) {
   return type === "loan" ? COLORS.gold : COLORS.coral;
 }
 
-export async function createMonthlyWallpaper({ month, items, balance, income, expense, loan }: WallpaperOptions) {
+export async function createMonthlyWallpaper({ month, items, balance, income, expense, loan, backgroundTheme = "ivory" }: WallpaperOptions) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 2400;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is not available");
 
+  const themeColors = {
+    ivory: ["#fbf8f4", "#fffdfb", "#f4f0ed"],
+    blush: ["#fff0ed", "#fffaf8", "#f5e0db"],
+    sage: ["#edf5f0", "#fbfffc", "#dfeee5"],
+    night: ["#25232a", "#302d38", "#1e1c22"],
+  }[backgroundTheme];
+  const isNight = backgroundTheme === "night";
+  const ink = isNight ? "#f8f2ee" : "#29252b";
+  const muted = isNight ? "#c7bdc0" : "#8f8885";
+  const paper = isNight ? "#302d38" : COLORS.paper;
+  const line = isNight ? "#4a4450" : COLORS.line;
   const background = context.createLinearGradient(0, 0, 1080, 2400);
-  background.addColorStop(0, "#fbf8f4");
-  background.addColorStop(0.55, "#fffdfb");
-  background.addColorStop(1, "#f4f0ed");
+  background.addColorStop(0, themeColors[0]);
+  background.addColorStop(0.55, themeColors[1]);
+  background.addColorStop(1, themeColors[2]);
   context.fillStyle = background;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -91,9 +103,9 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
   context.globalAlpha = 1;
 
   drawText(context, "☾  DALDAL CALENDAR", 66, 92, 26, COLORS.coral, 800);
-  drawText(context, "잠금화면용 월간 플래너", 1014, 92, 18, COLORS.muted, 600, "right");
-  drawText(context, month.toLocaleDateString("ko-KR", { year: "numeric", month: "long" }), 66, 196, 54, COLORS.ink, 850);
-  drawText(context, "한 달의 기록을 한눈에 차곡차곡", 68, 248, 21, COLORS.muted, 600);
+  drawText(context, "잠금화면용 월간 플래너", 1014, 92, 18, muted, 600, "right");
+  drawText(context, month.toLocaleDateString("ko-KR", { year: "numeric", month: "long" }), 66, 196, 54, ink, 850);
+  drawText(context, "한 달의 기록을 한눈에 차곡차곡", 68, 248, 21, muted, 600);
 
   roundedRect(context, 66, 302, 948, 164, 26);
   context.fillStyle = "#756bb5";
@@ -115,8 +127,8 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
   const dateItems = new Map<string, WallpaperItem[]>();
   items.forEach((item) => dateItems.set(item.date, [...(dateItems.get(item.date) ?? []), item]));
 
-  weekdays.forEach((day, index) => drawText(context, day, left + index * cellWidth + cellWidth / 2, 528, 19, index === 0 ? COLORS.coral : index === 6 ? COLORS.lavender : COLORS.muted, 800, "center"));
-  context.strokeStyle = COLORS.line;
+  weekdays.forEach((day, index) => drawText(context, day, left + index * cellWidth + cellWidth / 2, 528, 19, index === 0 ? COLORS.coral : index === 6 ? COLORS.lavender : muted, 800, "center"));
+  context.strokeStyle = line;
   context.lineWidth = 1;
   for (let row = 0; row < 6; row += 1) {
     const y = gridTop + row * cellHeight;
@@ -147,7 +159,7 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
       roundedRect(context, x + 7, y + 8, cellWidth - 14, cellHeight - 16, 16);
       context.fill();
     }
-    drawText(context, String(day), x + 17, y + 28, 24, column === 0 ? COLORS.coral : column === 6 ? COLORS.lavender : COLORS.ink, 800);
+    drawText(context, String(day), x + 17, y + 28, 24, column === 0 ? COLORS.coral : column === 6 ? COLORS.lavender : ink, 800);
     if (isToday) drawText(context, "오늘", x + cellWidth - 16, y + 28, 13, COLORS.coral, 800, "right");
     dayItems.slice(0, 3).forEach((item, itemIndex) => {
       const chipY = y + 62 + itemIndex * 27;
@@ -160,12 +172,12 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
   }
 
   const listTop = gridTop + 6 * cellHeight + 76;
-  drawText(context, "이번 달 주요 기록", 66, listTop, 25, COLORS.ink, 850);
-  drawText(context, "할 일 · 일정 · 금융 기록", 1014, listTop, 16, COLORS.muted, 600, "right");
+  drawText(context, "이번 달 주요 기록", 66, listTop, 25, ink, 850);
+  drawText(context, "할 일 · 일정 · 금융 기록", 1014, listTop, 16, muted, 600, "right");
   const upcoming = [...items].filter((item) => item.date.startsWith(`${year}-${pad(monthIndex + 1)}`)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
   upcoming.forEach((item, index) => {
     const y = listTop + 55 + index * 63;
-    context.fillStyle = COLORS.paper;
+    context.fillStyle = paper;
     roundedRect(context, 66, y - 23, 948, 48, 14);
     context.fill();
     context.strokeStyle = COLORS.line;
@@ -174,13 +186,13 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
     context.beginPath();
     context.arc(91, y, 7, 0, Math.PI * 2);
     context.fill();
-    drawText(context, `${fromISO(item.date).getDate()}일`, 114, y, 16, COLORS.muted, 750);
-    drawText(context, item.title, 190, y, 17, COLORS.ink, 750);
-    drawText(context, item.time ?? (item.amount ? `${item.type === "income" ? "+" : "−"}${formatCompact(item.amount)}` : ""), 975, y, 15, item.type === "income" ? COLORS.mint : COLORS.muted, 750, "right");
+    drawText(context, `${fromISO(item.date).getDate()}일`, 114, y, 16, muted, 750);
+    drawText(context, item.title, 190, y, 17, ink, 750);
+    drawText(context, item.time ?? (item.amount ? `${item.type === "income" ? "+" : "−"}${formatCompact(item.amount)}` : ""), 975, y, 15, item.type === "income" ? COLORS.mint : muted, 750, "right");
   });
 
-  drawText(context, "달달 캘린더  ·  오늘도 차곡차곡", 66, 2318, 16, COLORS.muted, 700);
-  drawText(context, "배경화면을 저장해 잠금화면에 설정해 보세요", 1014, 2318, 15, COLORS.muted, 600, "right");
+  drawText(context, "달달 캘린더  ·  오늘도 차곡차곡", 66, 2318, 16, muted, 700);
+  drawText(context, "배경화면을 저장해 잠금화면에 설정해 보세요", 1014, 2318, 15, muted, 600, "right");
   return canvas.toDataURL("image/png");
 }
 
