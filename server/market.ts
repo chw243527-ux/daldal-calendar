@@ -9,7 +9,7 @@ export type MarketQuote = {
   fxRate?: number;
   name?: string;
   observedAt: string;
-  source: "YahooFinance";
+  source: "YahooFinance" | "Bithumb";
 };
 
 const quoteCache = new Map<string, { expiresAt: number; quote: MarketQuote }>();
@@ -48,18 +48,31 @@ export async function getMarketQuotes(symbols: string[]) {
 }
 
 async function fetchQuote(symbol: string): Promise<MarketQuote | null> {
+  if (symbol.startsWith("BITHUMB:")) {
+    const pair = symbol.slice("BITHUMB:".length);
+    try {
+      return await fetchBithumbQuote(pair);
+    } catch (error) {
+      console.warn(`[Market] Bithumb unavailable for ${pair}, using Yahoo KRW fallback:`, error instanceof Error ? error.message : error);
+      const fallback = await fetchYahooQuote(pair.replace(/_/g, "-"));
+      return fallback ? { ...fallback, symbol, name: `${fallback.name ?? pair} (빗썸 호환)` } : null;
+    }
+  }
+  return fetchYahooQuote(symbol);
+}
+
+async function fetchYahooQuote(symbol: string): Promise<MarketQuote | null> {
   const meta = await fetchYahooMeta(symbol);
   const nativePrice = Number(meta?.regularMarketPrice);
   const nativeCurrency = String(meta?.currency ?? "UNKNOWN");
   if (!meta || !Number.isFinite(nativePrice) || nativePrice <= 0) return null;
-  const normalizedCurrency = nativeCurrency.toUpperCase() === "GBX" || nativeCurrency.toUpperCase() === "GBP" && symbol.endsWith(".L") ? "GBP" : nativeCurrency.toUpperCase();
+  const normalizedCurrency = nativeCurrency.toUpperCase() === "GBX" || (nativeCurrency.toUpperCase() === "GBP" && symbol.endsWith(".L")) ? "GBP" : nativeCurrency.toUpperCase();
   const fxRate = normalizedCurrency === "KRW" ? 1 : await getKrwRate(normalizedCurrency);
   if (!fxRate) throw new Error(`KRW exchange rate unavailable for ${nativeCurrency}`);
   const adjustedNativePrice = normalizedCurrency === "GBP" && nativeCurrency.toUpperCase() === "GBX" ? nativePrice / 100 : nativePrice;
-  const price = adjustedNativePrice * fxRate;
   return {
     symbol: String(meta.symbol ?? symbol).toUpperCase(),
-    price,
+    price: adjustedNativePrice * fxRate,
     currency: "KRW",
     nativePrice,
     nativeCurrency,
@@ -67,6 +80,27 @@ async function fetchQuote(symbol: string): Promise<MarketQuote | null> {
     name: meta.longName ?? meta.shortName,
     observedAt: new Date((Number(meta.regularMarketTime) || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
     source: "YahooFinance",
+  };
+}
+
+async function fetchBithumbQuote(pair: string): Promise<MarketQuote | null> {
+  const normalizedPair = pair.trim().toUpperCase().replace(/-/g, "_");
+  const response = await fetch(`https://api.bithumb.com/public/ticker/${encodeURIComponent(normalizedPair)}`);
+  if (!response.ok) throw new Error(`Bithumb HTTP ${response.status}`);
+  const payload = await response.json() as { status?: string; data?: { closing_price?: string; date?: string } };
+  const price = Number(payload.data?.closing_price);
+  if (payload.status !== "0000" || !Number.isFinite(price) || price <= 0) return null;
+  const observedAt = Number(payload.data?.date);
+  return {
+    symbol: `BITHUMB:${normalizedPair}`,
+    price,
+    currency: "KRW",
+    nativePrice: price,
+    nativeCurrency: "KRW",
+    fxRate: 1,
+    name: `${normalizedPair.split("_")[0]} (빗썸)`,
+    observedAt: new Date(Number.isFinite(observedAt) ? observedAt : Date.now()).toISOString(),
+    source: "Bithumb",
   };
 }
 
