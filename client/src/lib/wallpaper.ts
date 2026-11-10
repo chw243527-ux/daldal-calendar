@@ -8,6 +8,8 @@ export type WallpaperItem = {
   amount?: number;
   category?: string;
   completed?: boolean;
+  expectedIncome?: boolean;
+  accentColor?: string;
 };
 
 type WallpaperOptions = {
@@ -59,7 +61,9 @@ function drawText(context: CanvasRenderingContext2D, text: string, x: number, y:
   context.fillText(text, x, y);
 }
 
-function itemColor(type: WallpaperItem["type"]) {
+function itemColor(item: WallpaperItem) {
+  if (item.accentColor) return item.accentColor;
+  const type = item.type;
   if (type === "todo") return COLORS.lavender;
   if (type === "event") return COLORS.coral;
   if (type === "income") return COLORS.mint;
@@ -163,11 +167,12 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
     if (isToday) drawText(context, "오늘", x + cellWidth - 16, y + 28, 13, COLORS.coral, 800, "right");
     dayItems.slice(0, 3).forEach((item, itemIndex) => {
       const chipY = y + 62 + itemIndex * 27;
-      context.fillStyle = itemColor(item.type);
+      context.fillStyle = itemColor(item);
       roundedRect(context, x + 12, chipY, cellWidth - 24, 21, 7);
       context.fill();
       const title = item.title.length > 9 ? `${item.title.slice(0, 8)}…` : item.title;
-      drawText(context, title, x + 20, chipY + 10, 12, "#ffffff", 700);
+      drawText(context, `${item.completed ? "✓ " : ""}${title}`, x + 20, chipY + 10, 12, "#ffffff", 700);
+      if (item.completed && item.type === "todo") { context.strokeStyle = "rgba(255,255,255,.9)"; context.lineWidth = 2; context.beginPath(); context.moveTo(x + 18, chipY + 10); context.lineTo(x + cellWidth - 20, chipY + 10); context.stroke(); }
     });
   }
 
@@ -182,12 +187,13 @@ export async function createMonthlyWallpaper({ month, items, balance, income, ex
     context.fill();
     context.strokeStyle = COLORS.line;
     context.stroke();
-    context.fillStyle = itemColor(item.type);
+    context.fillStyle = itemColor(item);
     context.beginPath();
     context.arc(91, y, 7, 0, Math.PI * 2);
     context.fill();
     drawText(context, `${fromISO(item.date).getDate()}일`, 114, y, 16, muted, 750);
-    drawText(context, item.title, 190, y, 17, ink, 750);
+    drawText(context, `${item.completed ? "✓ " : ""}${item.title}${item.expectedIncome ? " · 예상" : ""}`, 190, y, 17, ink, 750);
+    if (item.completed && item.type === "todo") { context.strokeStyle = muted; context.lineWidth = 2; context.beginPath(); context.moveTo(190, y); context.lineTo(650, y); context.stroke(); }
     drawText(context, item.time ?? (item.amount ? `${item.type === "income" ? "+" : "−"}${formatCompact(item.amount)}` : ""), 975, y, 15, item.type === "income" ? COLORS.mint : muted, 750, "right");
   });
 

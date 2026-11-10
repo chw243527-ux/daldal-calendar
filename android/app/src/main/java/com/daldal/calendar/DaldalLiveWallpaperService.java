@@ -211,7 +211,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
                     JSONObject item = entries.optJSONObject(itemIndex);
                     if (item == null || !dateMatches(item.optString("date"), year, month, day)) continue;
-                    paint.setColor(itemColor(item.optString("type")));
+                    paint.setColor(itemColor(item.optString("type"), item.optString("accentColor", "")));
                     canvas.drawCircle(cellX + cellWidth / 2 - 7 + markerCount * 7, cellY + 17, 3, paint);
                     markerCount++;
                 }
@@ -227,11 +227,12 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String type = item.optString("type");
                 if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"todo".equals(type) && !"event".equals(type))) continue;
                 String title = safeTitle(item.optString("title", "기록"), 16);
-                int recordColor = itemColor(type);
+                int recordColor = itemColor(type, item.optString("accentColor", ""));
                 float rowY = sectionTop + 23 + scheduleRow * 24;
                 paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
                 drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? secondaryTextColor(darkTheme) : primaryTextColor(darkTheme), false);
+                if (completed) { paint.setColor(secondaryTextColor(darkTheme)); paint.setStrokeWidth(2f); canvas.drawLine(margin + 45, rowY - 3, Math.min(width - margin - 90, margin + 45 + paint.measureText(title) + 20), rowY - 3, paint); }
                 drawText(canvas, "event".equals(type) ? item.optString("time", "일정") : "할 일", width - margin - 24, rowY, 11, recordColor, false, true);
                 scheduleRow++;
             }
@@ -290,7 +291,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return darkTheme ? Color.rgb(210, 201, 205) : Color.rgb(143, 136, 133);
         }
 
-        private int itemColor(String type) {
+        private int itemColor(String type, String accentColor) {
+            if (accentColor != null && accentColor.startsWith("#")) { try { return Color.parseColor(accentColor); } catch (Exception ignored) {} }
             if ("todo".equals(type)) return Color.rgb(111, 99, 182);
             if ("event".equals(type)) return Color.rgb(232, 130, 114);
             if ("income".equals(type)) return Color.rgb(76, 157, 131);
@@ -325,7 +327,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
             boolean darkTheme = isDarkTheme(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("backgroundTheme", "ivory"));
             drawText(canvas, label + " 상세", x + 18, y + 27, 14, primaryTextColor(darkTheme), true);
-            drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type), true, true);
+            drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type, ""), true, true);
             int row = 0;
             for (int index = 0; index < entries.length() && row < 5; index++) {
                 JSONObject item = entries.optJSONObject(index);
@@ -336,7 +338,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float rowY = y + 53 + row * 24;
                 drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, secondaryTextColor(darkTheme), false);
                 drawText(canvas, title, x + 61, rowY, 13, primaryTextColor(darkTheme), false);
-                drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type), true, true);
+                drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type, ""), true, true);
                 row++;
             }
             if (row == 0) drawText(canvas, "이번 달 내역이 없어요", x + 18, y + 67, 13, secondaryTextColor(darkTheme), false);

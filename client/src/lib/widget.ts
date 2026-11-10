@@ -22,6 +22,8 @@ type WidgetData = {
     time?: string;
     amount?: number;
     completed?: boolean;
+    expectedIncome?: boolean;
+    accentColor?: string;
   }>;
 };
 

@@ -538,3 +538,9 @@ body { background: var(--ivory); }
 .portfolio-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 15px; color: #a29894; font-size: 9px; }
 .portfolio-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 15px; color: #9a908d; font-size: 11px; line-height: 1.5; }
 @media (max-width: 380px) { .portfolio-kpis { gap: 7px; }.portfolio-kpis b { font-size: 12px; }.portfolio-foot { flex-direction: column; gap: 3px; } }
+
+
+/* 일정 색상과 완료된 할 일 상태를 달력 칩·목록에서 동일하게 표현 */
+.calendar-chip.is-complete { opacity: .62; text-decoration: line-through; }
+.expected-income-toggle { margin-top: 4px; padding: 9px 11px; border-radius: 10px; background: #edf5f0; color: #4c806e; }
+.expected-income-toggle input { accent-color: var(--mint); }
