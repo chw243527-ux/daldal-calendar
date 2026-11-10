@@ -38,3 +38,9 @@
 - `client/public/manus-routes.json`: 홈 라우트 선언
 - `client/public/manifest.webmanifest`: 홈 화면 추가용 PWA 메타데이터
 - `drizzle/schema.ts`, `server/routers.ts`: 향후 계정별 DB 동기화를 연결할 확장 지점
+
+## 계정 클라우드 동기화 확장
+- Manus OAuth의 `openId`에 연결된 `accountCloudData` 단일 스냅샷을 관리형 MySQL에 저장한다.
+- 일정·할 일·금융 기록뿐 아니라 사용자별 카테고리·예산·비상 예비비·자산·잠금화면 설정을 하나의 버전 스냅샷으로 동기화한다.
+- 클라이언트는 로그인 직후 클라우드 스냅샷을 우선 적용하고, 변경 후 700ms 디바운스로 저장한다. 5초 주기 조회로 다른 기기의 변경을 반영한다.
+- 버전이 다르면 원격 기록과 현재 기록을 id 기준으로 병합하고, 로컬 브라우저 저장은 오프라인 캐시로 유지한다.

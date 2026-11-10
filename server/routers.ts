@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { protectedProcedure } from "./_core/trpc";
-import { createFamilyForUser, getFamilyBackups, getFamilyForUser, joinFamilyForUser, restoreFamilyBackup, saveFamilyLedger } from "./db";
+import { createFamilyForUser, getAccountCloudData, getFamilyBackups, getFamilyForUser, joinFamilyForUser, restoreFamilyBackup, saveAccountCloudData, saveFamilyLedger } from "./db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -19,6 +19,11 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  accountCloud: router({
+    get: protectedProcedure.query(({ ctx }) => getAccountCloudData(ctx.user.id)),
+    sync: protectedProcedure.input(z.object({ payloadJson: z.string().min(2).max(2_000_000), baseVersion: z.number().int().nonnegative() })).mutation(({ ctx, input }) => saveAccountCloudData(ctx.user.id, input.payloadJson, input.baseVersion)),
   }),
 
   family: router({

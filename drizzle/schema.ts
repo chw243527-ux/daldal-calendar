@@ -56,4 +56,14 @@ export const familyBackups = mysqlTable("familyBackups", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const accountCloudData = mysqlTable("accountCloudData", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  payloadJson: text("payloadJson").notNull(),
+  version: int("version").notNull().default(1),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userUnique: uniqueIndex("accountCloudData_user_unique").on(table.userId),
+}));
+
 export type FamilySpace = typeof familySpaces.$inferSelect;

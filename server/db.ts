@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { familyBackups, familyMembers, familySpaces, InsertUser, users } from "../drizzle/schema";
+import { accountCloudData, familyBackups, familyMembers, familySpaces, InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -157,4 +157,29 @@ export async function restoreFamilyBackup(userId: number, backupId: number) {
   await db.insert(familyBackups).values({ spaceId: family.id, version: family.version, snapshotJson: family.ledgerJson, createdBy: userId });
   await db.update(familySpaces).set({ ledgerJson: backup[0].snapshotJson, updatedBy: userId, version: family.version + 1 }).where(eq(familySpaces.id, family.id));
   return getFamilyForUser(userId);
+}
+
+export async function getAccountCloudData(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(accountCloudData).where(eq(accountCloudData.userId, userId)).limit(1);
+  if (!result[0]) return null;
+  return { payloadJson: result[0].payloadJson, version: result[0].version, updatedAt: result[0].updatedAt.toISOString() };
+}
+
+export async function saveAccountCloudData(userId: number, payloadJson: string, baseVersion: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const existing = await db.select().from(accountCloudData).where(eq(accountCloudData.userId, userId)).limit(1);
+  if (!existing[0]) {
+    if (baseVersion !== 0) return { conflict: true as const, payloadJson: "{}", version: 0, updatedAt: new Date().toISOString() };
+    await db.insert(accountCloudData).values({ userId, payloadJson, version: 1 });
+    return { conflict: false as const, ...(await getAccountCloudData(userId))! };
+  }
+  if (existing[0].version !== baseVersion) {
+    return { conflict: true as const, payloadJson: existing[0].payloadJson, version: existing[0].version, updatedAt: existing[0].updatedAt.toISOString() };
+  }
+  await db.update(accountCloudData).set({ payloadJson, version: baseVersion + 1 }).where(and(eq(accountCloudData.userId, userId), eq(accountCloudData.version, baseVersion)));
+  const saved = await getAccountCloudData(userId);
+  return saved ? { conflict: false as const, ...saved } : { conflict: false as const, payloadJson, version: baseVersion + 1, updatedAt: new Date().toISOString() };
 }

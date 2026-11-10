@@ -451,6 +451,8 @@ export default function Home() {
   const today = useMemo(() => new Date(), []);
   const todayISO = toISO(today);
   const auth = useAuth();
+  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated, refetchInterval: auth.isAuthenticated ? 5000 : false, refetchOnWindowFocus: true });
+  const accountCloudSync = trpc.accountCloud.sync.useMutation();
   const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated, refetchInterval: auth.isAuthenticated ? 5000 : false });
   const familyCreate = trpc.family.create.useMutation();
   const familyJoin = trpc.family.join.useMutation();
@@ -482,6 +484,9 @@ export default function Home() {
   const [familyMessage, setFamilyMessage] = useState<string | null>(null);
   const [conflictState, setConflictState] = useState<{ version: number; remoteRecords: CalendarItem[] } | null>(null);
   const lastFamilySignature = useRef<string | null>(null);
+  const cloudVersionRef = useRef(0);
+  const cloudHydratedScopeRef = useRef<string | null>(null);
+  const cloudSignatureRef = useRef<string | null>(null);
   const lastSyncedRecords = useRef<string | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const categoryMap = useMemo<CategoryMap>(() => ({
@@ -491,6 +496,11 @@ export default function Home() {
     loan: [...categories.loan, ...(customCategories.loan ?? [])],
   }), [customCategories]);
 
+  useEffect(() => {
+    cloudHydratedScopeRef.current = null;
+    cloudVersionRef.current = 0;
+    cloudSignatureRef.current = null;
+  }, [accountStorageScope]);
   useEffect(() => {
     if (auth.loading) return;
     const scope = accountStorageScope;
@@ -527,6 +537,72 @@ export default function Home() {
       setIsLoaded(true);
     }
   }, [auth.loading, accountStorageScope]);
+
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || accountCloudQuery.isLoading) return;
+    if (cloudHydratedScopeRef.current === accountStorageScope) return;
+    const remote = accountCloudQuery.data;
+    if (remote?.payloadJson) {
+      try {
+        const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
+        if (Array.isArray(payload.items)) setItems(payload.items);
+        if (payload.customCategories) setCustomCategories(payload.customCategories);
+        if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
+        if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
+        if (Array.isArray(payload.assetBalances)) setAssetBalances(payload.assetBalances);
+        if (payload.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...payload.lockScreenConfig });
+        cloudVersionRef.current = remote.version;
+        cloudSignatureRef.current = remote.payloadJson;
+      } catch {
+        cloudVersionRef.current = remote.version;
+      }
+    } else {
+      cloudVersionRef.current = 0;
+    }
+    cloudHydratedScopeRef.current = accountStorageScope;
+  }, [accountCloudQuery.data, accountCloudQuery.isLoading, accountStorageScope, auth.isAuthenticated, auth.loading, isLoaded, loadedStorageScope]);
+
+  useEffect(() => {
+    const remote = accountCloudQuery.data;
+    if (!remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
+    try {
+      const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
+      if (Array.isArray(payload.items)) setItems(payload.items);
+      if (payload.customCategories) setCustomCategories(payload.customCategories);
+      if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
+      if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
+      if (Array.isArray(payload.assetBalances)) setAssetBalances(payload.assetBalances);
+      if (payload.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...payload.lockScreenConfig });
+      cloudVersionRef.current = remote.version;
+      cloudSignatureRef.current = remote.payloadJson;
+    } catch {}
+  }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated]);
+
+  const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig]);
+  useEffect(() => {
+    if (!auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || cloudPayloadJson === cloudSignatureRef.current) return;
+    const timer = window.setTimeout(() => {
+      accountCloudSync.mutate({ payloadJson: cloudPayloadJson, baseVersion: cloudVersionRef.current }, { onSuccess: (result) => {
+        if (result.conflict) {
+          try {
+            const remote = JSON.parse(result.payloadJson) as Partial<{ items: CalendarItem[] }>;
+            if (Array.isArray(remote.items)) {
+              const merged = new Map<string, CalendarItem>();
+              remote.items.forEach((item) => merged.set(item.id, item));
+              items.forEach((item) => merged.set(item.id, item));
+              setItems(Array.from(merged.values()));
+            }
+          } catch {}
+          cloudVersionRef.current = result.version;
+          cloudSignatureRef.current = result.payloadJson;
+        } else {
+          cloudVersionRef.current = result.version;
+          cloudSignatureRef.current = cloudPayloadJson;
+        }
+      } });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, items, loadedStorageScope]);
 
   useEffect(() => {
     if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items));
