@@ -152,6 +152,7 @@ const BUDGET_STORAGE_KEY = "daldal-calendar-monthly-budgets";
 const RESERVE_STORAGE_KEY = "daldal-calendar-emergency-reserve";
 const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 const LOCKSCREEN_STORAGE_KEY = "daldal-calendar-lockscreen-config";
+const scopedStorageKey = (key: string, openId?: string) => openId ? `${key}-${encodeURIComponent(openId)}` : key;
 type LockScreenTheme = "ivory" | "blush" | "sage" | "night";
 type LockScreenConfig = { showCalendar: boolean; showSchedule: boolean; showTodo: boolean; showMonthlyFunds: boolean; backgroundTheme: LockScreenTheme };
 const DEFAULT_LOCKSCREEN_CONFIG: LockScreenConfig = { showCalendar: true, showSchedule: true, showTodo: true, showMonthlyFunds: true, backgroundTheme: "ivory" };
@@ -465,6 +466,8 @@ export default function Home() {
   const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([]);
   const [lockScreenConfig, setLockScreenConfig] = useState<LockScreenConfig>(DEFAULT_LOCKSCREEN_CONFIG);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
+  const accountStorageScope = auth.user?.openId ?? "";
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -489,29 +492,45 @@ export default function Home() {
   }), [customCategories]);
 
   useEffect(() => {
+    if (auth.loading) return;
+    const scope = accountStorageScope;
+    setIsLoaded(false);
+    setLoadedStorageScope(null);
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
+      const read = (key: string) => {
+        const scopedKey = scopedStorageKey(key, scope);
+        const scopedValue = window.localStorage.getItem(scopedKey);
+        if (scopedValue !== null || !scope) return scopedValue;
+        const legacyValue = window.localStorage.getItem(key);
+        if (legacyValue !== null) {
+          window.localStorage.setItem(scopedKey, legacyValue);
+          window.localStorage.removeItem(key);
+        }
+        return legacyValue;
+      };
+      const saved = read(STORAGE_KEY);
       if (saved) setItems(JSON.parse(saved));
-      const savedCategories = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
+      const savedCategories = read(CATEGORY_STORAGE_KEY);
       if (savedCategories) setCustomCategories(JSON.parse(savedCategories));
-      const savedBudgets = window.localStorage.getItem(BUDGET_STORAGE_KEY);
+      const savedBudgets = read(BUDGET_STORAGE_KEY);
       if (savedBudgets) setMonthlyBudgets(JSON.parse(savedBudgets));
-      const savedReserve = window.localStorage.getItem(RESERVE_STORAGE_KEY);
+      const savedReserve = read(RESERVE_STORAGE_KEY);
       if (savedReserve) setEmergencyReserve(Number(savedReserve) || 0);
-      const savedAssets = window.localStorage.getItem(ASSET_BALANCE_STORAGE_KEY);
+      const savedAssets = read(ASSET_BALANCE_STORAGE_KEY);
       if (savedAssets) setAssetBalances(JSON.parse(savedAssets) as AssetBalance[]);
-      const savedLockScreen = window.localStorage.getItem(LOCKSCREEN_STORAGE_KEY);
+      const savedLockScreen = read(LOCKSCREEN_STORAGE_KEY);
       if (savedLockScreen) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...JSON.parse(savedLockScreen) });
     } catch {
       // Keep the starter entries if local storage is unavailable.
     } finally {
+      setLoadedStorageScope(scope);
       setIsLoaded(true);
     }
-  }, []);
+  }, [auth.loading, accountStorageScope]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items));
+  }, [items, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
     const remote = familyQuery.data;
@@ -537,24 +556,24 @@ export default function Home() {
   }, [items, isLoaded, familyQuery.data, familySync.isPending, conflictState]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(customCategories));
-  }, [customCategories, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(CATEGORY_STORAGE_KEY, accountStorageScope), JSON.stringify(customCategories));
+  }, [customCategories, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(monthlyBudgets));
-  }, [monthlyBudgets, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(BUDGET_STORAGE_KEY, accountStorageScope), JSON.stringify(monthlyBudgets));
+  }, [monthlyBudgets, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(RESERVE_STORAGE_KEY, String(emergencyReserve));
-  }, [emergencyReserve, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(RESERVE_STORAGE_KEY, accountStorageScope), String(emergencyReserve));
+  }, [emergencyReserve, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(ASSET_BALANCE_STORAGE_KEY, JSON.stringify(assetBalances));
-  }, [assetBalances, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(ASSET_BALANCE_STORAGE_KEY, accountStorageScope), JSON.stringify(assetBalances));
+  }, [assetBalances, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
-    if (isLoaded) window.localStorage.setItem(LOCKSCREEN_STORAGE_KEY, JSON.stringify(lockScreenConfig));
-  }, [lockScreenConfig, isLoaded]);
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(LOCKSCREEN_STORAGE_KEY, accountStorageScope), JSON.stringify(lockScreenConfig));
+  }, [lockScreenConfig, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -933,7 +952,7 @@ export default function Home() {
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
 
-      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
+      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} userName={auth.user?.name ?? "내 계정"} userEmail={auth.user?.email ?? ""} onLogout={auth.logout} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
 
       {isComposerOpen && (
         <Composer
@@ -1308,7 +1327,7 @@ function EmptyState({ label, onClick }: { label: string; onClick: () => void }) 
 }
 
 function FamilyShareSheet({
-  authenticated, loading, family, familyName, inviteCode, message, conflict, onFamilyNameChange, onInviteCodeChange, onCreate, onJoin, onCopy, onResolveConflict, onRestore, onClose,
+  authenticated, loading, family, familyName, inviteCode, message, conflict, userName, userEmail, onLogout, onFamilyNameChange, onInviteCodeChange, onCreate, onJoin, onCopy, onResolveConflict, onRestore, onClose,
 }: {
   authenticated: boolean;
   loading: boolean;
@@ -1317,6 +1336,9 @@ function FamilyShareSheet({
   inviteCode: string;
   message: string | null;
   conflict: { version: number; remoteRecords: CalendarItem[] } | null;
+  userName: string;
+  userEmail: string;
+  onLogout: () => Promise<void>;
   onFamilyNameChange: (value: string) => void;
   onInviteCodeChange: (value: string) => void;
   onCreate: () => void;
@@ -1330,6 +1352,7 @@ function FamilyShareSheet({
     <div className="sheet-backdrop" onClick={onClose}>
       <section className="family-sheet" onClick={(event) => event.stopPropagation()}>
         <div className="sheet-topline"><div><span className="section-eyebrow">FAMILY CLOUD</span><h2><Users size={20} /> 가족과 함께 쓰기</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div>
+        {authenticated && <div className="account-card"><div className="account-avatar">{userName.slice(0, 1)}</div><div className="account-copy"><strong>{userName}</strong><small>{userEmail || "Manus 계정으로 로그인됨"}</small><span>이 계정의 일정·가계부·자산으로 이용 중</span></div><button type="button" className="account-logout" onClick={onLogout}>로그아웃</button></div>}
         {!authenticated ? <div className="family-login-card"><Cloud size={27} /><strong>로그인하면 가족과 동기화할 수 있어요</strong><p>나와 신랑이 같은 가족 공간에 참여하면 일정·할 일·가계부 기록이 자동으로 맞춰집니다.</p><button className="save-button" type="button" onClick={() => startLogin()}>로그인하고 연결하기</button></div> : family ? <div className="family-connected-card"><div className="family-connected-head"><div><span className="connected-dot" /> 실시간 공유 중</div><small>{family.name}</small></div><div className="family-code-box"><span>가족 초대 코드</span><strong>{family.inviteCode}</strong><button type="button" onClick={onCopy}><Copy size={15} /> 복사</button></div><div className="family-sync-note"><Cloud size={15} /> 최근 동기화 {new Date(family.updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · 약 5초마다 새 기록을 확인해요</div><p>신랑의 앱에서 이 코드를 입력하면 같은 장부를 함께 볼 수 있어요.</p></div> : <><div className="family-intro"><Cloud size={26} /><div><strong>우리 가족 공간 만들기</strong><p>현재 기기의 기록을 가족과 공유할 수 있는 안전한 공간이에요.</p></div></div><label className="field-label">공간 이름<input value={familyName} onChange={(event) => onFamilyNameChange(event.target.value)} /></label><button className="save-button family-main-button" type="button" onClick={onCreate} disabled={loading}>공유 공간 만들고 초대 코드 받기</button><div className="family-divider"><span>또는</span></div><label className="field-label">가족에게 받은 초대 코드<input value={inviteCode} onChange={(event) => onInviteCodeChange(event.target.value.toUpperCase())} placeholder="예: AB12CD" maxLength={12} /></label><button className="outline-button family-main-button" type="button" onClick={onJoin} disabled={loading || inviteCode.length < 4}>초대 코드로 참여하기</button></>}
         {conflict && <div className="family-conflict-card"><div className="family-conflict-title"><GitMerge size={16} /> 동시에 수정된 기록이 있어요</div><p>내 기록과 가족 기록을 자동으로 덮어쓰지 않았어요. 원하는 병합 방식을 선택해 주세요.</p><div className="conflict-actions"><button type="button" onClick={() => onResolveConflict("merge")}>자동 병합</button><button type="button" onClick={() => onResolveConflict("local")}>내 기록 우선</button><button type="button" onClick={() => onResolveConflict("remote")}>가족 기록 우선</button></div><small>자동 병합은 같은 항목의 수정 시각이 더 최근인 기록을 선택합니다.</small></div>}
         {family?.backups?.length ? <div className="family-backups"><div className="family-backups-title"><History size={15} /> 최근 자동 백업 <span>저장 전 최대 10개</span></div>{family.backups.slice(0, 3).map((backup) => <div className="family-backup-row" key={backup.id}><span>버전 {backup.version} · {new Date(backup.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span><button type="button" onClick={() => onRestore(backup.id)}>복원</button></div>)}</div> : null}
