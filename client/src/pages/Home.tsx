@@ -375,6 +375,16 @@ function seedItems(today: Date): CalendarItem[] {
   ];
 }
 
+function createCalendarFeatureTestItems(today: Date): CalendarItem[] {
+  const lunar = getLunarMonthDay(today);
+  return [
+    { id: "demo-lunar-birthday", type: "event", title: "음력 생일 테스트", date: toISO(today), time: "10:00", category: "가족", calendarKind: "lunar", lunarMonth: lunar.month, lunarDay: lunar.day, recurrence: "yearly", repeatUntil: toISO(addYears(today, 3)), accentColor: "#e98272" },
+    { id: "demo-weekly-todo", type: "todo", title: "매주 장보기 테스트", date: toISO(addDays(today, 1)), category: "집안일", recurrence: "weekly", repeatUntil: toISO(addDays(today, 29)), accentColor: "#6f63b6" },
+    { id: "demo-monthly-expense", type: "expense", title: "반복 구독료 테스트", date: toISO(addDays(today, 2)), amount: 9900, category: "구독", recurrence: "monthly", repeatUntil: toISO(addMonths(today, 3)), expectedExpense: true },
+    { id: "demo-expected-income", type: "income", title: "예상 부수입 테스트", date: toISO(addDays(today, 4)), amount: 150000, category: "부수입", expectedIncome: true },
+  ];
+}
+
 function getMonthItems(items: CalendarItem[], date: Date) {
   const prefix = `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
   return items.filter((item) => item.date.startsWith(prefix));
@@ -923,6 +933,15 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const addTestData = () => {
+    const fixture = createCalendarFeatureTestItems(today);
+    setItems((current) => [...fixture.filter((item) => !current.some((existing) => existing.id === item.id)), ...current]);
+    setSelectedDate(todayISO);
+    setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setViewAndScroll("calendar");
+    window.alert("음력·반복 일정 테스트 데이터를 달력과 위젯에 추가했어요.");
+  };
+
   const exportBackup = () => {
     const backup = { app: "daldal-calendar", version: 1, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
@@ -1105,7 +1124,7 @@ export default function Home() {
           />
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} onCreate={(type) => openCreate(type, toISO(month))} />}
-        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} />}
+        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} />}
       </main>
 
       <button className="record-button" type="button" onClick={() => openCreate("todo")}>
@@ -1143,7 +1162,7 @@ export default function Home() {
   );
 }
 
-function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef, onReset }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void }) {
+function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef, onReset, onAddTestData }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void; onAddTestData: () => void }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetText, setResetText] = useState("");
   const confirmReset = () => {
@@ -1162,7 +1181,7 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
   ["blush", "살구 핑크", "#fff0ed"],
   ["sage", "세이지", "#edf5f0"],
   ["night", "차분한 밤", "#25232a"],
-] as const).map(([value, label, color]) => <button type="button" className={`theme-choice ${lockScreenConfig.backgroundTheme === value ? "selected" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: value })} key={value}><i style={{ backgroundColor: color }} /><span>{label}</span></button>)}</div></div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section><section className="reset-section surface-card"><div><span className="section-eyebrow">DANGER ZONE</span><h2>앱 초기화</h2><p>이 기기의 기록·카테고리·예산·자산·잠금화면 설정을 지웁니다. 로그인 계정과 가족 공유 서버 데이터는 삭제하지 않습니다.</p></div><button className="danger-button" type="button" onClick={() => setResetOpen(true)}><Trash2 size={15} /> 초기화</button></section>{resetOpen && <div className="reset-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title"><div className="reset-dialog"><button className="reset-close" type="button" aria-label="닫기" onClick={() => { setResetOpen(false); setResetText(""); }}><X size={18} /></button><span className="reset-icon"><Trash2 size={20} /></span><h2 id="reset-title">앱 데이터를 초기화할까요?</h2><p>삭제한 데이터는 되돌릴 수 없습니다. 먼저 백업 파일을 저장했는지 확인하세요.</p><label>확인을 위해 <strong>초기화</strong>를 입력하세요<input value={resetText} onChange={(event) => setResetText(event.target.value)} placeholder="초기화" autoFocus /></label><div className="reset-actions"><button className="secondary-button" type="button" onClick={() => { setResetOpen(false); setResetText(""); }}>취소</button><button className="danger-button" type="button" disabled={resetText.trim() !== "초기화"} onClick={confirmReset}>데이터 지우기</button></div></div></div>}</div>;
+] as const).map(([value, label, color]) => <button type="button" className={`theme-choice ${lockScreenConfig.backgroundTheme === value ? "selected" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: value })} key={value}><i style={{ backgroundColor: color }} /><span>{label}</span></button>)}</div></div><small className="backup-note">날짜·요일 텍스트는 표시하지 않습니다.</small></section><section className="backup-section surface-card"><SectionHeading eyebrow="BACKUP" title="내 데이터 백업" /><p className="settings-description">기록·카테고리·예산·자산 잔액을 하나의 파일로 저장해요. 휴대폰을 바꾸거나 앱을 다시 설치할 때 복원할 수 있어요.</p><div className="backup-actions"><button className="primary-button" type="button" onClick={onExport}><Download size={16} /> 백업 파일 저장</button><button className="secondary-button" type="button" onClick={() => backupInputRef.current?.click()}><Upload size={16} /> 백업 파일 복원</button><button className="secondary-button" type="button" onClick={onAddTestData}>음력·반복 테스트 데이터 추가</button><input ref={backupInputRef} type="file" accept="application/json,.json" onChange={onImport} hidden /></div><small className="backup-note">백업 파일은 기기 안에 저장됩니다. 다른 사람에게 공유하지 마세요.</small></section><section className="reset-section surface-card"><div><span className="section-eyebrow">DANGER ZONE</span><h2>앱 초기화</h2><p>이 기기의 기록·카테고리·예산·자산·잠금화면 설정을 지웁니다. 로그인 계정과 가족 공유 서버 데이터는 삭제하지 않습니다.</p></div><button className="danger-button" type="button" onClick={() => setResetOpen(true)}><Trash2 size={15} /> 초기화</button></section>{resetOpen && <div className="reset-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title"><div className="reset-dialog"><button className="reset-close" type="button" aria-label="닫기" onClick={() => { setResetOpen(false); setResetText(""); }}><X size={18} /></button><span className="reset-icon"><Trash2 size={20} /></span><h2 id="reset-title">앱 데이터를 초기화할까요?</h2><p>삭제한 데이터는 되돌릴 수 없습니다. 먼저 백업 파일을 저장했는지 확인하세요.</p><label>확인을 위해 <strong>초기화</strong>를 입력하세요<input value={resetText} onChange={(event) => setResetText(event.target.value)} placeholder="초기화" autoFocus /></label><div className="reset-actions"><button className="secondary-button" type="button" onClick={() => { setResetOpen(false); setResetText(""); }}>취소</button><button className="danger-button" type="button" disabled={resetText.trim() !== "초기화"} onClick={confirmReset}>데이터 지우기</button></div></div></div>}</div>;
 }
 
 function HomeView({
