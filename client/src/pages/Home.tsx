@@ -78,7 +78,7 @@ type CalendarItem = {
   savingsMaturityDate?: string;
   savingsInterestRate?: number;
   savingsTermMonths?: number;
-  assetKind?: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "other";
+  assetKind?: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "stock" | "crypto" | "other";
   assetName?: string;
   paymentMethod?: "card" | "cash" | "account" | "localCurrency" | "other";
   localCurrencyDiscountRate?: number;
@@ -97,10 +97,13 @@ type CalendarItem = {
 
 type AssetBalance = {
   id: string;
-  kind: "account" | "cash" | "localCurrency";
+  kind: "account" | "cash" | "localCurrency" | "stock" | "crypto";
   name: string;
   initialBalance: number;
   owner: string;
+  quantity?: number;
+  averagePurchasePrice?: number;
+  currentPrice?: number;
 };
 
 type Draft = {
@@ -128,7 +131,7 @@ type Draft = {
   savingsMaturityDate: string;
   savingsInterestRate: string;
   savingsTermMonths: string;
-  assetKind: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "other";
+  assetKind: "account" | "card" | "cash" | "savings" | "loan" | "localCurrency" | "stock" | "crypto" | "other";
   assetName: string;
   paymentMethod: "card" | "cash" | "account" | "localCurrency" | "other";
   localCurrencyDiscountRate: string;
@@ -174,7 +177,7 @@ const categories: Record<ItemType, string[]> = {
   transfer: ["계좌 이체", "현금 이체", "자산 이동"],
 };
 const CARD_COMPANIES = ["신한카드", "삼성카드", "현대카드", "KB국민카드", "롯데카드", "우리카드", "하나카드", "NH농협카드"];
-const ASSET_KINDS = [{ value: "account", label: "계좌" }, { value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "savings", label: "적금" }, { value: "loan", label: "대출" }, { value: "localCurrency", label: "지역화폐" }, { value: "other", label: "기타" }] as const;
+const ASSET_KINDS = [{ value: "account", label: "계좌" }, { value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "savings", label: "적금" }, { value: "loan", label: "대출" }, { value: "localCurrency", label: "지역화폐" }, { value: "stock", label: "주식" }, { value: "crypto", label: "코인" }, { value: "other", label: "기타" }] as const;
 const PAYMENT_METHODS = [{ value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "account", label: "계좌이체" }, { value: "localCurrency", label: "지역화폐" }, { value: "other", label: "기타" }] as const;
 const CARD_BENEFITS: Record<string, { threshold: number; cap: number; categories: string[] }> = {
   "신한카드": { threshold: 300000, cap: 10000, categories: ["식비", "교통", "쇼핑", "생활"] },
@@ -1248,6 +1251,7 @@ function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve
 }
 
 function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[]) {
+  if (asset.kind === "stock" || asset.kind === "crypto") return Math.round((asset.quantity ?? 0) * (asset.currentPrice ?? asset.averagePurchasePrice ?? 0));
   return items.reduce((balance, item) => {
     const matches = asset.kind === "localCurrency"
       ? item.localCurrencyTarget === asset.name || (item.paymentMethod === "localCurrency" && item.assetName === asset.name)
@@ -1268,20 +1272,24 @@ function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalan
   const [kind, setKind] = useState<AssetBalance["kind"]>("account");
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [averagePurchasePrice, setAveragePurchasePrice] = useState("");
+  const [currentPrice, setCurrentPrice] = useState("");
   const [owner, setOwner] = useState("나");
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
-  const resetForm = () => { setEditingAssetId(null); setName(""); setBalance(""); setKind("account"); setOwner("나"); };
-  const editAsset = (asset: AssetBalance) => { setEditingAssetId(asset.id); setKind(asset.kind); setName(asset.name); setBalance(String(asset.initialBalance)); setOwner(asset.owner); };
+  const isInvestment = kind === "stock" || kind === "crypto";
+  const resetForm = () => { setEditingAssetId(null); setName(""); setBalance(""); setQuantity(""); setAveragePurchasePrice(""); setCurrentPrice(""); setKind("account"); setOwner("나"); };
+  const editAsset = (asset: AssetBalance) => { setEditingAssetId(asset.id); setKind(asset.kind); setName(asset.name); setBalance(String(asset.initialBalance)); setQuantity(asset.quantity ? String(asset.quantity) : ""); setAveragePurchasePrice(asset.averagePurchasePrice ? String(asset.averagePurchasePrice) : ""); setCurrentPrice(asset.currentPrice ? String(asset.currentPrice) : ""); setOwner(asset.owner); };
   const transfers = items.filter((item) => item.category === "지역화폐 충전").sort((a, b) => b.date.localeCompare(a.date));
   const addAsset = () => {
     if (!name.trim()) return;
-    const next = { id: `asset-${Date.now()}`, kind, name: name.trim(), initialBalance: Number(balance.replace(/[^0-9]/g, "")) || 0, owner };
+    const next = { id: `asset-${Date.now()}`, kind, name: name.trim(), initialBalance: isInvestment ? 0 : Number(balance.replace(/[^0-9]/g, "")) || 0, owner, quantity: isInvestment ? Number(quantity) || 0 : undefined, averagePurchasePrice: isInvestment ? Number(averagePurchasePrice) || 0 : undefined, currentPrice: isInvestment ? Number(currentPrice || averagePurchasePrice) || 0 : undefined };
     onChange(editingAssetId ? assets.map((asset) => asset.id === editingAssetId ? { ...asset, ...next, id: asset.id } : asset) : [...assets, next]);
     resetForm();
   };
-  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet asset-manager-sheet" role="dialog" aria-modal="true" aria-label="자산 잔액 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MY ASSETS</span><h2>현재 가진 돈을 입력해요</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">초기 잔액은 이후 입력하는 수입·지출·충전·사용 내역에 자동으로 반영돼요.</p><div className="asset-manager-form"><div className="manager-tabs">{([['account','계좌'],['cash','현금'],['localCurrency','지역화폐']] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? "active" : ""} onClick={() => setKind(value)}>{label}</button>)}</div><div className="field-row"><label className="field-label">자산 이름<input value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "account" ? "예: 신한 주거래" : kind === "cash" ? "예: 지갑" : "예: 경기지역화폐"} /></label><label className="field-label">초기 잔액<input inputMode="numeric" value={balance} onChange={(event) => setBalance(event.target.value.replace(/[^0-9]/g, ""))} placeholder="0" /></label></div><div className="asset-owner-row"><span>소유자</span><div>{["나", "신랑", "공동"].map((value) => <button type="button" className={owner === value ? "selected" : ""} key={value} onClick={() => setOwner(value)}>{value}</button>)}</div></div><button className="save-button asset-add-button" type="button" onClick={addAsset}>{editingAssetId ? "자산 수정 저장" : "자산 추가"} {editingAssetId ? <Check size={16} /> : <Plus size={16} />}</button>{editingAssetId && <button className="asset-cancel-button" type="button" onClick={resetForm}>수정 취소</button>}</div><div className="asset-balance-list">{assets.length ? assets.map((asset) => <div className="asset-balance-row" key={asset.id}><div><strong>{asset.name}</strong><small>{asset.kind === "account" ? "계좌" : asset.kind === "cash" ? "현금" : "지역화폐"} · {asset.owner}</small></div><div className="asset-balance-values"><b>{formatWon(getAssetCurrentBalance(asset, items))}</b><button className="asset-edit-button" type="button" onClick={() => editAsset(asset)} aria-label={`${asset.name} 수정`}><Pencil size={14} /></button><button type="button" onClick={() => { if (window.confirm(`${asset.name} 자산을 삭제할까요?`)) { if (editingAssetId === asset.id) resetForm(); onChange(assets.filter((item) => item.id !== asset.id)); } }} aria-label={`${asset.name} 삭제`}><X size={14} /></button></div></div>) : <div className="soft-empty">등록된 자산이 아직 없어요.</div>}</div><section className="asset-transfer-history"><div className="asset-transfer-heading"><div><span className="section-eyebrow">TRANSFER HISTORY</span><strong>계좌 → 지역화폐 이체 내역</strong></div><span>{transfers.length}건</span></div>{transfers.length ? <div className="asset-transfer-list">{transfers.map((item) => <div className="asset-transfer-row" key={item.id}><div><strong>{item.localCurrencySource || item.assetName || "출금 계좌"} <span>→</span> {item.localCurrencyTarget || "지역화폐"}</strong><small>{item.date} · 할인 {item.localCurrencyDiscountRate ?? 0}%</small></div><div><b>{formatWon(item.amount)}</b><small>충전 {formatWon(item.localCurrencyLoadedAmount ?? item.amount)}</small></div></div>)}</div> : <div className="soft-empty">지역화폐 충전 이체 내역이 아직 없어요.</div>}</section><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
+  const labelForKind = (assetKind: AssetBalance["kind"]) => assetKind === "account" ? "계좌" : assetKind === "cash" ? "현금" : assetKind === "localCurrency" ? "지역화폐" : assetKind === "stock" ? "주식" : "코인";
+  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet asset-manager-sheet" role="dialog" aria-modal="true" aria-label="자산 잔액 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MY ASSETS</span><h2>현재 가진 돈과 투자자산을 관리해요</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">계좌·현금·지역화폐와 주식·코인의 보유 수량을 입력해요. 주식·코인 현재가는 직접 갱신할 수 있어요.</p><div className="asset-manager-form"><div className="manager-tabs">{([["account", "계좌"], ["cash", "현금"], ["localCurrency", "지역화폐"], ["stock", "주식"], ["crypto", "코인"]] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? "active" : ""} onClick={() => setKind(value)}>{label}</button>)}</div><div className="field-row"><label className="field-label">{kind === "stock" ? "종목명" : kind === "crypto" ? "코인명" : "자산 이름"}<input value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "stock" ? "예: 삼성전자" : kind === "crypto" ? "예: 비트코인" : kind === "account" ? "예: 신한 주거래" : kind === "cash" ? "예: 지갑" : "예: 경기지역화폐"} /></label>{!isInvestment && <label className="field-label">초기 잔액<input inputMode="numeric" value={balance} onChange={(event) => setBalance(event.target.value.replace(/[^0-9]/g, ""))} placeholder="0" /></label>}</div>{isInvestment && <><div className="field-row"><label className="field-label">보유 수량<input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="예: 3.5" /></label><label className="field-label">평균 매수가<input inputMode="decimal" value={averagePurchasePrice} onChange={(event) => setAveragePurchasePrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="원화 기준" /></label></div><label className="field-label">현재가<input inputMode="decimal" value={currentPrice} onChange={(event) => setCurrentPrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="평가액 계산에 사용" /></label><small className="investment-hint">평가액 = 보유 수량 × 현재가 · 평가손익 = 평가액 − 매수원가</small></>}<div className="asset-owner-row"><span>소유자</span><div>{["나", "신랑", "공동"].map((value) => <button type="button" className={owner === value ? "selected" : ""} key={value} onClick={() => setOwner(value)}>{value}</button>)}</div></div><button className="save-button asset-add-button" type="button" onClick={addAsset}>{editingAssetId ? "자산 수정 저장" : "자산 추가"} {editingAssetId ? <Check size={16} /> : <Plus size={16} />}</button>{editingAssetId && <button className="asset-cancel-button" type="button" onClick={resetForm}>수정 취소</button>}</div><div className="asset-balance-list">{assets.length ? assets.map((asset) => { const current = getAssetCurrentBalance(asset, items); const assetIsInvestment = asset.kind === "stock" || asset.kind === "crypto"; const cost = assetIsInvestment ? (asset.quantity ?? 0) * (asset.averagePurchasePrice ?? 0) : 0; const profit = current - cost; return <div className="asset-balance-row" key={asset.id}><div><strong>{asset.name}</strong><small>{labelForKind(asset.kind)} · {asset.owner}</small>{assetIsInvestment && <small>{asset.quantity ?? 0}개 · 평균 {formatWon(asset.averagePurchasePrice ?? 0)}</small>}</div><div className="asset-balance-values"><b>{formatWon(current)}</b>{assetIsInvestment && <small className={profit >= 0 ? "investment-profit" : "investment-loss"}>{profit >= 0 ? "▲" : "▼"} {formatWon(Math.abs(profit))} ({cost ? `${profit >= 0 ? "+" : "−"}${Math.round(Math.abs(profit) / cost * 100)}%` : "수익률 계산 대기"})</small>}<button className="asset-edit-button" type="button" onClick={() => editAsset(asset)} aria-label={`${asset.name} 수정`}><Pencil size={14} /></button><button type="button" onClick={() => { if (window.confirm(`${asset.name} 자산을 삭제할까요?`)) { if (editingAssetId === asset.id) resetForm(); onChange(assets.filter((item) => item.id !== asset.id)); } }} aria-label={`${asset.name} 삭제`}><X size={14} /></button></div></div>; }) : <div className="soft-empty">등록된 자산이 아직 없어요.</div>}</div><section className="asset-transfer-history"><div className="asset-transfer-heading"><div><span className="section-eyebrow">TRANSFER HISTORY</span><strong>계좌 → 지역화폐 이체 내역</strong></div><span>{transfers.length}건</span></div>{transfers.length ? <div className="asset-transfer-list">{transfers.map((item) => <div className="asset-transfer-row" key={item.id}><div><strong>{item.localCurrencySource || item.assetName || "출금 계좌"} <span>→</span> {item.localCurrencyTarget || "지역화폐"}</strong><small>{item.date} · 할인 {item.localCurrencyDiscountRate ?? 0}%</small></div><div><b>{formatWon(item.amount)}</b><small>충전 {formatWon(item.localCurrencyLoadedAmount ?? item.amount)}</small></div></div>)}</div> : <div className="soft-empty">지역화폐 충전 이체 내역이 아직 없어요.</div>}</section><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
 }
-
 function CategoryManager({ customCategories, onChange, onClose }: { customCategories: Partial<Record<ItemType, string[]>>; onChange: (value: Partial<Record<ItemType, string[]>>) => void; onClose: () => void }) {
   const [kind, setKind] = useState<"income" | "expense" | "loan" | "savings">("expense");
   const [name, setName] = useState("");

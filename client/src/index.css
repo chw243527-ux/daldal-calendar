@@ -335,3 +335,11 @@ body { background: var(--ivory); }
 .reset-dialog input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid #e9dfda; border-radius: 10px; background: #fffdfb; font-size: 14px; }
 .reset-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 @media (max-width: 560px) { .reset-section { align-items: flex-start; flex-direction: column; } .reset-section .danger-button { align-self: stretch; } }
+
+.investment-hint { display: block; color: #a79c99; font-size: 10px; line-height: 1.5; }
+.asset-balance-row > div:first-child { min-width: 0; }
+.asset-balance-row > div:first-child small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-balance-values { align-items: flex-end; }
+.asset-balance-values > small { display: block; font-size: 10px; font-weight: 750; white-space: nowrap; }
+.investment-profit { color: var(--mint); }
+.investment-loss { color: var(--coral); }
