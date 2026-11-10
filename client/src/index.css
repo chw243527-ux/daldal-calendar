@@ -440,3 +440,19 @@ body { background: var(--ivory); }
 .asset-add-button, .asset-manager-sheet .manager-done { background: var(--coral); color: #fff; }
 .asset-add-button { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -8px 14px rgba(255,253,251,.92), 0 8px 17px rgba(216,117,104,.17); }
 .asset-cancel-button { width: 100%; min-height: 38px; margin-top: 8px; border: 1px solid #ead8d2; border-radius: 11px; background: #fff8f5; color: #a9786e; font-size: 11px; font-weight: 800; }
+
+/* 앱 내부 테마: 잠금화면 테마 선택을 앱 배경에도 즉시 반영 */
+.app-shell { transition: background-color .2s ease, color .2s ease; }
+.app-shell.app-theme-ivory { background: #fbf7f1; }
+.app-shell.app-theme-blush { background: #fff1ef; }
+.app-shell.app-theme-sage { background: #eef7f0; }
+.app-shell.app-theme-night { background: #25232c; color: #f8f2ee; }
+.app-theme-night .app-backdrop { opacity: .18; }
+.app-theme-night .topbar, .app-theme-night .page-content { color: #f8f2ee; }
+.app-theme-night .page-title-row h2, .app-theme-night .section-heading h2, .app-theme-night .brand-name { color: #fffaf7; }
+.app-theme-night .surface-card, .app-theme-night .calendar-panel, .app-theme-night .ledger-stat, .app-theme-night .cashflow-stat { background: #302d38; border-color: #474250; }
+.app-theme-night .bottom-nav { background: rgba(48,45,56,.94); border-color: #4b4656; }
+.app-theme-night .bottom-nav button { color: #c5bdc9; }
+.app-theme-night .field-label input, .app-theme-night .field-label textarea, .app-theme-night .field-label select { background: #302d38; color: #fffaf7; border-color: #514b5d; }
+.save-button { background: var(--coral); }
+.save-button:hover { background: #c4665b; }

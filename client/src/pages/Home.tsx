@@ -848,12 +848,18 @@ export default function Home() {
   const exportBackup = () => {
     const backup = { app: "daldal-calendar", version: 1, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const fileName = `daldal-calendar-backup-${toISO(new Date())}.json`;
+    const file = new File([blob], fileName, { type: "application/json" });
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      void navigator.share({ title: "달달 캘린더 백업", text: "달달 캘린더 데이터를 백업했어요.", files: [file] }).catch(() => undefined);
+      return;
+    }
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `daldal-calendar-backup-${toISO(new Date())}.json`;
+    anchor.download = fileName;
     anchor.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const importBackup = (event: ChangeEvent<HTMLInputElement>) => {
@@ -952,7 +958,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell app-theme-${lockScreenConfig.backgroundTheme}`} data-app-theme={lockScreenConfig.backgroundTheme}>
       <div className="app-backdrop" />
       <header className="topbar">
         <div className="brand-lockup">
