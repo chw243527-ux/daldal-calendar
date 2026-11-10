@@ -11,6 +11,22 @@ import { serveStatic, setupVite } from "./vite";
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  const nativeOrigins = new Set(["https://localhost", "http://localhost", "capacitor://localhost"]);
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && nativeOrigins.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+      res.setHeader("Vary", "Origin");
+    }
+    if (req.method === "OPTIONS" && origin && nativeOrigins.has(origin)) {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
