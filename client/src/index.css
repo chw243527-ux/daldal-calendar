@@ -456,3 +456,8 @@ body { background: var(--ivory); }
 .app-theme-night .field-label input, .app-theme-night .field-label textarea, .app-theme-night .field-label select { background: #302d38; color: #fffaf7; border-color: #514b5d; }
 .save-button { background: var(--coral); }
 .save-button:hover { background: #c4665b; }
+
+/* 상단 계정 버튼은 로그인 전에도 계정 시트를 먼저 열어 Android WebView에서 확실히 반응 */
+.topbar { position: relative; z-index: 5; }
+.topbar-actions, .profile-chip-button { position: relative; z-index: 6; }
+.profile-chip-button { cursor: pointer; touch-action: manipulation; }

@@ -971,7 +971,7 @@ export default function Home() {
         <div className="topbar-actions">
           <button className={`sync-button ${familyQuery.data ? "is-synced" : ""}`} type="button" onClick={() => setFamilyOpen(true)}><Cloud size={16} /><span>{familyQuery.data ? "공유 중" : "가족 공유"}</span></button>
           <button className="icon-button" type="button" aria-label="설정" onClick={() => setViewAndScroll("settings")}><Settings2 size={19} /></button>
-          <button className="profile-chip profile-chip-button" type="button" onClick={() => auth.isAuthenticated ? setFamilyOpen(true) : startLogin()} aria-label={auth.isAuthenticated ? "내 계정" : "로그인"}>나</button>
+          <button className="profile-chip profile-chip-button" type="button" onClick={() => setFamilyOpen(true)} aria-label={auth.isAuthenticated ? "내 계정" : "로그인"}>나</button>
         </div>
       </header>
 
