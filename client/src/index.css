@@ -408,3 +408,15 @@ body { background: var(--ivory); }
 .cashflow-report .cashflow-stat.fixed { min-width: 0; }
 
 /* 잠금화면 월간 자금은 일정·할 일 바로 아래 전체 폭으로 표시 */
+
+/* 가계부의 컬러 요약 영역은 flat surface-card 규칙의 영향을 받지 않도록 고정 */
+.ledger-view { color: var(--ink); }
+.ledger-view .ledger-hero { color: #fff !important; background: linear-gradient(128deg, #4f936f 0%, #66a68a 53%, #8ab8a2 100%) !important; border-color: transparent !important; }
+.ledger-view .ledger-hero .section-eyebrow, .ledger-view .ledger-hero p { color: rgba(255,255,255,.78) !important; }
+.ledger-view .ledger-hero-bottom span { color: rgba(255,255,255,.9) !important; }
+.ledger-view .ledger-hero > strong { color: #fff !important; }
+.ledger-view .ledger-entries { background: rgba(255,253,251,.92) !important; border-color: #f0e9e5 !important; }
+.ledger-view .ledger-entry strong { color: #403b40 !important; }
+.ledger-view .ledger-entry small { color: #8f8581 !important; }
+.ledger-view .ai-analysis-card { background: linear-gradient(135deg, #fffdfb, #f7f4ff) !important; border-color: #e9e2fb !important; }
+.ledger-view .ai-analysis-card strong, .ledger-view .ai-analysis-card p { color: #403b40 !important; }
