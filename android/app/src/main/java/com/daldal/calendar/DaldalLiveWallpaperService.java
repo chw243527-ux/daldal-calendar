@@ -343,7 +343,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             drawText(canvas, "차트 밖을 터치하면 닫혀요", x + 18, y + 169, 10, secondaryTextColor(darkTheme), false);
         }
 
-        private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan) {
+        private void drawFinanceChart(Canvas canvas, float x, float y, float chartWidth, int income, int expense, int loan, boolean darkTheme) {
             drawText(canvas, "월간 자금", x, y, 11, primaryTextColor(darkTheme), true);
             int max = Math.max(1, Math.max(income, Math.max(expense, loan)));
             String[] labels = {"수입", "지출", "나갈 돈"};
