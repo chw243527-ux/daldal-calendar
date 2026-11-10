@@ -434,3 +434,9 @@ body { background: var(--ivory); }
   .type-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .type-tabs button { min-height: 45px; }
 }
+
+/* 자산 관리 버튼은 공통 저장 버튼의 흰 글씨가 배경에 묻히지 않도록 명시 */
+.asset-manager-sheet { max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+.asset-add-button, .asset-manager-sheet .manager-done { background: var(--coral); color: #fff; }
+.asset-add-button { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -8px 14px rgba(255,253,251,.92), 0 8px 17px rgba(216,117,104,.17); }
+.asset-cancel-button { width: 100%; min-height: 38px; margin-top: 8px; border: 1px solid #ead8d2; border-radius: 11px; background: #fff8f5; color: #a9786e; font-size: 11px; font-weight: 800; }
