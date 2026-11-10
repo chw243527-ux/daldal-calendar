@@ -477,3 +477,33 @@ body { background: var(--ivory); }
     bottom: calc(108px + env(safe-area-inset-bottom));
   }
 }
+
+/* 열린 시트는 플로팅 기록 버튼·하단 네비게이션보다 항상 위에 표시 */
+.sheet-backdrop {
+  z-index: 100;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.sheet-backdrop .family-sheet,
+.sheet-backdrop .composer-sheet,
+.sheet-backdrop .asset-manager-sheet,
+.sheet-backdrop .category-manager-sheet {
+  position: relative;
+  z-index: 101;
+}
+@media (max-width: 600px) {
+  .sheet-backdrop {
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .family-sheet,
+  .sheet-backdrop .family-sheet {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .sheet-backdrop .composer-sheet,
+  .sheet-backdrop .asset-manager-sheet,
+  .sheet-backdrop .category-manager-sheet {
+    max-height: calc(100dvh - 24px);
+  }
+}
