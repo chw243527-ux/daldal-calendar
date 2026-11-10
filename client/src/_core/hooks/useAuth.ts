@@ -26,6 +26,8 @@ export function useAuth(options?: UseAuthOptions) {
       utils.auth.me.setData(undefined, null);
     },
   });
+  const loginMutation = trpc.auth.login.useMutation({ onSuccess: (user) => utils.auth.me.setData(undefined, user) });
+  const registerMutation = trpc.auth.register.useMutation({ onSuccess: (user) => utils.auth.me.setData(undefined, user) });
 
   const logout = useCallback(async () => {
     try {
@@ -57,8 +59,8 @@ export function useAuth(options?: UseAuthOptions) {
     );
     return {
       user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
-      error: meQuery.error ?? logoutMutation.error ?? null,
+      loading: meQuery.isLoading || logoutMutation.isPending || loginMutation.isPending || registerMutation.isPending,
+      error: meQuery.error ?? logoutMutation.error ?? loginMutation.error ?? registerMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };
   }, [
@@ -67,6 +69,10 @@ export function useAuth(options?: UseAuthOptions) {
     meQuery.isLoading,
     logoutMutation.error,
     logoutMutation.isPending,
+    loginMutation.error,
+    loginMutation.isPending,
+    registerMutation.error,
+    registerMutation.isPending,
   ]);
 
   useEffect(() => {
@@ -94,5 +100,7 @@ export function useAuth(options?: UseAuthOptions) {
     ...state,
     refresh: () => meQuery.refetch(),
     logout,
+    login: (email: string, password: string) => loginMutation.mutateAsync({ email, password }),
+    register: (email: string, password: string, name: string) => registerMutation.mutateAsync({ email, password, name }),
   };
 }

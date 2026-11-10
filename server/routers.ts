@@ -1,17 +1,51 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { protectedProcedure } from "./_core/trpc";
-import { createFamilyForUser, getAccountCloudData, getFamilyBackups, getFamilyForUser, joinFamilyForUser, restoreFamilyBackup, saveAccountCloudData, saveFamilyLedger } from "./db";
+import { createFamilyForUser, createLocalUser, getAccountCloudData, getFamilyBackups, getFamilyForUser, getUserByEmail, joinFamilyForUser, restoreFamilyBackup, saveAccountCloudData, saveFamilyLedger } from "./db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { sdk } from "./_core/sdk";
+
+const passwordHash = (password: string) => {
+  const salt = randomBytes(16);
+  return `${salt.toString("base64")}:${scryptSync(password, salt, 64).toString("base64")}`;
+};
+const passwordMatches = (password: string, stored: string) => {
+  try {
+    const [saltText, hashText] = stored.split(":");
+    if (!saltText || !hashText) return false;
+    const expected = Buffer.from(hashText, "base64");
+    const actual = scryptSync(password, Buffer.from(saltText, "base64"), expected.length);
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
+  } catch { return false; }
+};
+const localOpenId = (email: string) => `local_${createHash("sha256").update(email).digest("hex").slice(0, 32)}`;
+const publicUser = (user: NonNullable<Awaited<ReturnType<typeof getUserByEmail>>>) => ({ id: user.id, openId: user.openId, name: user.name, email: user.email, loginMethod: user.loginMethod, role: user.role });
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(opts => opts.ctx.user ? publicUser(opts.ctx.user) : null),
+    register: publicProcedure.input(z.object({ email: z.string().trim().email().max(320), password: z.string().min(8).max(200), name: z.string().trim().min(1).max(80) })).mutation(async ({ ctx, input }) => {
+      const email = input.email.toLowerCase();
+      if (await getUserByEmail(email)) throw new TRPCError({ code: "CONFLICT", message: "이미 가입된 이메일이에요." });
+      const user = await createLocalUser(email, input.name, passwordHash(input.password), localOpenId(email));
+      if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "계정을 만들지 못했어요." });
+      const token = await sdk.createSessionToken(user.openId, { name: user.name ?? input.name });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+      return publicUser(user);
+    }),
+    login: publicProcedure.input(z.object({ email: z.string().trim().email().max(320), password: z.string().min(1).max(200) })).mutation(async ({ ctx, input }) => {
+      const user = await getUserByEmail(input.email.toLowerCase());
+      if (!user?.passwordHash || !passwordMatches(input.password, user.passwordHash)) throw new TRPCError({ code: "UNAUTHORIZED", message: "이메일 또는 비밀번호를 확인해 주세요." });
+      const token = await sdk.createSessionToken(user.openId, { name: user.name ?? "" });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+      return publicUser(user);
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
