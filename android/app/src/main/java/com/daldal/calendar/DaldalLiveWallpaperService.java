@@ -39,6 +39,11 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private final Calendar now = Calendar.getInstance();
         private boolean visible;
         private String selectedFinanceType;
+        private final SharedPreferences.OnSharedPreferenceChangeListener preferenceListener = (preferences, key) -> {
+            if ("backgroundTheme".equals(key) || "showCalendar".equals(key) || "showSchedule".equals(key) || "showTodo".equals(key) || "showMonthlyFunds".equals(key) || "calendarItems".equals(key)) {
+                drawWallpaper();
+            }
+        };
 
         @Override
         public void onVisibilityChanged(boolean visible) {
@@ -57,6 +62,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         @Override
         public void onSurfaceCreated(SurfaceHolder holder) {
+            getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(preferenceListener);
             setTouchEventsEnabled(true);
             drawWallpaper();
             if (visible) refreshHandler.postDelayed(refreshRunnable, 30000L);
@@ -64,6 +70,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         @Override
         public void onSurfaceDestroyed(SurfaceHolder holder) {
+            getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(preferenceListener);
             visible = false;
             refreshHandler.removeCallbacks(refreshRunnable);
             super.onSurfaceDestroyed(holder);

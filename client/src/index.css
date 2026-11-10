@@ -401,8 +401,9 @@ body { background: var(--ivory); }
 .account-logout { flex: 0 0 auto; padding: 7px 9px; border-radius: 9px; background: #fff; color: #b85f50; font-size: 10px; font-weight: 800; }
 
 /* 리포트 카드가 flat 스타일 규칙에 덮여 흰 글씨만 남지 않도록 대비를 고정 */
-.cashflow-report .cashflow-hero { color: #fff; background: linear-gradient(135deg, #756bb5, #9d83c5 58%, #d87568); }
-.cashflow-report .cashflow-hero strong { color: #fffdfb; }
+.cashflow-report .cashflow-hero { color: #fff !important; background: linear-gradient(135deg, #756bb5, #9d83c5 58%, #d87568) !important; }
+.cashflow-report .cashflow-hero strong { color: #fffdfb !important; }
+.cashflow-report .cashflow-hero .section-eyebrow, .cashflow-report .cashflow-hero p, .cashflow-report .cashflow-hero small { color: rgba(255,255,255,.82) !important; }
 .cashflow-report .cashflow-stat { min-height: 88px; }
 .cashflow-report .cashflow-stat.fixed { min-width: 0; }
 
