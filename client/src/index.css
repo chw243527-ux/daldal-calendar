@@ -178,8 +178,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 
 .calendar-chips { display: flex; width: 100%; flex-direction: column; gap: 2px; margin-top: 2px; }
 .calendar-chip { width: 100%; overflow: hidden; padding: 2px 4px; border-radius: 4px; font-size: 8px; font-weight: 800; line-height: 1.2; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.todo-chip { background: transparent; color: #6659aa; }
-.todo-calendar-check { display: inline-grid; width: 9px; height: 9px; margin: 0 3px 1px 0; border: 1.5px solid currentColor; border-radius: 50%; vertical-align: middle; }
+.todo-chip { width: max-content; max-width: 100%; overflow: visible; background: transparent; color: #6659aa; text-overflow: clip; }
+.todo-calendar-check { display: inline-grid; width: 9px; height: 9px; margin: 0 3px 1px 0; flex: 0 0 auto; border: 1.5px solid currentColor; border-radius: 50%; vertical-align: middle; }
 .todo-chip.is-complete .todo-calendar-check { width: 11px; height: 11px; border: 0; background: currentColor; color: white; font-size: 7px; font-weight: 900; line-height: 11px; text-align: center; }
 .todo-chip.is-complete .todo-calendar-check::after { content: "✓"; }
 .event-chip { background: #fff0ed; color: #c96f62; }
