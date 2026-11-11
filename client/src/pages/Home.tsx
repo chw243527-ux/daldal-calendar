@@ -376,7 +376,7 @@ function getCalendarChipStyle(item: CalendarItem): React.CSSProperties | undefin
     const color = item.accentColor || "#6659aa";
     return { color, "--todo-color": color } as React.CSSProperties;
   }
-  return item.type === "event" && item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined;
+  return item.type === "event" ? { "--event-color": item.accentColor || "#c96f62" } as React.CSSProperties : undefined;
 }
 function formatCompact(value = 0) {
   const abs = Math.abs(value);

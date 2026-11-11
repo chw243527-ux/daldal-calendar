@@ -646,3 +646,10 @@ body { background: var(--ivory); }
   .calendar-view .calendar-grid { margin-left: 0; margin-right: 0; }
   .calendar-view .calendar-cell { min-height: 82px; padding-left: 0; padding-right: 0; }
 }
+
+
+/* 연속 막대는 인접 셀과 겹치지 않게 정확히 한 칸씩 이어 붙임 */
+.event-chip.event-range-start,
+.event-chip.event-range-middle,
+.event-chip.event-range-end { width: 100%; margin-left: 0; margin-right: 0; background-color: color-mix(in srgb, var(--event-color, #c96f62) 16%, #fbf7f1) !important; color: var(--event-color, #c96f62) !important; }
+@media (max-width: 600px) { .calendar-view .calendar-panel { margin-left: -17px; margin-right: -17px; } .calendar-view .calendar-toolbar, .calendar-view .calendar-summary-strip, .calendar-view .weekday-row { margin-left: 17px; margin-right: 17px; } }
