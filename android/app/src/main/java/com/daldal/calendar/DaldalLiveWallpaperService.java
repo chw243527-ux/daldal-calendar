@@ -177,7 +177,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             boolean showCalendar = preferences.getBoolean("showCalendar", true);
             boolean showSchedule = preferences.getBoolean("showSchedule", true);
             boolean showTodo = preferences.getBoolean("showTodo", true);
-            boolean showMonthlyFunds = preferences.getBoolean("showMonthlyFunds", true);
 
             float margin = width * 0.075f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.072f, 12, primaryTextColor(darkTheme), true);
@@ -191,7 +190,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
             float gridTop = cardTop + 18;
             float cellWidth = (width - margin * 2) / 7f;
-            float cellHeight = Math.max(43f, Math.min(56f, height * 0.055f));
+            // 월간 자금 영역을 제거한 만큼 달력의 날짜 행을 크게 사용합니다.
+            float cellHeight = Math.max(52f, Math.min(78f, height * 0.075f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
             if (showCalendar) {
             drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, primaryTextColor(darkTheme), true);
@@ -237,19 +237,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 scheduleRow++;
             }
             if ((showSchedule || showTodo) && scheduleRow == 0) drawText(canvas, "표시할 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, secondaryTextColor(darkTheme), false);
-            // 잠금화면에는 일정·할 일만 표시하고, 월간 자금 요약은 그 바로 아래에 배치합니다.
-            float chartTop = sectionTop + 23 + Math.max(1, scheduleRow) * 24 + 18;
-            int monthlyIncome = 0, monthlyExpense = 0, monthlyOutgoing = 0;
-            for (int itemIndex = 0; itemIndex < entries.length(); itemIndex++) {
-                JSONObject item = entries.optJSONObject(itemIndex);
-                if (item == null || !item.optString("date", "").startsWith(String.format(Locale.US, "%04d-%02d-", year, month + 1))) continue;
-                int amount = item.optInt("amount", 0);
-                String type = item.optString("type");
-                if ("income".equals(type)) monthlyIncome += amount;
-                if ("expense".equals(type)) monthlyExpense += amount;
-                if ("loan".equals(type) && isOutgoingCategory(item.optString("category"))) monthlyOutgoing += amount;
-            }
-            if (showMonthlyFunds) drawFinanceChart(canvas, margin + 24, chartTop, width - margin * 2 - 24, monthlyIncome, monthlyExpense, monthlyOutgoing, darkTheme);
             if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
         }

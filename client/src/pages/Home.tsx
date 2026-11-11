@@ -1282,7 +1282,6 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
   ["showCalendar", "월간 달력", "달력과 날짜별 기록 표시"],
   ["showSchedule", "일정", "오늘 일정 표시"],
   ["showTodo", "할 일", "오늘 할 일 표시"],
-  ["showMonthlyFunds", "월간 자금", "수입·지출·나갈 돈 요약 표시"],
 ] as const).map(([key, label, description]) => <label className="lockscreen-toggle-row" key={key}><span><strong>{label}</strong><small>{description}</small></span><input type="checkbox" checked={lockScreenConfig[key]} onChange={(event) => onLockScreenConfigChange({ ...lockScreenConfig, [key]: event.target.checked })} /></label>)}</div><div className="lockscreen-theme-picker"><strong>배경 테마</strong><div className="theme-choice-list">{([
   ["ivory", "아이보리", "#f9f6f2"],
   ["blush", "살구 핑크", "#fff0ed"],
