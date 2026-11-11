@@ -953,6 +953,11 @@ export default function Home() {
     setView(nextView);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const goToTodayCalendar = () => {
+    setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(todayISO);
+    setViewAndScroll("calendar");
+  };
 
   const addTestData = () => {
     const fixture = createCalendarFeatureTestItems(today);
@@ -1109,7 +1114,7 @@ export default function Home() {
             onCreate={openCreate}
             onEdit={openEdit}
             onToggle={toggleTodo}
-            onGoCalendar={() => setViewAndScroll("calendar")}
+            onGoCalendar={goToTodayCalendar}
             formatLongDate={formatLongDate}
           />
         )}
@@ -1155,7 +1160,7 @@ export default function Home() {
 
       <nav className="bottom-nav" aria-label="주요 메뉴">
         <button className={view === "home" ? "active" : ""} type="button" onClick={() => setViewAndScroll("home")}><LayoutGrid size={19} /><span>오늘</span></button>
-        <button className={view === "calendar" ? "active" : ""} type="button" onClick={() => setViewAndScroll("calendar")}><CalendarDays size={19} /><span>달력</span></button>
+        <button className={view === "calendar" ? "active" : ""} type="button" onClick={goToTodayCalendar}><CalendarDays size={19} /><span>달력</span></button>
         <button className={view === "ledger" ? "active" : ""} type="button" onClick={() => setViewAndScroll("ledger")}><Wallet size={19} /><span>가계부</span></button>
         <button className={view === "report" ? "active" : ""} type="button" onClick={() => setViewAndScroll("report")}><Repeat2 size={19} /><span>현금흐름</span></button>
       </nav>
