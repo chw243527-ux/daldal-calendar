@@ -1123,7 +1123,7 @@ export default function Home() {
             month={month}
             selectedDate={selectedDate}
             selectedItems={selectedItems}
-            items={items}
+            items={displayItems}
             onMonthChange={changeMonth}
             onSelectDate={setSelectedDate}
             onCreate={openCreate}
