@@ -554,7 +554,9 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: st
 export default function Home() {
   const today = useMemo(() => new Date(), []);
   const todayISO = toISO(today);
-  const shareGuestMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("share") === "empty", []);
+  const shareLinkMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("share") === "empty", []);
+  const [shareGuestUnlocked, setShareGuestUnlocked] = useState(false);
+  const shareGuestMode = shareLinkMode && !shareGuestUnlocked;
   const auth = useAuth();
   const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 5000 : false, refetchOnWindowFocus: true });
   const accountCloudSync = trpc.accountCloud.sync.useMutation();
@@ -1136,6 +1138,8 @@ export default function Home() {
   const restoreBackup = (backupId: number) => {
     familyRestore.mutate({ backupId }, { onSuccess: async () => { setFamilyMessage("백업을 복원했어요."); await familyQuery.refetch(); } });
   };
+  const loginFromShare = async (email: string, password: string) => { const result = await auth.login(email, password); setShareGuestUnlocked(true); return result; };
+  const registerFromShare = async (email: string, password: string, name: string) => { const result = await auth.register(email, password, name); setShareGuestUnlocked(true); return result; };
 
   return (
     <div className={`app-shell app-theme-${lockScreenConfig.backgroundTheme}`} data-app-theme={lockScreenConfig.backgroundTheme}>
@@ -1226,7 +1230,7 @@ export default function Home() {
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
 
-      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated && !shareGuestMode} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} userName={auth.user?.name ?? "내 계정"} userEmail={auth.user?.email ?? ""} onLogout={auth.logout} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onLogin={auth.login} onRegister={auth.register} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
+      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated && !shareGuestMode} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} userName={auth.user?.name ?? "내 계정"} userEmail={auth.user?.email ?? ""} onLogout={auth.logout} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onLogin={loginFromShare} onRegister={registerFromShare} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
 
       {isComposerOpen && (
         <Composer
