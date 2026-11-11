@@ -356,7 +356,13 @@ function formatLunarDate(date: Date) {
   const lunar = getLunarMonthDay(date);
   return `${lunar.lunarLeapMonth ? "윤" : ""}${lunar.month}.${lunar.day}`;
 }
-
+function getCalendarChipStyle(item: CalendarItem): React.CSSProperties | undefined {
+  if (item.type === "todo") {
+    const color = item.accentColor || "#6659aa";
+    return { color, "--todo-color": color } as React.CSSProperties;
+  }
+  return item.type === "event" && item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined;
+}
 function formatCompact(value = 0) {
   const abs = Math.abs(value);
   if (abs >= 100000000) return `${value < 0 ? "−" : ""}${(abs / 100000000).toFixed(1).replace(".0", "")}억`;
@@ -1275,7 +1281,7 @@ function HomeView({
             const isToday = iso === todayISO;
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
               <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.type === "event" && item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
+              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
             </button>;
           })}
         </div>
@@ -1368,7 +1374,7 @@ function CalendarView({
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.type === "event" && item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
+                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
                 {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
               </button>
             );
