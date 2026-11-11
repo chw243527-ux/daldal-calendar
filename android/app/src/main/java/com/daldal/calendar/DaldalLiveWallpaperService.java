@@ -181,7 +181,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             boolean showSchedule = preferences.getBoolean("showSchedule", true);
             boolean showTodo = preferences.getBoolean("showTodo", true);
 
-            float margin = width * 0.045f;
+            // 좌우 기준선을 같은 값으로 사용해 7개 날짜 칸의 폭을 항상 동일하게 유지합니다.
+            float margin = Math.max(16f, width * 0.045f);
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.055f, 12, primaryTextColor(darkTheme), true);
             float cardTop = height * 0.19f;
             JSONArray entries = parseItems(calendarItems);
@@ -192,7 +193,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int firstDay = first.get(Calendar.DAY_OF_WEEK) - 1;
             int days = first.getActualMaximum(Calendar.DAY_OF_MONTH);
             float gridTop = cardTop + 18;
-            float cellWidth = (width - margin * 2) / 7f;
+            float gridLeft = margin;
+            float gridRight = width - margin;
+            float cellWidth = (gridRight - gridLeft) / 7f;
             // 잠금화면은 달력만 표시하므로 6주 행을 화면 높이에 맞춰 크게 사용합니다.
             float cellHeight = Math.max(72f, Math.min(118f, (height - gridTop - 70f) / 6f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
@@ -205,17 +208,23 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     int index = firstDay + day - 1;
                     int column = index % 7;
                     int row = index / 7;
-                    float cellX = margin + column * cellWidth;
+                    float cellX = gridLeft + column * cellWidth;
                     float cellY = gridTop + 28 + row * cellHeight;
+                    canvas.save();
+                    canvas.clipRect(cellX, cellY - 18, cellX + cellWidth, cellY + cellHeight);
                     boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
                     if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
                     float dateCenter = cellX + cellWidth / 2;
                     // 오늘 날짜 숫자는 원 중심과 같은 x 좌표를 사용해 원 안에서 정확히 중앙 정렬합니다.
                     drawCenteredText(canvas, String.valueOf(day), dateCenter, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
-                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter + 20, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
+                    if (!lunarLabel.isEmpty()) {
+                        float lunarCenter = column == 6 ? dateCenter - 20 : dateCenter + 20;
+                        drawCenteredText(canvas, lunarLabel, lunarCenter, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
+                    }
                     // 일정·할 일은 날짜 숫자 바로 아래에 붙여 같은 날짜 칸 안에 배치합니다.
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 22, cellWidth, showSchedule, showTodo, darkTheme);
+                    canvas.restore();
                 }
             }
             canvas.restore();
