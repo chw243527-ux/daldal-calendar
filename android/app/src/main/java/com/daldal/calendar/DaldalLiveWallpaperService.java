@@ -183,7 +183,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             float margin = width * 0.045f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.055f, 12, primaryTextColor(darkTheme), true);
-            float cardTop = height * 0.095f;
+            float cardTop = height * 0.19f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
