@@ -616,3 +616,7 @@ body { background: var(--ivory); }
 .composer-sheet .field-label { gap: 7px; }
 .composer-sheet .detail-block + .detail-block { margin-top: 1px; }
 @media (max-width: 600px) { .composer-flow-hint { font-size: 9px; gap: 5px; } }
+
+
+.share-guest-banner { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; padding: 9px 12px; border: 1px solid #d9ece3; border-radius: 12px; background: #f2faf6; color: #4d8d71; font-size: 10px; font-weight: 750; line-height: 1.35; }
+.share-app-button { color: var(--coral); }

@@ -7,6 +7,7 @@ import {
   Bell,
   Cloud,
   Copy,
+  Share2,
   GitMerge,
   History,
   CalendarDays,
@@ -553,10 +554,11 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: st
 export default function Home() {
   const today = useMemo(() => new Date(), []);
   const todayISO = toISO(today);
+  const shareGuestMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("share") === "empty", []);
   const auth = useAuth();
-  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated, refetchInterval: auth.isAuthenticated ? 5000 : false, refetchOnWindowFocus: true });
+  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 5000 : false, refetchOnWindowFocus: true });
   const accountCloudSync = trpc.accountCloud.sync.useMutation();
-  const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated, refetchInterval: auth.isAuthenticated ? 5000 : false });
+  const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 5000 : false });
   const familyCreate = trpc.family.create.useMutation();
   const familyJoin = trpc.family.join.useMutation();
   const familySync = trpc.family.sync.useMutation();
@@ -572,7 +574,7 @@ export default function Home() {
   const [lockScreenConfig, setLockScreenConfig] = useState<LockScreenConfig>(DEFAULT_LOCKSCREEN_CONFIG);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
-  const accountStorageScope = auth.user?.openId ?? "";
+  const accountStorageScope = shareGuestMode ? "__empty_share_guest__" : (auth.user?.openId ?? "");
   const marketSymbols = useMemo(() => [...new Set(assetBalances.filter((asset) => (asset.kind === "stock" || asset.kind === "crypto") && asset.ticker?.trim()).map((asset) => asset.kind === "crypto" && !asset.ticker!.toUpperCase().startsWith("BITHUMB:") ? `BITHUMB:${asset.ticker!.trim().toUpperCase().replace(/-/g, "_")}` : asset.ticker!.trim().toUpperCase()))], [assetBalances]);
   const marketQuotesQuery = trpc.market.quotes.useQuery({ symbols: marketSymbols }, { enabled: marketSymbols.length > 0, refetchInterval: marketSymbols.length > 0 ? 60_000 : false, refetchOnWindowFocus: true });
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
@@ -635,6 +637,17 @@ export default function Home() {
     setIsLoaded(false);
     setLoadedStorageScope(null);
     try {
+      if (shareGuestMode) {
+        setItems([]);
+        setCustomCategories({ income: [], expense: [], loan: [] });
+        setMonthlyBudgets({});
+        setEmergencyReserve(0);
+        setAssetBalances([]);
+        setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
+        setLoadedStorageScope(scope);
+        setIsLoaded(true);
+        return;
+      }
       const read = (key: string) => {
         const scopedKey = scopedStorageKey(key, scope);
         const scopedValue = window.localStorage.getItem(scopedKey);
@@ -664,7 +677,7 @@ export default function Home() {
       setLoadedStorageScope(scope);
       setIsLoaded(true);
     }
-  }, [auth.loading, accountStorageScope]);
+  }, [auth.loading, accountStorageScope, shareGuestMode]);
 
   useEffect(() => {
     if (auth.loading || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || accountCloudQuery.isLoading) return;
@@ -1088,6 +1101,14 @@ export default function Home() {
     } catch { setFamilyMessage("초대 코드를 확인해 주세요."); }
   };
 
+  const shareEmptyApp = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?share=empty`;
+    const shareData = { title: "달달 캘린더", text: "로그인 없이 빈 화면으로 시작하는 달달 캘린더 앱이에요.", url };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else { await navigator.clipboard?.writeText(url); setFamilyMessage("내역이 포함되지 않은 공유 링크를 복사했어요."); }
+    } catch { /* 사용자가 공유 창을 닫은 경우 */ }
+  };
   const copyFamilyCode = async () => {
     if (!familyQuery.data?.inviteCode) return;
     await navigator.clipboard?.writeText(familyQuery.data.inviteCode);
@@ -1128,13 +1149,15 @@ export default function Home() {
           </div>
         </div>
         <div className="topbar-actions">
+          <button className="icon-button share-app-button" type="button" onClick={() => void shareEmptyApp()} aria-label="빈 화면으로 앱 공유"><Share2 size={18} /></button>
           <button className={`sync-button ${familyQuery.data ? "is-synced" : ""}`} type="button" onClick={() => setFamilyOpen(true)}><Cloud size={16} /><span>{familyQuery.data ? "공유 중" : "가족 공유"}</span></button>
           <button className="icon-button" type="button" aria-label="설정" onClick={() => setViewAndScroll("settings")}><Settings2 size={19} /></button>
-          <button className="profile-chip profile-chip-button" type="button" onClick={() => setFamilyOpen(true)} aria-label={auth.isAuthenticated ? "내 계정" : "로그인"}>나</button>
+          <button className="profile-chip profile-chip-button" type="button" onClick={() => setFamilyOpen(true)} aria-label={shareGuestMode ? "공유용 빈 화면" : auth.isAuthenticated ? "내 계정" : "로그인"}>{shareGuestMode ? "게스트" : "나"}</button>
         </div>
       </header>
 
       <main className="page-content">
+        {shareGuestMode && <div className="share-guest-banner"><Share2 size={14} /><span>공유용 빈 화면입니다. 기존 사용자의 로그인·내역은 포함되지 않았어요.</span></div>}
         {view === "home" && (
           <HomeView
             clock={clock}
@@ -1203,7 +1226,7 @@ export default function Home() {
 
       {wallpaperMessage && <div className="wallpaper-toast" role="status">{wallpaperMessage}</div>}
 
-      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} userName={auth.user?.name ?? "내 계정"} userEmail={auth.user?.email ?? ""} onLogout={auth.logout} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onLogin={auth.login} onRegister={auth.register} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
+      {isFamilyOpen && <FamilyShareSheet authenticated={auth.isAuthenticated && !shareGuestMode} loading={auth.loading} family={familyQuery.data ?? null} familyName={familyName} inviteCode={familyInviteCode} message={familyMessage} conflict={conflictState} userName={auth.user?.name ?? "내 계정"} userEmail={auth.user?.email ?? ""} onLogout={auth.logout} onFamilyNameChange={setFamilyName} onInviteCodeChange={setFamilyInviteCode} onCreate={createFamilySpace} onJoin={joinFamilySpace} onCopy={copyFamilyCode} onResolveConflict={resolveConflict} onRestore={restoreBackup} onLogin={auth.login} onRegister={auth.register} onClose={() => { setFamilyOpen(false); setFamilyMessage(null); }} />}
 
       {isComposerOpen && (
         <Composer
