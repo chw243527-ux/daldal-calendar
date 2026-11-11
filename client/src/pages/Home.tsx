@@ -927,7 +927,8 @@ export default function Home() {
   };
 
   const toggleTodo = (item: CalendarItem) => {
-    setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, completed: !entry.completed } : entry));
+    const sourceId = item.sourceLoanId ?? item.id;
+    setItems((current) => current.map((entry) => entry.id === sourceId ? { ...entry, completed: !entry.completed } : entry));
   };
 
   const changeMonth = (offset: number) => {
@@ -1262,8 +1263,7 @@ function HomeView({
             const isToday = iso === todayISO;
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
               <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-              <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
-              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
+              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.title}</span>)}</span>
             </button>;
           })}
         </div>
@@ -1356,8 +1356,7 @@ function CalendarView({
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-                <span className="calendar-dots">{dayItems.slice(0, 4).map((item) => <i key={item.id} style={{ backgroundColor: item.accentColor || typeMeta[item.type].color }} />)}</span>
-                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id}>{item.completed && "✓ "}{item.title}</span>)}</span>
+                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={item.accentColor ? { backgroundColor: `${item.accentColor}22`, color: item.accentColor } : undefined} key={item.id} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.title}</span>)}</span>
                 {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
               </button>
             );
