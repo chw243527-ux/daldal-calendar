@@ -183,7 +183,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             // 좌우 기준선을 같은 값으로 사용해 7개 날짜 칸의 폭을 항상 동일하게 유지합니다.
             float margin = Math.max(4f, width * 0.015f);
-            drawText(canvas, "☾  달달 캘린더", margin, height * 0.055f, 12, primaryTextColor(darkTheme), true);
             float cardTop = height * 0.19f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
@@ -200,7 +199,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float cellHeight = Math.max(72f, Math.min(118f, (height - gridTop - 70f) / 6f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
             if (showCalendar) {
-                drawText(canvas, String.format(Locale.KOREA, "%d년 %d월", year, month + 1), margin, gridTop - 16, 15, primaryTextColor(darkTheme), true);
                 for (int index = 0; index < weekdays.length; index++) {
                     drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 10, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
                 }
