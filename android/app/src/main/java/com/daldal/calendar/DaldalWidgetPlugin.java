@@ -28,6 +28,9 @@ public class DaldalWidgetPlugin extends Plugin {
         boolean showTodo = lockScreenConfig == null || !lockScreenConfig.has("showTodo") || Boolean.TRUE.equals(lockScreenConfig.opt("showTodo"));
         boolean showMonthlyFunds = lockScreenConfig == null || !lockScreenConfig.has("showMonthlyFunds") || Boolean.TRUE.equals(lockScreenConfig.opt("showMonthlyFunds"));
         String backgroundTheme = lockScreenConfig == null ? "ivory" : lockScreenConfig.optString("backgroundTheme", "ivory");
+        String fontScale = lockScreenConfig == null ? "medium" : lockScreenConfig.optString("fontScale", "medium");
+        String customBackgroundColor = lockScreenConfig == null ? "" : lockScreenConfig.optString("customBackgroundColor", "");
+        String customAccentColor = lockScreenConfig == null ? "" : lockScreenConfig.optString("customAccentColor", "");
 
         SharedPreferences preferences = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         preferences.edit()
@@ -42,6 +45,9 @@ public class DaldalWidgetPlugin extends Plugin {
                 .putBoolean("showTodo", showTodo)
                 .putBoolean("showMonthlyFunds", showMonthlyFunds)
                 .putString("backgroundTheme", backgroundTheme)
+                .putString("fontScale", fontScale)
+                .putString("customBackgroundColor", customBackgroundColor)
+                .putString("customAccentColor", customAccentColor)
                 .apply();
 
         AppWidgetManager manager = AppWidgetManager.getInstance(getContext());

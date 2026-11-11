@@ -666,3 +666,10 @@ body { background: var(--ivory); }
 
 .payment-status-field { margin-top: 8px; }
 .scheduled-payment-row:has(small) small { line-height: 1.35; }
+
+/* 잠금화면 사용자 지정 글자 크기·색상 컨트롤 */
+.lockscreen-customizer { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(80, 65, 60, 0.1); }
+.lockscreen-customizer .field-label { gap: 7px; }
+.lockscreen-customizer select, .lockscreen-customizer input[type="color"] { width: 100%; min-height: 44px; border: 1px solid rgba(80, 65, 60, 0.15); border-radius: 12px; background: #fffdfa; }
+.lockscreen-customizer input[type="color"] { padding: 4px; }
+@media (max-width: 520px) { .lockscreen-customizer { grid-template-columns: 1fr; } }

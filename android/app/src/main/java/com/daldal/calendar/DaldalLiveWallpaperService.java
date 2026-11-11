@@ -40,7 +40,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private boolean visible;
         private String selectedFinanceType;
         private final SharedPreferences.OnSharedPreferenceChangeListener preferenceListener = (preferences, key) -> {
-            if ("backgroundTheme".equals(key) || "showCalendar".equals(key) || "showSchedule".equals(key) || "showTodo".equals(key) || "showMonthlyFunds".equals(key) || "calendarItems".equals(key)) {
+            if ("backgroundTheme".equals(key) || "fontScale".equals(key) || "customBackgroundColor".equals(key) || "customAccentColor".equals(key) || "showCalendar".equals(key) || "showSchedule".equals(key) || "showTodo".equals(key) || "showMonthlyFunds".equals(key) || "calendarItems".equals(key)) {
                 drawWallpaper();
             }
         };
@@ -168,8 +168,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             String backgroundTheme = preferences.getString("backgroundTheme", "ivory");
-            boolean darkTheme = isDarkTheme(backgroundTheme);
-            canvas.drawColor(backgroundColor(backgroundTheme));
+            int background = parseColor(preferences.getString("customBackgroundColor", ""), backgroundColor(backgroundTheme));
+            boolean darkTheme = isDarkTheme(background);
+            canvas.drawColor(background);
+            paint.setTextScaleX(fontScale(preferences.getString("fontScale", "medium")));
 
             paint.setStyle(Paint.Style.FILL);
 
@@ -205,7 +207,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float cellX = margin + column * cellWidth;
                 float cellY = gridTop + 28 + row * cellHeight;
                 boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
-                if (isToday) { paint.setColor(themeAccent(backgroundTheme)); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
+                if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
                 drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                 int markerCount = 0;
                 for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
@@ -257,6 +259,16 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return Color.rgb(249, 246, 242);
         }
 
+        private int parseColor(String value, int fallback) {
+            try { return value != null && value.startsWith("#") ? Color.parseColor(value) : fallback; } catch (Exception ignored) { return fallback; }
+        }
+
+        private float fontScale(String value) {
+            if ("small".equals(value)) return 0.88f;
+            if ("large".equals(value)) return 1.18f;
+            return 1f;
+        }
+
         private int themeAccent(String theme) {
             if ("blush".equals(theme)) return Color.rgb(205, 103, 91);
             if ("sage".equals(theme)) return Color.rgb(76, 137, 113);
@@ -265,7 +277,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         }
 
         private boolean isDarkTheme(String theme) {
-            int color = backgroundColor(theme);
+            return isDarkTheme(backgroundColor(theme));
+        }
+
+        private boolean isDarkTheme(int color) {
             double luminance = (0.2126 * Color.red(color) + 0.7152 * Color.green(color) + 0.0722 * Color.blue(color)) / 255.0;
             return luminance < 0.52;
         }
@@ -360,7 +375,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         private void drawText(Canvas canvas, String value, float x, float y, float size, int color, boolean bold, boolean right) {
             paint.setColor(color);
-            paint.setTextSize(size);
+            paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
             paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
             paint.setTextAlign(right ? Paint.Align.RIGHT : Paint.Align.LEFT);
             canvas.drawText(value, x, y, paint);
@@ -368,7 +383,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         private void drawCenteredText(Canvas canvas, String value, float x, float y, float size, int color, boolean bold) {
             paint.setColor(color);
-            paint.setTextSize(size);
+            paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
             paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
             paint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText(value, x, y + size * .35f, paint);
