@@ -214,7 +214,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     drawCenteredText(canvas, String.valueOf(day), dateCenter, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
                     if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter + 20, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
-                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
+                    // 일정·할 일은 날짜 숫자 바로 아래에 붙여 같은 날짜 칸 안에 배치합니다.
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 22, cellWidth, showSchedule, showTodo, darkTheme);
                 }
             }
             canvas.restore();
@@ -237,8 +238,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"event".equals(type) && !"todo".equals(type))) continue;
                 int color = itemColor(type, item.optString("accentColor", ""));
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                String title = safeTitle(item.optString("title", "기록"), 9);
-                float left = cellX + 1, right = cellX + cellWidth - 1, top = y + shown * 16;
+                String title = safeTitle(item.optString("title", "기록"), "event".equals(type) ? 6 : 5);
+                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 15;
                 if ("event".equals(type)) {
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .84f));
                     canvas.drawRoundRect(new RectF(left, top, right, top + 14), 4, 4, paint);
