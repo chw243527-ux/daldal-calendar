@@ -218,10 +218,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     // 오늘 날짜 숫자는 원 중심과 같은 x 좌표를 사용해 원 안에서 정확히 중앙 정렬합니다.
                     drawCenteredText(canvas, String.valueOf(day), dateCenter, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
-                    // 좁은 칸에서 음력이 양옆 날짜와 겹치지 않도록 날짜 숫자 아래 중앙에 표시합니다.
-                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter, cellY + 12, 6, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
-                    // 일정·할 일은 양력 숫자와 음력 바로 아래에서 시작해 같은 날짜 칸에 배치합니다.
-                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 27, cellWidth, showSchedule, showTodo, darkTheme);
+                    // 음력은 양력 숫자 옆에 두되, 마지막 칸은 반대쪽으로 배치해 잘리지 않게 합니다.
+                    if (!lunarLabel.isEmpty()) {
+                        float lunarCenter = column == 6 ? dateCenter - 13 : dateCenter + 13;
+                        drawCenteredText(canvas, lunarLabel, lunarCenter, cellY + 1, 6, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
+                    }
+                    // 일정·할 일은 날짜 숫자 바로 아래에서 시작합니다.
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 22, cellWidth, showSchedule, showTodo, darkTheme);
                     canvas.restore();
                 }
             }
