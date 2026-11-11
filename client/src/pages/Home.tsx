@@ -847,7 +847,7 @@ export default function Home() {
       dateLabel: formatLongDate(todayISO),
       monthLabel: monthLabel(month),
       lockScreenConfig,
-      calendarItems: displayItems.map(({ type, title, date, time, amount, completed, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }) => ({ type, title, date, time, amount, completed, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount })),
+      calendarItems: JSON.stringify(displayItems.map(({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }) => ({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }))),
     });
   }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, displayItems, lockScreenConfig]);
 

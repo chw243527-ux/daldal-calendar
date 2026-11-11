@@ -15,17 +15,8 @@ type WidgetData = {
   dateLabel: string;
   monthLabel?: string;
   lockScreenConfig?: LockScreenConfig;
-  calendarItems?: Array<{
-    type: "todo" | "event" | "income" | "expense" | "transfer" | "loan" | "savings";
-    title: string;
-    date: string;
-    time?: string;
-    amount?: number;
-    completed?: boolean;
-    expectedIncome?: boolean;
-    expectedExpense?: boolean;
-    accentColor?: string;
-  }>;
+  /** Capacitor Java 플러그인이 읽을 수 있도록 JSON 문자열로 전달합니다. */
+  calendarItems?: string;
 };
 
 type DaldalWidgetPlugin = {
