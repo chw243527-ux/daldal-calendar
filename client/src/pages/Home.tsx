@@ -50,6 +50,7 @@ type CalendarItem = {
   type: ItemType;
   title: string;
   date: string;
+  endDate?: string;
   time?: string;
   amount?: number;
   category?: string;
@@ -122,6 +123,7 @@ type Draft = {
   type: ItemType;
   title: string;
   date: string;
+  endDate: string;
   time: string;
   amount: string;
   category: string;
@@ -349,6 +351,18 @@ function getDisplayItems(items: CalendarItem[]) {
   });
 }
 
+function isDateInRange(item: CalendarItem, date: string) {
+  if (item.type !== "event" || !item.endDate) return item.date === date;
+  return item.date <= date && date <= item.endDate;
+}
+
+function getRangePosition(item: CalendarItem, date: string) {
+  if (item.type !== "event" || !item.endDate || item.endDate <= item.date) return "single";
+  if (date === item.date) return "start";
+  if (date === item.endDate) return "end";
+  return "middle";
+}
+
 function formatWon(value = 0) {
   return `${new Intl.NumberFormat("ko-KR").format(value)}원`;
 }
@@ -421,6 +435,7 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
     type,
     title: "",
     date,
+    endDate: type === "event" ? date : "",
     time: type === "event" ? "12:00" : "",
     amount: "",
     category: categoryMap[type][0],
@@ -778,8 +793,8 @@ export default function Home() {
     return { ...balances, [target]: (balances[target] ?? 0) + amount };
   }, {}), [displayItems]);
   const monthlyCardSpend = useMemo(() => monthItems.filter((item) => item.type === "expense" && !isLocalCurrencyTransfer(item) && item.paymentMethod === "card" && item.cardCompany).reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.cardCompany as string]: (totals[item.cardCompany as string] ?? 0) + (item.amount ?? 0) }), {}), [monthItems]);
-  const selectedItems = useMemo(() => displayItems.filter((item) => item.date === selectedDate), [displayItems, selectedDate]);
-  const todayItems = useMemo(() => displayItems.filter((item) => item.date === todayISO), [displayItems, todayISO]);
+  const selectedItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, selectedDate)), [displayItems, selectedDate]);
+  const todayItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, todayISO)), [displayItems, todayISO]);
   const monthSummary = useMemo(() => {
     const income = monthItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const expense = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
@@ -819,6 +834,7 @@ export default function Home() {
       type: sourceItem.type,
       title: sourceItem.title,
       date: sourceItem.date,
+      endDate: sourceItem.endDate ?? sourceItem.date,
       time: sourceItem.time ?? "",
       amount: sourceItem.amount ? String(sourceItem.amount) : "",
       category: sourceItem.category ?? categoryMap[sourceItem.type][0],
@@ -876,6 +892,7 @@ export default function Home() {
       type: draft.type,
       title: draft.title.trim(),
       date: draft.date,
+      endDate: draft.type === "event" ? (draft.endDate || draft.date) : undefined,
       time: draft.type === "event" ? draft.time : undefined,
       amount: ["income", "expense", "transfer", "loan", "savings"].includes(draft.type) && draft.amount ? Number(draft.amount.replace(/,/g, "")) : undefined,
       category: draft.category,
@@ -1281,7 +1298,7 @@ function HomeView({
             const isToday = iso === todayISO;
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
               <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
+              <span className="calendar-chips">{dayItems.filter((item) => item.type === "todo" || item.type === "event").slice(0, 1).map((item) => { const rangePosition = getRangePosition(item, iso); return <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.type === "event" ? `event-range-${rangePosition}` : ""} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} title={rangePosition === "start" || rangePosition === "single" ? item.title : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.type === "todo" || rangePosition === "start" || rangePosition === "single" ? item.title : ""}</span>; })}</span>
             </button>;
           })}
         </div>
@@ -1366,7 +1383,7 @@ function CalendarView({
           {cells.map((date, index) => {
             if (!date) return <div className="calendar-cell empty" key={`empty-${index}`} />;
             const iso = toISO(date);
-            const dayItems = items.filter((item) => item.date === iso);
+            const dayItems = items.filter((item) => isDateInRange(item, iso));
             const isSelected = iso === selectedDate;
             const isToday = iso === toISO(new Date());
             const finances = dayItems.filter((item) => ["income", "expense", "loan"].includes(item.type));
@@ -1374,7 +1391,7 @@ function CalendarView({
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span>
-                <span className="calendar-chips">{chips.map((item) => <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.title}</span>)}</span>
+                <span className="calendar-chips">{chips.map((item) => { const rangePosition = getRangePosition(item, iso); return <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.type === "event" ? `event-range-${rangePosition}` : ""} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} title={rangePosition === "start" || rangePosition === "single" ? item.title : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.type === "todo" || rangePosition === "start" || rangePosition === "single" ? item.title : ""}</span>; })}</span>
                 {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
               </button>
             );
@@ -1699,7 +1716,7 @@ function Composer({
         <div className="transaction-mode-strip"><span>금융 기록</span><div>{(["income", "expense", "transfer"] as ItemType[]).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? `active ${type}` : ""} type="button" key={type} onClick={() => update({ type, category: categoryMap[type][0], assetKind: type === "expense" ? "card" : "account" })}><TypeIcon size={14} />{type === "income" ? "입금" : type === "expense" ? "출금" : "이체"}</button>; })}</div></div><div className="type-tabs">{(Object.keys(typeMeta) as ItemType[]).filter((type) => !["income", "expense", "transfer"].includes(type)).map((type) => { const TypeIcon = typeMeta[type].icon; return <button className={draft.type === type ? "active" : ""} type="button" key={type} onClick={() => update({ type, category: categoryMap[type][0], time: type === "event" ? draft.time || "12:00" : "", assetKind: type === "loan" ? "loan" : type === "savings" ? "savings" : draft.assetKind, accentColor: type === "todo" ? "#716a65" : type === "event" ? "#c96f64" : "" })}><TypeIcon size={15} />{typeMeta[type].label}</button>; })}</div>
         <div className="composer-form">
           <label className="field-label">{isFinance ? "무엇에 대한 기록인가요?" : draft.type === "event" ? "일정 이름" : "할 일"}<input autoFocus value={draft.title} onChange={(event) => update({ title: event.target.value })} placeholder={draft.type === "todo" ? "예: 장보기" : draft.type === "event" ? "예: 저녁 약속" : "예: 점심 식사"} /></label>
-          <div className="field-row"><label className="field-label">날짜<input type="date" value={draft.date} onChange={(event) => { const date = event.target.value; const lunar = getLunarMonthDay(fromISO(date)); update({ date, ...(draft.calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day, lunarLeapMonth: lunar.lunarLeapMonth } : {}) }); }} /></label>{["todo", "event"].includes(draft.type) && <label className="field-label">달력 기준<select value={draft.calendarKind} onChange={(event) => { const calendarKind = event.target.value as Draft["calendarKind"]; const lunar = getLunarMonthDay(fromISO(draft.date)); update({ calendarKind, ...(calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day, lunarLeapMonth: lunar.lunarLeapMonth, recurrence: draft.recurrence === "none" ? "yearly" : draft.recurrence, repeatUntil: "" } : {}) }); }}><option value="solar">양력</option><option value="lunar">음력</option></select></label>}{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>}</div>{draft.type === "income" && <label className="toggle-field expected-income-toggle"><span>예상 수입으로 표시</span><input type="checkbox" checked={draft.expectedIncome} onChange={(event) => update({ expectedIncome: event.target.checked })} /></label>}{draft.type === "expense" && <label className="toggle-field expected-expense-toggle"><span>예상 지출로 표시</span><input type="checkbox" checked={draft.expectedExpense} onChange={(event) => update({ expectedExpense: event.target.checked })} /></label>}
+          <div className="field-row"><label className="field-label">시작일<input type="date" value={draft.date} onChange={(event) => { const date = event.target.value; const lunar = getLunarMonthDay(fromISO(date)); update({ date, ...(draft.type === "event" && draft.endDate < date ? { endDate: date } : {}), ...(draft.calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day, lunarLeapMonth: lunar.lunarLeapMonth } : {}) }); }} /></label>{draft.type === "event" && <label className="field-label">종료일<input type="date" value={draft.endDate || draft.date} min={draft.date} onChange={(event) => update({ endDate: event.target.value })} /></label>}{["todo", "event"].includes(draft.type) && <label className="field-label">달력 기준<select value={draft.calendarKind} onChange={(event) => { const calendarKind = event.target.value as Draft["calendarKind"]; const lunar = getLunarMonthDay(fromISO(draft.date)); update({ calendarKind, ...(calendarKind === "lunar" ? { lunarMonth: lunar.month, lunarDay: lunar.day, lunarLeapMonth: lunar.lunarLeapMonth, recurrence: draft.recurrence === "none" ? "yearly" : draft.recurrence, repeatUntil: "" } : {}) }); }}><option value="solar">양력</option><option value="lunar">음력</option></select></label>}{draft.type === "event" && <label className="field-label">시간<input type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>}{isFinance && <label className="field-label">금액<input inputMode="numeric" value={draft.amount} onChange={(event) => update({ amount: event.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>} </div>{draft.type === "income" && <label className="toggle-field expected-income-toggle"><span>예상 수입으로 표시</span><input type="checkbox" checked={draft.expectedIncome} onChange={(event) => update({ expectedIncome: event.target.checked })} /></label>}{draft.type === "expense" && <label className="toggle-field expected-expense-toggle"><span>예상 지출로 표시</span><input type="checkbox" checked={draft.expectedExpense} onChange={(event) => update({ expectedExpense: event.target.checked })} /></label>}
           <div className="field-label">분류<div className="category-pills">{categoryMap[draft.type].map((category) => <button className={draft.category === category ? "selected" : ""} type="button" key={category} onClick={() => update({ category })}>{category}</button>)}</div>{aiSuggestion && <div className="ai-suggestion"><Sparkles size={13} /><span><strong>AI 자동 분류</strong> {aiSuggestion.reason}</span><b>{aiSuggestion.confidence}%</b></div>}</div>
           {draft.type === "transfer" && <div className="detail-block transfer-block"><div className="detail-block-title">계좌·자산 간 이체</div><div className="field-row"><label className="field-label">출발 자산<input value={draft.transferFrom} onChange={(event) => update({ transferFrom: event.target.value })} placeholder="예: 신한 주거래" /></label><label className="field-label">도착 자산<input value={draft.transferTo} onChange={(event) => update({ transferTo: event.target.value })} placeholder="예: 비상금 통장" /></label></div><span className="field-hint">입금·출금으로 중복 집계하지 않고, 두 자산 사이의 이동으로만 기록해요.</span></div>}{(["income", "expense", "loan", "savings"] as ItemType[]).includes(draft.type) && <div className="asset-owner-row"><span>자산 소유자</span><div>{["나", "신랑", "공동"].map((owner) => <button className={draft.owner === owner ? "selected" : ""} type="button" key={owner} onClick={() => update({ owner })}>{owner}</button>)}</div></div>}
           {isFinance && draft.type !== "transfer" && <div className="detail-block asset-block"><div className="detail-block-title"><WalletCards size={15} /> 어떤 자산으로 기록할까요?</div><div className="field-row"><label className="field-label">자산 종류<select value={draft.assetKind} onChange={(event) => update({ assetKind: event.target.value as Draft["assetKind"] })}>{ASSET_KINDS.map((asset) => <option value={asset.value} key={asset.value}>{asset.label}</option>)}</select></label><label className="field-label">자산 이름<span className="optional">선택</span><input value={draft.assetName} onChange={(event) => update({ assetName: event.target.value })} placeholder={draft.assetKind === "card" ? "예: 삼성카드" : draft.assetKind === "account" ? "예: 신한 주거래" : "예: 생활비"} /></label></div>{draft.type === "expense" && <label className="field-label">결제수단<select value={draft.paymentMethod} onChange={(event) => update({ paymentMethod: event.target.value as Draft["paymentMethod"] })}>{PAYMENT_METHODS.map((method) => <option value={method.value} key={method.value}>{method.label}</option>)}</select></label>}{draft.type === "expense" && draft.category === "지역화폐 충전" && <div className="detail-block local-currency-block"><div className="detail-block-title">지역화폐 충전 설정</div><div className="field-row"><label className="field-label">출금 계좌<input value={draft.localCurrencySource} onChange={(event) => update({ localCurrencySource: event.target.value, assetKind: "account", paymentMethod: "account" })} placeholder="예: 신한 주거래" /></label><label className="field-label">지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value })} placeholder="예: 경기지역화폐" /></label></div><label className="field-label">충전 할인율(%)<input inputMode="decimal" value={draft.localCurrencyDiscountRate} onChange={(event) => update({ localCurrencyDiscountRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 10" /></label>{draft.amount && <div className="local-currency-estimate">계좌에서 {formatWon(Number(draft.amount))} 출금 · {formatWon(Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)))} 충전 · 할인 {formatWon(Math.max(0, Math.round(Number(draft.amount) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) - Number(draft.amount)))}</div>}</div>}{draft.type === "expense" && draft.paymentMethod === "localCurrency" && <div className="detail-block local-currency-use-block"><div className="detail-block-title">지역화폐로 결제</div><label className="field-label">사용할 지역화폐 자산<input value={draft.localCurrencyTarget} onChange={(event) => update({ localCurrencyTarget: event.target.value, assetKind: "localCurrency", assetName: event.target.value })} placeholder="예: 경기지역화폐" /></label><label className="field-label">캐시백률(%)<input inputMode="decimal" value={draft.localCurrencyCashbackRate} onChange={(event) => update({ localCurrencyCashbackRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 5" /></label><div className="local-currency-cashback-preview">이번 결제 예상 캐시백 {formatWon(Math.round(Number(draft.amount || 0) * Number(draft.localCurrencyCashbackRate || 0) / 100))} · 결제 후 잔액에 자동 재적립</div><div className={`local-currency-balance ${localCurrencyBalance < Number(draft.amount || 0) ? "insufficient" : ""}`}><span>{localCurrencyName} 현재 잔액</span><strong>{formatWon(localCurrencyBalance)}</strong>{draft.amount && localCurrencyBalance < Number(draft.amount) && <small>잔액이 {formatWon(Number(draft.amount) - localCurrencyBalance)} 부족해요.</small>}</div></div>}{draft.type === "expense" && draft.paymentMethod === "card" && <><label className="field-label">결제 카드<select value={draft.cardCompany} onChange={(event) => update({ cardCompany: event.target.value, assetKind: "card", assetName: event.target.value })}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><div className="card-benefit-panel"><div className="card-benefit-head"><span><CreditCard size={14} /> {draft.cardCompany} 이번 달 실적</span><strong className={cardBenefitReady ? "ready" : "pending"}>{cardBenefitReady ? "혜택 조건 충족" : `${formatWon(Math.max(0, cardBenefit.threshold - previewCardSpend))} 부족`}</strong></div><div className="card-benefit-progress"><i style={{ width: `${cardSpendProgress}%` }} /></div><div className="card-benefit-meta"><span>{formatWon(previewCardSpend)} / {formatWon(cardBenefit.threshold)}</span><span>예상 할인 한도 {formatWon(cardBenefit.cap)}</span></div><small>{categoryBenefitReady ? "현재 카테고리는 할인 대상에 포함된 것으로 설정되어 있어요." : "현재 카테고리는 등록된 참고 혜택 대상과 다를 수 있어요."} 카드 상품별 실제 조건은 카드사 약관을 확인해 주세요.</small></div></>}</div>}

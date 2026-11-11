@@ -183,6 +183,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .todo-chip.is-complete .todo-calendar-check { width: 11px; height: 11px; border: 0; background: var(--todo-color, #6659aa); color: white; font-size: 7px; font-weight: 900; line-height: 11px; text-align: center; }
 .todo-chip.is-complete .todo-calendar-check::after { content: "✓"; }
 .event-chip { background: #fff0ed; color: #c96f62; }
+.event-chip.event-range-start, .event-chip.event-range-middle, .event-chip.event-range-end { width: calc(100% + 8px); margin-left: -4px; border-radius: 0; }
+.event-chip.event-range-start { border-radius: 6px 0 0 6px; }
+.event-chip.event-range-end { border-radius: 0 6px 6px 0; }
+.event-chip.event-range-middle { color: transparent !important; }
 .detail-block { display: flex; flex-direction: column; gap: 11px; padding: 13px; border: 1px solid #eee4df; border-radius: 15px; background: #fcf8f5; }
 .detail-block-title { color: #756b68; font-size: 11px; font-weight: 850; }
 .field-label select { width: 100%; height: 43px; padding: 0 10px; border: 1px solid #ece4e0; border-radius: 12px; outline: none; background: #fffdfa; color: #3b3539; font-size: 12px; font-weight: 650; }
