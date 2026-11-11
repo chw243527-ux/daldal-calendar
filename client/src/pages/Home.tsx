@@ -500,6 +500,7 @@ function CalendarItemRow({
       {item.type === "todo" && (
         <span
           className={`check-control ${item.completed ? "checked" : ""}`}
+          style={{ borderColor: item.accentColor || meta.color, backgroundColor: item.completed ? item.accentColor || meta.color : "transparent", color: "white" }}
           onClick={(event) => {
             event.stopPropagation();
             onToggle(item);

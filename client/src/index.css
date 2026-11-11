@@ -179,8 +179,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .calendar-chips { display: flex; width: 100%; flex-direction: column; gap: 2px; margin-top: 2px; }
 .calendar-chip { width: 100%; overflow: hidden; padding: 2px 4px; border-radius: 4px; font-size: 8px; font-weight: 800; line-height: 1.2; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .todo-chip { background: transparent; color: #6659aa; }
-.todo-chip::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 3px 1px 0; border: 1.5px solid currentColor; border-radius: 50%; vertical-align: middle; }
-.todo-chip.is-complete::before { content: "✓"; width: 8px; height: 8px; border: 0; border-radius: 50%; background: currentColor; color: white; font-size: 6px; font-weight: 900; line-height: 8px; text-align: center; }
+.todo-chip::before { content: ""; display: inline-block; width: 8px; height: 8px; margin: 0 3px 1px 0; border: 1.5px solid currentColor; border-radius: 50%; vertical-align: middle; }
+.todo-chip.is-complete::before { content: "✓"; width: 10px; height: 10px; border: 0; border-radius: 50%; background: currentColor; color: white; font-size: 7px; font-weight: 900; line-height: 10px; text-align: center; }
 .event-chip { background: #fff0ed; color: #c96f62; }
 .detail-block { display: flex; flex-direction: column; gap: 11px; padding: 13px; border: 1px solid #eee4df; border-radius: 15px; background: #fcf8f5; }
 .detail-block-title { color: #756b68; font-size: 11px; font-weight: 850; }
