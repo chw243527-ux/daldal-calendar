@@ -213,14 +213,21 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     canvas.save();
                     canvas.clipRect(cellX, cellY - 18, cellX + cellWidth, cellY + cellHeight);
                     boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
-                    if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
-                    float dateCenter = cellX + cellWidth / 2;
-                    // 오늘 날짜 숫자는 원 중심과 같은 x 좌표를 사용해 원 안에서 정확히 중앙 정렬합니다.
-                    drawCenteredText(canvas, String.valueOf(day), dateCenter, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
+                    int accent = parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme));
+                    if (isToday) {
+                        paint.setStyle(Paint.Style.STROKE);
+                        paint.setStrokeWidth(1.8f);
+                        paint.setColor(accent);
+                        canvas.drawRoundRect(new RectF(cellX + 1, cellY - 18, cellX + cellWidth - 1, cellY + cellHeight - 2), 8, 8, paint);
+                        paint.setStyle(Paint.Style.FILL);
+                    }
+                    // 날짜 숫자와 음력을 해당 날짜 칸의 왼쪽 기준으로 정렬합니다.
+                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 4, 12, primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
                     // 모든 칸에서 음력은 양력 숫자 오른쪽에 같은 규칙으로 표시합니다.
                     if (!lunarLabel.isEmpty()) {
-                        drawCenteredText(canvas, lunarLabel, dateCenter + 13, cellY + 1, 5.5f, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
+                        float lunarLeft = cellX + (day >= 10 ? 20f : 14f);
+                        drawText(canvas, lunarLabel, lunarLeft, cellY + 2, 5.5f, secondaryTextColor(darkTheme), false);
                     }
                     // 일정·할 일은 날짜 숫자 바로 아래에서 시작합니다.
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 22, cellWidth, showSchedule, showTodo, darkTheme);
