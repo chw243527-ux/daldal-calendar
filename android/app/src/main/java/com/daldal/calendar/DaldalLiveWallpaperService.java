@@ -183,7 +183,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             float margin = width * 0.045f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.055f, 12, primaryTextColor(darkTheme), true);
-            float cardTop = height * 0.095f;
+            drawLockScreenClock(canvas, width - margin, height, primaryTextColor(darkTheme), secondaryTextColor(darkTheme));
+            float cardTop = height * 0.19f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
@@ -212,9 +213,17 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
                     if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, cellX + cellWidth / 2, cellY + 20, 8, isToday ? themeAccent(backgroundTheme) : secondaryTextColor(darkTheme), false);
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
                 }
             }
             canvas.restore();
+        }
+
+        private void drawLockScreenClock(Canvas canvas, float right, int height, int primaryColor, int secondaryColor) {
+            String date = String.format(Locale.KOREA, "%d월 %d일 %s요일", now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH), new String[]{"일", "월", "화", "수", "목", "금", "토"}[now.get(Calendar.DAY_OF_WEEK) - 1]);
+            String time = String.format(Locale.KOREA, "%02d:%02d", now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE));
+            drawText(canvas, date, right, height * 0.105f, 10, secondaryColor, true, true);
+            drawText(canvas, time, right, height * 0.155f, 26, primaryColor, true, true);
         }
 
         private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, boolean showSchedule, boolean showTodo, boolean darkTheme) {
