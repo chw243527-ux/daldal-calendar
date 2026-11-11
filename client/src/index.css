@@ -606,3 +606,13 @@ body { background: var(--ivory); }
   .cashflow-report .cashflow-stat { padding: 13px 11px; }
   .cashflow-report .cashflow-stat > strong { font-size: 14px; }
 }
+
+
+/* 금융 기록 입력창의 단계 흐름과 여백을 정돈 */
+.composer-flow-hint { display: flex; align-items: center; gap: 7px; margin: 12px 0 2px; color: #a79b97; font-size: 10px; font-weight: 750; letter-spacing: .01em; }
+.composer-flow-hint span { color: #d7b2aa; font-size: 14px; line-height: 1; }
+.composer-sheet .transaction-mode-strip { margin-top: 10px; }
+.composer-sheet .type-tabs { margin-top: 10px; }
+.composer-sheet .field-label { gap: 7px; }
+.composer-sheet .detail-block + .detail-block { margin-top: 1px; }
+@media (max-width: 600px) { .composer-flow-hint { font-size: 9px; gap: 5px; } }
