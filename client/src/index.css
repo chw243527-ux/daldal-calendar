@@ -662,3 +662,7 @@ body { background: var(--ivory); }
 .ledger-entry > b { flex: 0 0 auto; }
 .scheduled-payment-row .cashflow-row-copy strong, .cashflow-row-copy strong { overflow-wrap: anywhere; white-space: normal; line-height: 1.35; }
 @media (max-width: 600px) { .ledger-entry { align-items: flex-start; min-height: 64px; padding: 10px 0; } .ledger-entry > b { margin-left: auto; } }
+
+
+.payment-status-field { margin-top: 8px; }
+.scheduled-payment-row:has(small) small { line-height: 1.35; }
