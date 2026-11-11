@@ -183,8 +183,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
             float margin = width * 0.045f;
             drawText(canvas, "☾  달달 캘린더", margin, height * 0.055f, 12, primaryTextColor(darkTheme), true);
-            drawLockScreenClock(canvas, width - margin, height, primaryTextColor(darkTheme), secondaryTextColor(darkTheme));
-            float cardTop = height * 0.19f;
+            float cardTop = height * 0.095f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
             int month = now.get(Calendar.MONTH);
@@ -210,9 +209,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     float cellY = gridTop + 28 + row * cellHeight;
                     boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
                     if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
-                    drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
+                    float dateCenter = cellX + cellWidth / 2;
+                    drawCenteredText(canvas, String.valueOf(day), dateCenter - 8, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
-                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, cellX + cellWidth / 2, cellY + 20, 8, isToday ? themeAccent(backgroundTheme) : secondaryTextColor(darkTheme), false);
+                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter + 11, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
                 }
             }
