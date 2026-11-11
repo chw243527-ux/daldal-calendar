@@ -572,3 +572,37 @@ body { background: var(--ivory); }
 .calendar-lunar-date { display: block; margin-top: 2px; color: #a79c99; font-size: 9px; font-weight: 650; line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
 .calendar-cell.today .calendar-lunar-date, .calendar-cell.selected .calendar-lunar-date { color: #bd7770; }
 @media (max-width: 600px) { .calendar-lunar-date { font-size: 8px; } }
+
+/* 현금흐름 요약 카드: 수입·고정지출 카드가 같은 칸에 겹치지 않도록 명시적으로 분리 */
+.cashflow-report .cashflow-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row;
+  align-items: stretch;
+}
+.cashflow-report .cashflow-stat-grid > .cashflow-stat {
+  position: relative;
+  grid-column: auto;
+  grid-row: auto;
+  min-width: 0;
+  width: auto;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cashflow-report .cashflow-stat > span,
+.cashflow-report .cashflow-stat > strong {
+  position: static;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+.cashflow-report .cashflow-stat > strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@media (max-width: 380px) {
+  .cashflow-report .cashflow-stat-grid { gap: 8px; }
+  .cashflow-report .cashflow-stat { padding: 13px 11px; }
+  .cashflow-report .cashflow-stat > strong { font-size: 14px; }
+}
