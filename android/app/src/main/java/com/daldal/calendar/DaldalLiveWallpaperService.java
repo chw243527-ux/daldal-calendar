@@ -210,9 +210,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
                     if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
                     float dateCenter = cellX + cellWidth / 2;
-                    drawCenteredText(canvas, String.valueOf(day), dateCenter - 8, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
+                    // 오늘 날짜 숫자는 원 중심과 같은 x 좌표를 사용해 원 안에서 정확히 중앙 정렬합니다.
+                    drawCenteredText(canvas, String.valueOf(day), dateCenter, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
-                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter + 11, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
+                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, dateCenter + 20, cellY + 1, 7, isToday ? Color.WHITE : secondaryTextColor(darkTheme), false);
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
                 }
             }
