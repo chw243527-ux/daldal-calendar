@@ -17,6 +17,8 @@ type WidgetData = {
   lockScreenConfig?: LockScreenConfig;
   /** Capacitor Java 플러그인이 읽을 수 있도록 JSON 문자열로 전달합니다. */
   calendarItems?: string;
+  /** 앱 달력과 같은 양력 날짜별 음력 표기 */
+  lunarCalendar?: string;
 };
 
 type DaldalWidgetPlugin = {

@@ -176,6 +176,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             paint.setStyle(Paint.Style.FILL);
 
             String calendarItems = preferences.getString("calendarItems", "[]");
+            String lunarCalendar = preferences.getString("lunarCalendar", "[]");
             boolean showCalendar = preferences.getBoolean("showCalendar", true);
             boolean showSchedule = preferences.getBoolean("showSchedule", true);
             boolean showTodo = preferences.getBoolean("showTodo", true);
@@ -196,28 +197,23 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float cellHeight = Math.max(52f, Math.min(78f, height * 0.075f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
             if (showCalendar) {
-            drawText(canvas, "이번 달 달력", margin + 24, gridTop - 16, 13, primaryTextColor(darkTheme), true);
-            for (int index = 0; index < weekdays.length; index++) {
-                drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 11, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
-            }
-            for (int day = 1; day <= days; day++) {
-                int index = firstDay + day - 1;
-                int column = index % 7;
-                int row = index / 7;
-                float cellX = margin + column * cellWidth;
-                float cellY = gridTop + 28 + row * cellHeight;
-                boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
-                if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
-                drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
-                int markerCount = 0;
-                for (int itemIndex = 0; itemIndex < entries.length() && markerCount < 3; itemIndex++) {
-                    JSONObject item = entries.optJSONObject(itemIndex);
-                    if (item == null || !dateMatches(item.optString("date"), year, month, day)) continue;
-                    paint.setColor(itemColor(item.optString("type"), item.optString("accentColor", "")));
-                    canvas.drawCircle(cellX + cellWidth / 2 - 7 + markerCount * 7, cellY + 17, 3, paint);
-                    markerCount++;
+                drawText(canvas, String.format(Locale.KOREA, "%d년 %d월", year, month + 1), margin, gridTop - 16, 15, primaryTextColor(darkTheme), true);
+                for (int index = 0; index < weekdays.length; index++) {
+                    drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 10, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
                 }
-            }
+                for (int day = 1; day <= days; day++) {
+                    int index = firstDay + day - 1;
+                    int column = index % 7;
+                    int row = index / 7;
+                    float cellX = margin + column * cellWidth;
+                    float cellY = gridTop + 28 + row * cellHeight;
+                    boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
+                    if (isToday) { paint.setColor(parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme))); canvas.drawCircle(cellX + cellWidth / 2, cellY, 14, paint); }
+                    drawCenteredText(canvas, String.valueOf(day), cellX + cellWidth / 2, cellY, 12, isToday ? Color.WHITE : primaryTextColor(darkTheme), true);
+                    String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
+                    if (!lunarLabel.isEmpty()) drawCenteredText(canvas, lunarLabel, cellX + cellWidth / 2, cellY + 20, 8, isToday ? themeAccent(backgroundTheme) : secondaryTextColor(darkTheme), false);
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
+                }
             }
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, now.get(Calendar.DAY_OF_MONTH));
             float sectionTop = gridTop + 28 + 6 * cellHeight + 22;
@@ -231,16 +227,56 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String title = safeTitle(item.optString("title", "기록"), 16);
                 int recordColor = itemColor(type, item.optString("accentColor", ""));
                 float rowY = sectionTop + 23 + scheduleRow * 24;
-                paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 4, paint);
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                drawText(canvas, completed ? "✓ " + title : title, margin + 45, rowY, 13, completed ? secondaryTextColor(darkTheme) : primaryTextColor(darkTheme), false);
-                if (completed) { paint.setColor(secondaryTextColor(darkTheme)); paint.setStrokeWidth(2f); canvas.drawLine(margin + 45, rowY - 3, Math.min(width - margin - 90, margin + 45 + paint.measureText(title) + 20), rowY - 3, paint); }
-                drawText(canvas, "event".equals(type) ? item.optString("time", "일정") : "할 일", width - margin - 24, rowY, 11, recordColor, false, true);
+                if ("todo".equals(type)) {
+                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.8f); paint.setColor(recordColor); canvas.drawCircle(margin + 31, rowY - 4, 5, paint);
+                    if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(margin + 31, rowY - 4, 5, paint); drawText(canvas, "✓", margin + 28, rowY - 1, 7, Color.WHITE, true); }
+                    paint.setStyle(Paint.Style.FILL);
+                } else {
+                    paint.setColor(blend(recordColor, background, .84f)); canvas.drawRoundRect(new RectF(margin + 24, rowY - 16, width - margin - 24, rowY + 2), 5, 5, paint);
+                }
+                drawText(canvas, title, margin + 45, rowY - 3, 12, completed ? secondaryTextColor(darkTheme) : recordColor, false);
+                if (completed) { paint.setColor(recordColor); paint.setStrokeWidth(1.5f); canvas.drawLine(margin + 45, rowY - 7, Math.min(width - margin - 45, margin + 45 + paint.measureText(title)), rowY - 7, paint); }
                 scheduleRow++;
             }
             if ((showSchedule || showTodo) && scheduleRow == 0) drawText(canvas, "표시할 일정과 할 일이 없어요", margin + 24, sectionTop + 23, 12, secondaryTextColor(darkTheme), false);
-            if (selectedFinanceType != null) selectedFinanceType = null;
             canvas.restore();
+        }
+
+        private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, boolean showSchedule, boolean showTodo, boolean darkTheme) {
+            String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
+            int shown = 0;
+            for (int i = 0; i < entries.length() && shown < 2; i++) {
+                JSONObject item = entries.optJSONObject(i);
+                if (item == null || !key.equals(item.optString("date"))) continue;
+                String type = item.optString("type");
+                if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"event".equals(type) && !"todo".equals(type))) continue;
+                int color = itemColor(type, item.optString("accentColor", ""));
+                boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
+                String title = safeTitle(item.optString("title", "기록"), 9);
+                float left = cellX + 1, right = cellX + cellWidth - 1, top = y + shown * 16;
+                if ("event".equals(type)) {
+                    paint.setColor(blend(color, Color.rgb(249, 246, 242), .84f));
+                    canvas.drawRoundRect(new RectF(left, top, right, top + 14), 4, 4, paint);
+                    drawText(canvas, title, left + 4, top + 10, 7, color, true);
+                } else {
+                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 6, top + 7, 4.3f, paint);
+                    if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 6, top + 7, 4.3f, paint); drawText(canvas, "✓", left + 3.2f, top + 9.5f, 6, Color.WHITE, true); }
+                    paint.setStyle(Paint.Style.FILL); drawText(canvas, title, left + 14, top + 10, 7, completed ? secondaryTextColor(darkTheme) : color, false);
+                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 14, top + 7, Math.min(right, left + 14 + paint.measureText(title)), top + 7, paint); }
+                }
+                shown++;
+            }
+        }
+
+        private String lunarLabel(JSONArray days, int year, int month, int day) {
+            String key = String.format(Locale.US, "%04d-%02d-%02d", year, month, day);
+            for (int i = 0; i < days.length(); i++) { JSONObject value = days.optJSONObject(i); if (value != null && key.equals(value.optString("date"))) return value.optString("label", ""); }
+            return "";
+        }
+
+        private int blend(int foreground, int background, float backgroundRatio) {
+            return Color.rgb(Math.round(Color.red(foreground) * (1 - backgroundRatio) + Color.red(background) * backgroundRatio), Math.round(Color.green(foreground) * (1 - backgroundRatio) + Color.green(background) * backgroundRatio), Math.round(Color.blue(foreground) * (1 - backgroundRatio) + Color.blue(background) * backgroundRatio));
         }
 
         private JSONArray parseItems(String value) {

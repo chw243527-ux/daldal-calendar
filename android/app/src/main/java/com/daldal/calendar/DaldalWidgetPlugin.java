@@ -22,6 +22,7 @@ public class DaldalWidgetPlugin extends Plugin {
         String dateLabel = call.getString("dateLabel", "오늘");
         String monthLabel = call.getString("monthLabel", "달달 캘린더");
         String calendarItems = call.getString("calendarItems", "[]");
+        String lunarCalendar = call.getString("lunarCalendar", "[]");
         JSObject lockScreenConfig = call.getObject("lockScreenConfig");
         boolean showCalendar = lockScreenConfig == null || !lockScreenConfig.has("showCalendar") || Boolean.TRUE.equals(lockScreenConfig.opt("showCalendar"));
         boolean showSchedule = lockScreenConfig == null || !lockScreenConfig.has("showSchedule") || Boolean.TRUE.equals(lockScreenConfig.opt("showSchedule"));
@@ -40,6 +41,7 @@ public class DaldalWidgetPlugin extends Plugin {
                 .putString("dateLabel", dateLabel)
                 .putString("monthLabel", monthLabel)
                 .putString("calendarItems", calendarItems)
+                .putString("lunarCalendar", lunarCalendar)
                 .putBoolean("showCalendar", showCalendar)
                 .putBoolean("showSchedule", showSchedule)
                 .putBoolean("showTodo", showTodo)

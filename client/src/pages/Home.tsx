@@ -847,6 +847,11 @@ export default function Home() {
       dateLabel: formatLongDate(todayISO),
       monthLabel: monthLabel(month),
       lockScreenConfig,
+      lunarCalendar: JSON.stringify(Array.from({ length: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate() }, (_, index) => {
+        const date = new Date(month.getFullYear(), month.getMonth(), index + 1, 12);
+        const lunar = getLunarMonthDay(date);
+        return { date: toISO(date), label: `${lunar.month}.${lunar.day}` };
+      })),
       calendarItems: JSON.stringify(displayItems.map(({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }) => ({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }))),
     });
   }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, displayItems, lockScreenConfig]);
