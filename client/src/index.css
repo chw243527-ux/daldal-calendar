@@ -626,3 +626,23 @@ body { background: var(--ivory); }
 .category-hierarchy label { display: flex; flex-direction: column; gap: 5px; color: #a19591; font-size: 10px; font-weight: 800; }
 .category-hierarchy select { width: 100%; height: 42px; padding: 0 9px; border: 1px solid #ece4e0; border-radius: 11px; background: #fffdfa; color: #3b3539; font-size: 11px; font-weight: 700; }
 @media (max-width: 600px) { .category-hierarchy { gap: 6px; } .category-hierarchy select { padding: 0 7px; font-size: 10px; } }
+
+/* 연속 일정은 인접한 날짜 칸까지 이어지는 하나의 막대로 표시 */
+.calendar-grid { column-gap: 0; }
+.calendar-cell { padding-left: 0; padding-right: 0; }
+.calendar-chips { position: relative; z-index: 2; gap: 2px; }
+.event-chip.event-range-start,
+.event-chip.event-range-middle,
+.event-chip.event-range-end { width: calc(100% + 8px); min-height: 18px; margin-left: -4px; margin-right: -4px; border-radius: 0; }
+.event-chip.event-range-start { border-radius: 7px 0 0 7px; }
+.event-chip.event-range-end { border-radius: 0 7px 7px 0; }
+.event-chip.event-range-single { border-radius: 7px; }
+.event-chip.event-range-middle { color: transparent !important; }
+@media (max-width: 600px) {
+  .calendar-view .calendar-panel { margin-left: -9px; margin-right: -9px; }
+  .calendar-view .calendar-toolbar,
+  .calendar-view .calendar-summary-strip,
+  .calendar-view .weekday-row { margin-left: 9px; margin-right: 9px; }
+  .calendar-view .calendar-grid { margin-left: 0; margin-right: 0; }
+  .calendar-view .calendar-cell { min-height: 82px; padding-left: 0; padding-right: 0; }
+}
