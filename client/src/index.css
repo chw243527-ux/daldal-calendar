@@ -96,8 +96,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .item-amount { color: var(--coral); font-size: 11px; font-weight: 850; white-space: nowrap; }
 .item-amount.positive { color: var(--mint); }
 .item-row.is-complete .item-title { color: #b0aaa8; text-decoration: line-through; }
-.check-control { width: 19px; height: 19px; display: grid; place-items: center; flex: 0 0 auto; border: 1.5px solid #d9d1d0; border-radius: 7px; color: white; }
-.check-control.checked { border-color: var(--mint); background: var(--mint); }
+.check-control { width: 19px; height: 19px; display: grid; place-items: center; flex: 0 0 auto; border: 1.5px solid var(--todo-color); border-radius: 50%; color: white; }
+.check-control.checked { border-color: var(--todo-color); background: var(--todo-color); }
 .row-arrow { flex: 0 0 auto; color: #d0c8c5; }
 .empty-state { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 58px; padding: 7px 2px; background: transparent; color: #a79c99; font-size: 12px; font-weight: 650; text-align: left; }
 .empty-state span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 10px; background: #faf0ed; color: var(--coral); }

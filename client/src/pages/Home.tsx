@@ -500,7 +500,7 @@ function CalendarItemRow({
       {item.type === "todo" && (
         <span
           className={`check-control ${item.completed ? "checked" : ""}`}
-          style={{ borderColor: item.accentColor || meta.color, backgroundColor: item.completed ? item.accentColor || meta.color : "transparent", color: "white" }}
+          style={{ "--todo-color": item.accentColor || meta.color } as React.CSSProperties}
           onClick={(event) => {
             event.stopPropagation();
             onToggle(item);
