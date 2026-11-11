@@ -293,7 +293,9 @@ function getRecurringDates(item: CalendarItem) {
   if (!item.recurrence || item.recurrence === "none") return [start];
   // 종료일이 비어 있으면 없음으로 간주해 장기간 달력을 이동해도 반복 일정을 표시합니다.
   const fallbackEnd = item.recurrence === "daily" ? addDays(start, 1000) : item.recurrence === "weekly" ? addDays(start, 3640) : item.recurrence === "monthly" ? addMonths(start, 360) : addYears(start, 30);
-  const end = item.repeatUntil ? fromISO(item.repeatUntil) : fallbackEnd;
+  const storedEnd = item.repeatUntil ? fromISO(item.repeatUntil) : undefined;
+  // 예전 버전에서 종료 없음이 시작일로 저장된 연간 일정은 반복을 계속하도록 복구합니다.
+  const end = storedEnd && storedEnd > start ? storedEnd : fallbackEnd;
   if (end < start) return [start];
   const dates: Date[] = [];
   const limit = 1000;
@@ -303,7 +305,8 @@ function getRecurringDates(item: CalendarItem) {
     else if (item.recurrence === "weekly") date = addDays(start, index * 7);
     else if (item.recurrence === "yearly" && item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay, item.lunarLeapMonth) ?? addYears(start, index);
     else if (item.recurrence === "monthly") date = addMonths(start, index);
-    else date = new Date(start.getFullYear() + index, start.getMonth(), Math.min(start.getDate(), new Date(start.getFullYear() + index, start.getMonth() + 1, 0).getDate()), 12);
+    else if (item.recurrence === "yearly") date = addYears(start, index);
+    else date = addYears(start, index);
     if (date > end) break;
     if (date >= start) dates.push(date);
   }
