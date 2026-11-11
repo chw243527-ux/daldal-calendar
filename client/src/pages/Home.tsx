@@ -1034,6 +1034,11 @@ export default function Home() {
 
   const resetAppData = () => {
     lastSyncedRecords.current = JSON.stringify([]);
+    const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG });
+    [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY].forEach((key) => {
+      window.localStorage.removeItem(key);
+      if (accountStorageScope) window.localStorage.removeItem(scopedStorageKey(key, accountStorageScope));
+    });
     setItems([]);
     setCustomCategories({ income: [], expense: [], loan: [] });
     setMonthlyBudgets({});
@@ -1043,6 +1048,13 @@ export default function Home() {
     setSelectedDate(todayISO);
     setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setViewAndScroll("home");
+    cloudSignatureRef.current = null;
+    if (auth.isAuthenticated && accountStorageScope && isOnline && cloudHydratedScopeRef.current === accountStorageScope) {
+      accountCloudSync.mutate({ payloadJson: resetPayload, baseVersion: cloudVersionRef.current }, { onSuccess: (result) => {
+        cloudVersionRef.current = result.version;
+        cloudSignatureRef.current = resetPayload;
+      } });
+    }
   };
 
   const setViewAndScroll = (nextView: View) => {
