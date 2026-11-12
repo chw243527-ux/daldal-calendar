@@ -354,10 +354,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 // 휴대폰 폭이 좁거나 큰 글자 설정이어도 날짜 칸 밖으로 넘치지 않게 합니다.
                 float cellTextSize = Math.min(7.6f, Math.max(5.8f, cellWidth * 0.13f));
                 if ("event".equals(type)) {
-                    float eventWidth = Math.min(cellWidth - 4, Math.max(24f, measureCellTextWidth(title, cellTextSize) + 8f));
+                    float measuredTitleWidth = measureCellTextWidth(title, cellTextSize);
+                    float eventWidth = Math.min(cellWidth - 4, Math.max(24f, measuredTitleWidth + 8f));
+                    boolean wraps = measuredTitleWidth > eventWidth - 6f;
+                    float eventHeight = wraps ? 24f : 18f;
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
-                    canvas.drawRoundRect(new RectF(left, top, left + eventWidth, top + 24), 4, 4, paint);
-                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, eventWidth - 6), cellTextSize, color, true, 2);
+                    canvas.drawRoundRect(new RectF(left, top, left + eventWidth, top + eventHeight), 4, 4, paint);
+                    drawWrappedCellText(canvas, title, left + 3, top + (wraps ? 9f : 12f), Math.max(5.2f, eventWidth - 6), cellTextSize, color, true, 2);
                 } else {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
                     if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 7, top + 9, 5.2f, paint); drawText(canvas, "✓", left + 4f, top + 11f, 7, Color.WHITE, true); }
