@@ -707,3 +707,38 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .tutorial-list li b { display: block; color: #4c4447; font-size: 12px; font-weight: 850; }
 .tutorial-list li span { grid-column: 2; margin-top: -2px; color: #908582; font-size: 10px; line-height: 1.45; }
 .tutorial-close { width: 100%; margin-top: 15px; background: var(--coral); }
+
+/* 연속 일정: 셀 사이의 틈 없이 한 줄로 연결하고 색상은 더 선명하게 표시 */
+.calendar-view .calendar-grid { column-gap: 0; }
+.calendar-view .calendar-cell { overflow: visible; }
+.calendar-view .calendar-chips { gap: 0; overflow: visible; }
+.calendar-view .event-chip.event-range-start,
+.calendar-view .event-chip.event-range-middle,
+.calendar-view .event-chip.event-range-end {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--event-color, #c96f62) 42%, #fbf7f1) !important;
+  color: var(--event-color, #c96f62) !important;
+}
+.calendar-view .event-chip.event-range-start { border-radius: 7px 0 0 7px; }
+.calendar-view .event-chip.event-range-end { border-radius: 0 7px 7px 0; }
+.calendar-view .event-chip.event-range-single { border-radius: 7px; }
+
+/* 홈 화면 미니 달력도 동일한 연결 막대 규칙을 사용 */
+.calendar-grid { column-gap: 0; }
+.calendar-chips { gap: 0; overflow: visible; }
+.event-chip.event-range-start,
+.event-chip.event-range-middle,
+.event-chip.event-range-end {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--event-color, #c96f62) 42%, #fbf7f1) !important;
+  color: var(--event-color, #c96f62) !important;
+}
+.event-chip.event-range-start { border-radius: 7px 0 0 7px; }
+.event-chip.event-range-end { border-radius: 0 7px 7px 0; }
+.event-chip.event-range-single { border-radius: 7px; }

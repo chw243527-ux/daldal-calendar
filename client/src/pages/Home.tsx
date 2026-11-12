@@ -1382,7 +1382,7 @@ function HomeView({
           {homeCells.map((date, index) => {
             if (!date) return <div className="calendar-cell empty" key={`home-empty-${index}`} />;
             const iso = toISO(date);
-            const dayItems = homeMonthItems.filter((item) => item.date === iso);
+            const dayItems = homeMonthItems.filter((item) => isDateInRange(item, iso));
             const isToday = iso === todayISO;
             const holidayName = getKoreanHolidayName(date);
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
