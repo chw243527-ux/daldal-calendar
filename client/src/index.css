@@ -830,6 +830,7 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
   margin-left: 0;
   margin-right: 0;
   transform: none;
+  background-color: var(--event-color, #c96f62) !important;
 }
 .calendar-view .event-chip.event-range-start,
 .home-calendar-grid .event-chip.event-range-start { border-radius: 8px 0 0 8px; }
