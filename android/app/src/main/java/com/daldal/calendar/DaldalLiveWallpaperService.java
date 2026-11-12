@@ -326,10 +326,28 @@ public class DaldalLiveWallpaperService extends WallpaperService {
 
         private List<JSONObject> orderedCalendarItems(JSONArray entries, String key, boolean showSchedule, boolean showTodo) {
             List<JSONObject> ordered = new ArrayList<>();
-            // 화면과 터치 좌표가 동일하게 일정 → 할 일 순서를 사용합니다.
+            // 화면과 터치 좌표가 동일하게 일정 → 할 일, 각 종류 안에서는 등록순을 사용합니다.
             appendCalendarItems(ordered, entries, key, "event", showSchedule);
             appendCalendarItems(ordered, entries, key, "todo", showTodo);
+            ordered.sort((first, second) -> {
+                int firstType = "todo".equals(first.optString("type")) ? 1 : 0;
+                int secondType = "todo".equals(second.optString("type")) ? 1 : 0;
+                if (firstType != secondType) return Integer.compare(firstType, secondType);
+                long firstOrder = registrationOrder(first.optString("id", ""));
+                long secondOrder = registrationOrder(second.optString("id", ""));
+                if (firstOrder < 0 || secondOrder < 0) return 0;
+                return Long.compare(firstOrder, secondOrder);
+            });
             return ordered;
+        }
+
+        private long registrationOrder(String id) {
+            if (id == null || !id.startsWith("item-")) return -1L;
+            int start = 5;
+            int end = start;
+            while (end < id.length() && Character.isDigit(id.charAt(end))) end++;
+            if (end == start) return -1L;
+            try { return Long.parseLong(id.substring(start, end)); } catch (Exception ignored) { return -1L; }
         }
 
         private void appendCalendarItems(List<JSONObject> output, JSONArray entries, String key, String expectedType, boolean enabled) {

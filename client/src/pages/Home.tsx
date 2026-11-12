@@ -366,9 +366,17 @@ function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
 }
 
 function sortCalendarChips(items: CalendarItem[]) {
-  // 같은 날짜에서는 일정(event)을 먼저, 할 일(todo)을 그 아래에 표시합니다.
-  // 나머지 순서는 원래 배열 순서를 유지해 반복 일정의 표시 안정성을 보장합니다.
-  return [...items].sort((a, b) => Number(a.type === "todo") - Number(b.type === "todo"));
+  // 같은 날짜에서는 일정(event)을 먼저, 할 일(todo)을 항상 그 아래에 표시합니다.
+  // 새 항목 ID의 생성 시각을 사용해 먼저 등록한 항목이 위에 유지되도록 합니다.
+  const registeredAt = (item: CalendarItem, index: number) => {
+    const match = item.id.match(/^item-(\d+)/);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER + index;
+  };
+  return items.map((item, index) => ({ item, index })).sort((a, b) => {
+    const typeOrder = Number(a.item.type === "todo") - Number(b.item.type === "todo");
+    if (typeOrder !== 0) return typeOrder;
+    return registeredAt(a.item, a.index) - registeredAt(b.item, b.index);
+  }).map(({ item }) => item);
 }
 
 function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: string) {
@@ -931,7 +939,7 @@ export default function Home() {
       })),
       // 잠금화면은 앱이 열려 있지 않아도 현재 연·월을 다시 계산해야 하므로
       // 화면에 펼친 한 달치가 아니라 일정·할 일 원본과 반복 정보를 전달합니다.
-      calendarItems: JSON.stringify(items.filter((item) => item.type === "event" || item.type === "todo").map(({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }) => ({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }))),
+      calendarItems: JSON.stringify(items.filter((item) => item.type === "event" || item.type === "todo").map(({ id, type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }) => ({ id, type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }))),
     });
   }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, items, lockScreenConfig]);
 
@@ -1054,7 +1062,7 @@ export default function Home() {
       paymentStatus: ["expense", "loan"].includes(draft.type) && draft.dueDate ? draft.paymentStatus : undefined,
     };
 
-    setItems((current) => editingId ? current.map((item) => item.id === editingId ? nextItem : item) : [nextItem, ...current]);
+    setItems((current) => editingId ? current.map((item) => item.id === editingId ? nextItem : item) : [...current, nextItem]);
     setSelectedDate(draft.date);
     const nextMonth = new Date(`${draft.date}T12:00:00`);
     nextMonth.setDate(1);
