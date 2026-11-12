@@ -767,3 +767,14 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
   margin-left: 0 !important;
   margin-right: -1px !important;
 }
+
+/* 수입·지출 카테고리 입력 모드 */
+.category-mode-switch { display: flex; gap: 6px; margin: 7px 0 9px; }
+.category-mode-switch button { flex: 1; min-height: 34px; padding: 0 10px; border: 1px solid #eadfdb; border-radius: 10px; background: #fffdfa; color: #9b908c; font-size: 11px; font-weight: 800; }
+.category-mode-switch button.selected { border-color: #d87568; background: #fff0ed; color: #b85f55; }
+.category-mode-switch button:disabled { cursor: not-allowed; opacity: .45; }
+.manager-mode-switch { margin-top: 12px; }
+@media (max-width: 600px) {
+  .category-mode-switch { gap: 5px; }
+  .category-mode-switch button { font-size: 10px; }
+}
