@@ -778,3 +778,13 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
   .category-mode-switch { gap: 5px; }
   .category-mode-switch button { font-size: 10px; }
 }
+
+/* 긴 입력 시트에서도 닫기 버튼은 항상 화면 안에 고정 */
+.composer-sheet, .family-sheet { box-sizing: border-box; overflow-x: hidden; }
+.composer-sheet .sheet-header, .family-sheet .sheet-topline { position: sticky; top: -1px; z-index: 12; margin: -2px -2px 12px; padding: 4px 2px 10px; background: #fffdfa; }
+.composer-sheet .sheet-header > div:first-child, .family-sheet .sheet-topline > div:first-child { min-width: 0; }
+.composer-sheet .sheet-header > .icon-button, .family-sheet .sheet-topline > .icon-button { flex: 0 0 auto; min-width: 34px; min-height: 34px; margin-left: 8px; }
+@media (max-width: 600px) {
+  .composer-sheet, .family-sheet { max-height: calc(100dvh - 10px); padding-top: max(15px, env(safe-area-inset-top)); padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .composer-sheet .sheet-header, .family-sheet .sheet-topline { padding-top: 3px; }
+}

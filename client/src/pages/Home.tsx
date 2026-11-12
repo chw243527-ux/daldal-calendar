@@ -842,12 +842,15 @@ export default function Home() {
 
   const displayItems = useMemo(() => getDisplayItems(items), [items]);
   const monthItems = useMemo(() => getMonthItems(displayItems, month), [displayItems, month]);
-  const localCurrencyBalances = useMemo(() => displayItems.reduce<Record<string, number>>((balances, item) => {
-    const target = item.localCurrencyTarget || (item.paymentMethod === "localCurrency" ? item.assetName : undefined);
-    if (!target) return balances;
-    const amount = item.category === "지역화폐 충전" ? (item.localCurrencyLoadedAmount ?? item.amount ?? 0) : item.paymentMethod === "localCurrency" ? -(item.amount ?? 0) + (item.localCurrencyCashbackAmount ?? 0) : 0;
-    return { ...balances, [target]: (balances[target] ?? 0) + amount };
-  }, {}), [displayItems]);
+  const localCurrencyBalances = useMemo(() => {
+    const initial = assetBalances.filter((asset) => asset.kind === "localCurrency").reduce<Record<string, number>>((balances, asset) => ({ ...balances, [asset.name]: asset.initialBalance ?? 0 }), {});
+    return displayItems.reduce<Record<string, number>>((balances, item) => {
+      const target = item.localCurrencyTarget || (item.paymentMethod === "localCurrency" ? item.assetName : undefined);
+      if (!target) return balances;
+      const amount = item.category === "지역화폐 충전" ? (item.localCurrencyLoadedAmount ?? item.amount ?? 0) : item.paymentMethod === "localCurrency" ? -(item.amount ?? 0) + (item.localCurrencyCashbackAmount ?? 0) : 0;
+      return { ...balances, [target]: (balances[target] ?? 0) + amount };
+    }, initial);
+  }, [assetBalances, displayItems]);
   const monthlyCardSpend = useMemo(() => monthItems.filter((item) => item.type === "expense" && !isLocalCurrencyTransfer(item) && item.paymentMethod === "card" && item.cardCompany).reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.cardCompany as string]: (totals[item.cardCompany as string] ?? 0) + (item.amount ?? 0) }), {}), [monthItems]);
   const selectedItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, selectedDate)), [displayItems, selectedDate]);
   const todayItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, todayISO)), [displayItems, todayISO]);
