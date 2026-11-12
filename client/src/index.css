@@ -742,3 +742,18 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .event-chip.event-range-start { border-radius: 7px 0 0 7px; }
 .event-chip.event-range-end { border-radius: 0 7px 7px 0; }
 .event-chip.event-range-single { border-radius: 7px; }
+
+/* 오늘 화면 달력도 전체 달력과 같은 넓은 레이아웃 사용 */
+.home-calendar-first { width: 100%; box-sizing: border-box; }
+.home-calendar-grid { column-gap: 0; }
+@media (max-width: 600px) {
+  .home-view .home-calendar-first { width: calc(100% + 34px); margin-left: -17px; margin-right: -17px; padding-left: 17px; padding-right: 17px; border-radius: 0; }
+  .home-view .home-calendar-first .weekday-row { padding-left: 0; padding-right: 0; }
+  .home-view .home-calendar-grid { margin-left: 0; margin-right: 0; }
+  .home-view .home-calendar-grid .calendar-cell { min-height: 88px; padding-left: 0; padding-right: 0; }
+  .home-view .home-calendar-grid .calendar-day-number { font-size: 13px; }
+  .home-view .home-calendar-grid .calendar-lunar-date { font-size: 9px; }
+}
+@media (min-width: 601px) {
+  .home-view .home-calendar-grid .calendar-cell { min-height: 96px; }
+}
