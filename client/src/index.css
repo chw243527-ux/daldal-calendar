@@ -757,3 +757,13 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 @media (min-width: 601px) {
   .home-view .home-calendar-grid .calendar-cell { min-height: 96px; }
 }
+
+/* 연속 일정 접합부 최종 보정: 날짜 칸 사이 흰 틈을 없애 한 줄로 연결 */
+.calendar-view .calendar-chips { gap: 0 !important; }
+.calendar-view .event-chip.event-range-start,
+.calendar-view .event-chip.event-range-middle,
+.calendar-view .event-chip.event-range-end {
+  width: calc(100% + 1px) !important;
+  margin-left: 0 !important;
+  margin-right: -1px !important;
+}
