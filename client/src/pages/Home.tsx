@@ -354,7 +354,7 @@ function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
   return schedule;
 }
 
-function getDisplayItems(items: CalendarItem[]) {
+function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: string) {
   return items.flatMap((item) => {
     if (item.type === "loan" && item.termMonths && item.loanPrincipal) {
       const schedule = calculateLoanSchedule(item);
@@ -365,12 +365,21 @@ function getDisplayItems(items: CalendarItem[]) {
     const legacySchedule = scheduleBase as CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string };
     const recurrence = scheduleBase.recurrence ?? legacySchedule.repeatCycle ?? legacySchedule.repeatType ?? legacySchedule.recurring ?? "none";
     if (recurrence !== "none") {
-      return getRecurringDates(scheduleBase).map((date, index) => ({ ...scheduleBase, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(date), completed: item.completedDates ? item.completedDates.includes(toISO(date)) : item.completed, title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
+      // 현재 보고 있는 달까지만 계산합니다. 종료일이 없는 반복은 미리
+      // 50년치로 잘라 저장하지 않고, 사용자가 어느 연도로 이동하든
+      // 그 달의 날짜를 다시 계산하므로 삭제 전까지 계속 표시됩니다.
+      const legacyYearlyEnd = recurrence === "yearly" && scheduleBase.repeatUntil && scheduleBase.repeatUntil.slice(0, 4) === scheduleBase.date.slice(0, 4);
+      const boundedEnd = rangeEnd && (!scheduleBase.repeatUntil || scheduleBase.repeatUntil > rangeEnd || legacyYearlyEnd) ? rangeEnd : scheduleBase.repeatUntil;
+      const recurringItem = boundedEnd ? { ...scheduleBase, repeatUntil: boundedEnd } : scheduleBase;
+      return getRecurringDates(recurringItem)
+        .filter((date) => !rangeStart || toISO(date) >= rangeStart)
+        .filter((date) => !rangeEnd || toISO(date) <= rangeEnd)
+        .map((date, index) => ({ ...scheduleBase, id: `${item.id}-repeat-${toISO(date)}`, sourceLoanId: item.id, date: toISO(date), completed: item.completedDates ? item.completedDates.includes(toISO(date)) : item.completed, title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
     }
     if (["expense", "loan"].includes(item.type) && item.dueDate && item.dueDate !== item.date) {
       return [{ ...item, id: `${item.id}-due`, date: item.dueDate, title: `${item.title} · ${item.autopay ? "자동이체" : "결제 예정"}` }];
     }
-    return [item];
+    return !rangeStart || !rangeEnd || (item.date <= rangeEnd && (!item.endDate || item.endDate >= rangeStart)) ? [item] : [];
   });
 }
 
@@ -848,7 +857,9 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const displayItems = useMemo(() => getDisplayItems(items), [items]);
+  const visibleMonthStart = toISO(new Date(month.getFullYear(), month.getMonth(), 1, 12));
+  const visibleMonthEnd = toISO(new Date(month.getFullYear(), month.getMonth() + 1, 0, 12));
+  const displayItems = useMemo(() => getDisplayItems(items, visibleMonthStart, visibleMonthEnd), [items, visibleMonthStart, visibleMonthEnd]);
   const monthItems = useMemo(() => getMonthItems(displayItems, month), [displayItems, month]);
   const localCurrencyBalances = useMemo(() => {
     const initial = assetBalances.filter((asset) => asset.kind === "localCurrency").reduce<Record<string, number>>((balances, asset) => ({ ...balances, [asset.name]: asset.initialBalance ?? 0 }), {});
@@ -1028,7 +1039,9 @@ export default function Home() {
 
   const toggleTodo = (item: CalendarItem) => {
     const sourceId = item.sourceLoanId ?? item.id;
-    if (item.type === "todo" && item.sourceLoanId && item.recurrence && item.recurrence !== "none") {
+    const legacyItem = item as CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string };
+    const recurrence = item.recurrence ?? legacyItem.repeatCycle ?? legacyItem.repeatType ?? legacyItem.recurring ?? "none";
+    if (item.type === "todo" && item.sourceLoanId && recurrence !== "none") {
       setItems((current) => current.map((entry) => {
         if (entry.id !== sourceId) return entry;
         const dates = new Set(entry.completedDates ?? []);
