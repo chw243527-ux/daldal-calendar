@@ -375,6 +375,8 @@ function sortCalendarChips(items: CalendarItem[]) {
   return items.map((item, index) => ({ item, index })).sort((a, b) => {
     const typeOrder = Number(a.item.type === "todo") - Number(b.item.type === "todo");
     if (typeOrder !== 0) return typeOrder;
+    const rangeOrder = Number(!(a.item.type === "event" && a.item.endDate && a.item.endDate > a.item.date)) - Number(!(b.item.type === "event" && b.item.endDate && b.item.endDate > b.item.date));
+    if (rangeOrder !== 0) return rangeOrder;
     return registeredAt(a.item, a.index) - registeredAt(b.item, b.index);
   }).map(({ item }) => item);
 }

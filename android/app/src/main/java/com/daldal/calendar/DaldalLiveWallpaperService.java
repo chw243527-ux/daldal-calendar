@@ -333,6 +333,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 int firstType = "todo".equals(first.optString("type")) ? 1 : 0;
                 int secondType = "todo".equals(second.optString("type")) ? 1 : 0;
                 if (firstType != secondType) return Integer.compare(firstType, secondType);
+                boolean firstRange = "event".equals(first.optString("type")) && first.optString("endDate", "").compareTo(first.optString("date", "")) > 0;
+                boolean secondRange = "event".equals(second.optString("type")) && second.optString("endDate", "").compareTo(second.optString("date", "")) > 0;
+                if (firstRange != secondRange) return firstRange ? -1 : 1;
                 long firstOrder = registrationOrder(first.optString("id", ""));
                 long secondOrder = registrationOrder(second.optString("id", ""));
                 if (firstOrder < 0 || secondOrder < 0) return 0;
