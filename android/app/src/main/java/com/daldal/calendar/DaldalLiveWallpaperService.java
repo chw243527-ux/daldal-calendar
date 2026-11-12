@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.service.wallpaper.WallpaperService;
 import android.view.MotionEvent;
@@ -364,10 +365,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
                     float barLeft = rangedEvent ? cellX : left;
                     float barRight = rangedEvent ? cellX + cellWidth : left + eventWidth;
-                    float radius = 4f;
-                    if (rangedEvent && "start".equals(rangePosition)) canvas.drawRoundRect(new RectF(barLeft, top, barRight, top + eventHeight), radius, radius, paint);
-                    else if (rangedEvent && "end".equals(rangePosition)) canvas.drawRoundRect(new RectF(barLeft, top, barRight, top + eventHeight), radius, radius, paint);
-                    else canvas.drawRect(new RectF(barLeft, top, barRight, top + eventHeight), paint);
+                    drawEventBarSegment(canvas, barLeft, top, barRight, top + eventHeight, rangedEvent ? rangePosition : "single");
                     if (showTitle) drawWrappedCellText(canvas, title, barLeft + 3, top + (wraps ? 9f : 12f), Math.max(5.2f, eventWidth - 6), cellTextSize, color, true, 2);
                 } else {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
@@ -390,6 +388,25 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if (!previous) return "start";
             if (!next) return "end";
             return "middle";
+        }
+
+        private void drawEventBarSegment(Canvas canvas, float left, float top, float right, float bottom, String position) {
+            float radius = 4f;
+            if ("single".equals(position)) {
+                canvas.drawRoundRect(new RectF(left, top, right, bottom), radius, radius, paint);
+                return;
+            }
+            float[] radii = new float[8];
+            if ("start".equals(position)) {
+                radii[0] = radius; radii[1] = radius;
+                radii[6] = radius; radii[7] = radius;
+            } else if ("end".equals(position)) {
+                radii[2] = radius; radii[3] = radius;
+                radii[4] = radius; radii[5] = radius;
+            }
+            Path path = new Path();
+            path.addRoundRect(new RectF(left, top, right, bottom), radii, Path.Direction.CW);
+            canvas.drawPath(path, paint);
         }
 
         private float measureCellTextWidth(String value, float size) {

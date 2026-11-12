@@ -813,3 +813,27 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .lockscreen-preset.selected .preset-check { background: #d87568; }
 .lockscreen-preset.dark.selected .preset-check { background: #e8b86a; color: #302d36; }
 @media (max-width: 390px) { .lockscreen-presets { padding: 11px; }.lockscreen-preset-grid { grid-template-columns: 1fr; }.lockscreen-preset { padding: 9px; } }
+
+/* 연속 일정은 날짜 셀의 접합부가 보이지 않는 하나의 막대가 되도록 고정 */
+.calendar-view .event-chip.event-range-start,
+.calendar-view .event-chip.event-range-middle,
+.calendar-view .event-chip.event-range-end,
+.home-calendar-grid .event-chip.event-range-start,
+.home-calendar-grid .event-chip.event-range-middle,
+.home-calendar-grid .event-chip.event-range-end {
+  box-sizing: border-box;
+  min-height: 20px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  border-width: 0;
+  border-radius: 0;
+  margin-left: 0;
+  margin-right: 0;
+  transform: none;
+}
+.calendar-view .event-chip.event-range-start,
+.home-calendar-grid .event-chip.event-range-start { border-radius: 8px 0 0 8px; }
+.calendar-view .event-chip.event-range-end,
+.home-calendar-grid .event-chip.event-range-end { border-radius: 0 8px 8px 0; }
+.calendar-view .event-chip.event-range-single,
+.home-calendar-grid .event-chip.event-range-single { border-radius: 8px; }
