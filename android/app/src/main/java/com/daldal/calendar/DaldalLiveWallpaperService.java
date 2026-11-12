@@ -16,6 +16,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -125,13 +127,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             SharedPreferences preferences = getSharedPreferences("daldal_widget", Context.MODE_PRIVATE);
             JSONArray entries = parseItems(preferences.getString("calendarItems", "[]"));
             String todayKey = String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
-            int visibleRow = 0;
-            for (int index = 0; index < entries.length(); index++) {
-                JSONObject item = entries.optJSONObject(index);
-                if (item == null || !itemMatchesDate(item, todayKey)) continue;
-                String type = item.optString("type");
-                if (!"todo".equals(type) && !"event".equals(type)) continue;
-                if (visibleRow == targetRow && "todo".equals(type)) {
+            List<JSONObject> visibleItems = orderedCalendarItems(entries, todayKey, true, true);
+            for (int index = 0; index < visibleItems.size(); index++) {
+                JSONObject item = visibleItems.get(index);
+                if (index == targetRow && "todo".equals(item.optString("type"))) {
                     try {
                         JSONArray completedDates = item.optJSONArray("completedDates");
                         if (completedDates == null) completedDates = new JSONArray();
@@ -151,7 +150,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     }
                     return;
                 }
-                visibleRow++;
             }
         }
 
@@ -325,14 +323,29 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return item.optBoolean("completed", false);
         }
 
+        private List<JSONObject> orderedCalendarItems(JSONArray entries, String key, boolean showSchedule, boolean showTodo) {
+            List<JSONObject> ordered = new ArrayList<>();
+            // 화면과 터치 좌표가 동일하게 일정 → 할 일 순서를 사용합니다.
+            appendCalendarItems(ordered, entries, key, "event", showSchedule);
+            appendCalendarItems(ordered, entries, key, "todo", showTodo);
+            return ordered;
+        }
+
+        private void appendCalendarItems(List<JSONObject> output, JSONArray entries, String key, String expectedType, boolean enabled) {
+            if (!enabled) return;
+            for (int index = 0; index < entries.length(); index++) {
+                JSONObject item = entries.optJSONObject(index);
+                if (item != null && expectedType.equals(item.optString("type")) && itemMatchesDate(item, key)) output.add(item);
+            }
+        }
+
         private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, boolean showSchedule, boolean showTodo, boolean darkTheme) {
             String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
             int shown = 0;
-            for (int i = 0; i < entries.length() && shown < 2; i++) {
-                JSONObject item = entries.optJSONObject(i);
-                if (item == null || !itemMatchesDate(item, key)) continue;
+            List<JSONObject> visibleItems = orderedCalendarItems(entries, key, showSchedule, showTodo);
+            for (JSONObject item : visibleItems) {
+                if (shown >= 2) break;
                 String type = item.optString("type");
-                if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"event".equals(type) && !"todo".equals(type))) continue;
                 int color = itemColor(type, item.optString("accentColor", ""));
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
