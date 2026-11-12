@@ -280,8 +280,14 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int days = dayDifference(startValue, key);
             if ("daily".equals(recurrence)) return days >= 0;
             if ("weekly".equals(recurrence)) return days >= 0 && days % 7 == 0;
-            if ("monthly".equals(recurrence)) return target.get(Calendar.DAY_OF_MONTH) == start.get(Calendar.DAY_OF_MONTH);
-            if ("yearly".equals(recurrence)) return target.get(Calendar.MONTH) == start.get(Calendar.MONTH) && target.get(Calendar.DAY_OF_MONTH) == start.get(Calendar.DAY_OF_MONTH);
+            if ("monthly".equals(recurrence)) {
+                int expectedDay = Math.min(start.get(Calendar.DAY_OF_MONTH), target.getActualMaximum(Calendar.DAY_OF_MONTH));
+                return target.get(Calendar.DAY_OF_MONTH) == expectedDay;
+            }
+            if ("yearly".equals(recurrence)) {
+                int expectedDay = Math.min(start.get(Calendar.DAY_OF_MONTH), target.getActualMaximum(Calendar.DAY_OF_MONTH));
+                return target.get(Calendar.MONTH) == start.get(Calendar.MONTH) && target.get(Calendar.DAY_OF_MONTH) == expectedDay;
+            }
             return false;
         }
 
