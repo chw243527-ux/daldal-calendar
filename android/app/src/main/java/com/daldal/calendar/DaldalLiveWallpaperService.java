@@ -253,19 +253,47 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"event".equals(type) && !"todo".equals(type))) continue;
                 int color = itemColor(type, item.optString("accentColor", ""));
                 boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
-                String title = safeTitle(item.optString("title", "기록"), "event".equals(type) ? 6 : 5);
-                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 15;
+                String title = item.optString("title", "기록").trim();
+                if (title.isEmpty()) title = "기록";
+                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 18;
                 if ("event".equals(type)) {
-                    paint.setColor(blend(color, Color.rgb(249, 246, 242), .84f));
-                    canvas.drawRoundRect(new RectF(left, top, right, top + 14), 4, 4, paint);
-                    drawText(canvas, title, left + 4, top + 10, 7, color, true);
+                    paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
+                    canvas.drawRoundRect(new RectF(left, top, right, top + 18), 4, 4, paint);
+                    drawWrappedCellText(canvas, title, left + 3, top + 7, Math.max(5.2f, cellWidth - 8), 6.1f, color, true, 2);
                 } else {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 6, top + 7, 4.3f, paint);
                     if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 6, top + 7, 4.3f, paint); drawText(canvas, "✓", left + 3.2f, top + 9.5f, 6, Color.WHITE, true); }
-                    paint.setStyle(Paint.Style.FILL); drawText(canvas, title, left + 14, top + 10, 7, completed ? secondaryTextColor(darkTheme) : color, false);
-                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 14, top + 7, Math.min(right, left + 14 + paint.measureText(title)), top + 7, paint); }
+                    paint.setStyle(Paint.Style.FILL);
+                    drawWrappedCellText(canvas, title, left + 14, top + 7, Math.max(5.2f, cellWidth - 18), 6.1f, completed ? secondaryTextColor(darkTheme) : color, false, 2);
+                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 14, top + 7, Math.min(right, left + 14 + Math.min(cellWidth - 18, paint.measureText(title))), top + 7, paint); }
                 }
                 shown++;
+            }
+        }
+
+        private void drawWrappedCellText(Canvas canvas, String value, float x, float firstBaseline, float maxWidth, float size, int color, boolean bold, int maxLines) {
+            paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
+            paint.setTypeface(android.graphics.Typeface.create("sans-serif", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
+            paint.setTextAlign(Paint.Align.LEFT);
+            paint.setColor(color);
+            StringBuilder line = new StringBuilder();
+            int lineNumber = 0;
+            int index = 0;
+            for (; index < value.length(); index++) {
+                String candidate = line.toString() + value.charAt(index);
+                if (line.length() > 0 && paint.measureText(candidate) > maxWidth) {
+                    canvas.drawText(line.toString(), x, firstBaseline + lineNumber * 7, paint);
+                    line.setLength(0);
+                    line.append(value.charAt(index));
+                    lineNumber++;
+                    if (lineNumber >= maxLines - 1) { index++; break; }
+                } else line.append(value.charAt(index));
+            }
+            if (line.length() > 0 && lineNumber < maxLines) {
+                String last = line.toString();
+                boolean clipped = index < value.length();
+                while (paint.measureText(last + (clipped ? "…" : "")) > maxWidth && last.length() > 1) last = last.substring(0, last.length() - 1);
+                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * 7, paint);
             }
         }
 
@@ -412,7 +440,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private void drawText(Canvas canvas, String value, float x, float y, float size, int color, boolean bold, boolean right) {
             paint.setColor(color);
             paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
-            paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
+            paint.setTypeface(android.graphics.Typeface.create("sans-serif", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
             paint.setTextAlign(right ? Paint.Align.RIGHT : Paint.Align.LEFT);
             canvas.drawText(value, x, y, paint);
         }
@@ -420,7 +448,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private void drawCenteredText(Canvas canvas, String value, float x, float y, float size, int color, boolean bold) {
             paint.setColor(color);
             paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
-            paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
+            paint.setTypeface(android.graphics.Typeface.create("sans-serif", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
             paint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText(value, x, y + size * .35f, paint);
         }
