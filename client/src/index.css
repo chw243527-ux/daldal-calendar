@@ -791,3 +791,25 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 
 /* 일정이 많은 날짜도 일부 항목이 숨겨졌다는 사실을 알 수 있게 표시 */
 .calendar-more { display: inline-flex; align-items: center; min-height: 16px; padding: 0 4px; color: #8d817b; font-size: 9px; font-weight: 850; white-space: nowrap; }
+
+/* 잠금화면 추천 조합: 밝은 테마와 어두운 테마를 한 번에 적용 */
+.lockscreen-presets { margin: 16px 0 4px; padding: 14px; border: 1px solid #eee5e1; border-radius: 16px; background: #fffaf7; }
+.lockscreen-presets-heading { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.lockscreen-presets-heading strong { color: #4d4447; font-size: 12px; }
+.lockscreen-presets-heading small { color: #9b908c; font-size: 10px; }
+.lockscreen-preset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.lockscreen-preset { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px; border: 1px solid #eee4df; border-radius: 13px; background: #fffdfb; color: #51484a; text-align: left; transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+.lockscreen-preset:hover { transform: translateY(-1px); }
+.lockscreen-preset.selected { border-color: #d87568; box-shadow: 0 0 0 2px rgba(216,117,104,.12); }
+.lockscreen-preset.dark { background: #302d36; color: #f8f1ed; border-color: #47414e; }
+.lockscreen-preset.dark.selected { border-color: #e8b86a; box-shadow: 0 0 0 2px rgba(232,184,106,.18); }
+.preset-swatches { display: flex; flex: 0 0 28px; flex-direction: column; gap: 3px; width: 28px; height: 34px; overflow: hidden; border-radius: 9px; }
+.preset-swatches i { display: block; flex: 1; min-height: 0; }
+.preset-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.preset-copy strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.preset-copy small { overflow: hidden; color: #9b908c; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.lockscreen-preset.dark .preset-copy small { color: #c5bac8; }
+.preset-check { display: grid; flex: 0 0 17px; place-items: center; width: 17px; height: 17px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 900; }
+.lockscreen-preset.selected .preset-check { background: #d87568; }
+.lockscreen-preset.dark.selected .preset-check { background: #e8b86a; color: #302d36; }
+@media (max-width: 390px) { .lockscreen-presets { padding: 11px; }.lockscreen-preset-grid { grid-template-columns: 1fr; }.lockscreen-preset { padding: 9px; } }
