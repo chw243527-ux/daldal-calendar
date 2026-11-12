@@ -206,11 +206,11 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             float gridRight = width - margin;
             float cellWidth = (gridRight - gridLeft) / 7f;
             // 잠금화면은 달력만 표시하므로 6주 행을 화면 높이에 맞춰 크게 사용합니다.
-            float cellHeight = Math.max(72f, Math.min(118f, (height - gridTop - 70f) / 6f));
+            float cellHeight = Math.max(78f, Math.min(126f, (height - gridTop - 70f) / 6f));
             String[] weekdays = {"일", "월", "화", "수", "목", "금", "토"};
             if (showCalendar) {
                 for (int index = 0; index < weekdays.length; index++) {
-                    drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 10, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
+                    drawCenteredText(canvas, weekdays[index], margin + index * cellWidth + cellWidth / 2, gridTop, 12, index == 0 ? Color.rgb(216,117,104) : index == 6 ? Color.rgb(111,99,182) : secondaryTextColor(darkTheme), true);
                 }
                 for (int day = 1; day <= days; day++) {
                     int index = firstDay + day - 1;
@@ -231,15 +231,15 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                         paint.setStyle(Paint.Style.FILL);
                     }
                     // 날짜 숫자와 음력을 해당 날짜 칸의 왼쪽 기준으로 정렬합니다.
-                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 4, 12, primaryTextColor(darkTheme), true);
+                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 7, 16, primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
                     // 모든 칸에서 음력은 양력 숫자 오른쪽에 같은 규칙으로 표시합니다.
                     if (!lunarLabel.isEmpty()) {
-                        float lunarLeft = cellX + (day >= 10 ? 20f : 14f);
-                        drawText(canvas, lunarLabel, lunarLeft, cellY + 2, 5.5f, secondaryTextColor(darkTheme), false);
+                        float lunarLeft = cellX + (day >= 10 ? 24f : 18f);
+                        drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 7.2f, secondaryTextColor(darkTheme), false);
                     }
                     // 일정·할 일은 날짜 숫자 바로 아래에서 시작합니다.
-                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 22, cellWidth, showSchedule, showTodo, darkTheme);
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 29, cellWidth, showSchedule, showTodo, darkTheme);
                     canvas.restore();
                 }
             }
@@ -279,17 +279,17 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
-                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 18;
+                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 25;
                 if ("event".equals(type)) {
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
-                    canvas.drawRoundRect(new RectF(left, top, right, top + 18), 4, 4, paint);
-                    drawWrappedCellText(canvas, title, left + 3, top + 7, Math.max(5.2f, cellWidth - 8), 6.1f, color, true, 2);
+                    canvas.drawRoundRect(new RectF(left, top, right, top + 24), 4, 4, paint);
+                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, cellWidth - 8), 7.6f, color, true, 2);
                 } else {
-                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 6, top + 7, 4.3f, paint);
-                    if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 6, top + 7, 4.3f, paint); drawText(canvas, "✓", left + 3.2f, top + 9.5f, 6, Color.WHITE, true); }
+                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
+                    if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 7, top + 9, 5.2f, paint); drawText(canvas, "✓", left + 4f, top + 11f, 7, Color.WHITE, true); }
                     paint.setStyle(Paint.Style.FILL);
-                    drawWrappedCellText(canvas, title, left + 14, top + 7, Math.max(5.2f, cellWidth - 18), 6.1f, completed ? secondaryTextColor(darkTheme) : color, false, 2);
-                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 14, top + 7, Math.min(right, left + 14 + Math.min(cellWidth - 18, paint.measureText(title))), top + 7, paint); }
+                    drawWrappedCellText(canvas, title, left + 16, top + 9, Math.max(5.2f, cellWidth - 20), 7.6f, completed ? secondaryTextColor(darkTheme) : color, false, 2);
+                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 16, top + 9, Math.min(right, left + 16 + Math.min(cellWidth - 20, paint.measureText(title))), top + 7, paint); }
                 }
                 shown++;
             }
@@ -306,7 +306,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             for (; index < value.length(); index++) {
                 String candidate = line.toString() + value.charAt(index);
                 if (line.length() > 0 && paint.measureText(candidate) > maxWidth) {
-                    canvas.drawText(line.toString(), x, firstBaseline + lineNumber * 7, paint);
+                    canvas.drawText(line.toString(), x, firstBaseline + lineNumber * 9, paint);
                     line.setLength(0);
                     line.append(value.charAt(index));
                     lineNumber++;
@@ -317,7 +317,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String last = line.toString();
                 boolean clipped = index < value.length();
                 while (paint.measureText(last + (clipped ? "…" : "")) > maxWidth && last.length() > 1) last = last.substring(0, last.length() - 1);
-                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * 7, paint);
+                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * 9, paint);
             }
         }
 
@@ -352,9 +352,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         }
 
         private float fontScale(String value) {
-            if ("small".equals(value)) return 0.88f;
-            if ("large".equals(value)) return 1.18f;
-            return 1f;
+            if ("small".equals(value)) return 0.96f;
+            if ("large".equals(value)) return 1.28f;
+            return 1.10f;
         }
 
         private int themeAccent(String theme) {
