@@ -638,6 +638,7 @@ export default function Home() {
   const cloudSignatureRef = useRef<string | null>(null);
   const lastSyncedRecords = useRef<string | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const resetInProgressRef = useRef(false);
   const categoryMap = useMemo<CategoryMap>(() => ({
     ...categories,
     income: [...categories.income, ...(customCategories.income ?? [])],
@@ -653,6 +654,7 @@ export default function Home() {
     return () => { window.removeEventListener("online", handleOnline); window.removeEventListener("offline", handleOffline); };
   }, [accountCloudQuery]);
   useEffect(() => {
+    resetInProgressRef.current = false;
     cloudHydratedScopeRef.current = null;
     cloudVersionRef.current = 0;
     cloudSignatureRef.current = null;
@@ -721,7 +723,7 @@ export default function Home() {
   }, [auth.loading, accountStorageScope, shareGuestMode]);
 
   useEffect(() => {
-    if (auth.loading || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || accountCloudQuery.isLoading) return;
+    if (resetInProgressRef.current || auth.loading || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || accountCloudQuery.isLoading) return;
     if (cloudHydratedScopeRef.current === accountStorageScope) return;
     const remote = accountCloudQuery.data;
     if (remote?.payloadJson) {
@@ -746,7 +748,7 @@ export default function Home() {
 
   useEffect(() => {
     const remote = accountCloudQuery.data;
-    if (!remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
+    if (resetInProgressRef.current || !remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
     try {
       const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
       if (Array.isArray(payload.items)) setItems(payload.items);
@@ -792,7 +794,7 @@ export default function Home() {
 
   useEffect(() => {
     const remote = familyQuery.data;
-    if (!isLoaded || !remote || conflictState || lastFamilySignature.current === remote.updatedAt) return;
+    if (resetInProgressRef.current || !isLoaded || !remote || conflictState || lastFamilySignature.current === remote.updatedAt) return;
     const remoteRecords = Array.isArray(remote.records) ? remote.records as CalendarItem[] : [];
     lastFamilySignature.current = remote.updatedAt;
     lastSyncedRecords.current = JSON.stringify(remoteRecords);
@@ -1034,7 +1036,9 @@ export default function Home() {
   };
 
   const resetAppData = () => {
+    resetInProgressRef.current = true;
     lastSyncedRecords.current = JSON.stringify([]);
+    lastFamilySignature.current = null;
     const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG });
     [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY].forEach((key) => {
       window.localStorage.removeItem(key);
