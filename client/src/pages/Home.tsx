@@ -1448,7 +1448,7 @@ function HomeView({
             const homeChips = sortCalendarChips(dayItems.filter((item) => item.type === "todo" || item.type === "event"));
             return <button className={`calendar-cell ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onGoCalendar()}>
               <span className={`calendar-date-line ${holidayName ? "is-holiday" : ""}`} title={holidayName}><span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span></span>
-              <span className="calendar-chips">{homeChips.slice(0, 1).map((item) => { const rangePosition = getRangePosition(item, iso); return <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.type === "event" ? `event-range-${rangePosition}` : ""} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} title={rangePosition === "start" || rangePosition === "single" ? item.title : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.type === "todo" || rangePosition === "start" || rangePosition === "single" ? item.title : ""}</span>; })}{homeChips.length > 1 && <span className="calendar-more">+{homeChips.length - 1}</span>}</span>
+              <span className="calendar-chips">{homeChips.slice(0, 3).map((item) => { const rangePosition = getRangePosition(item, iso); return <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.type === "event" ? `event-range-${rangePosition}` : ""} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} title={rangePosition === "start" || rangePosition === "single" ? item.title : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.type === "todo" || rangePosition === "start" || rangePosition === "single" ? item.title : ""}</span>; })}{homeChips.length > 3 && <span className="calendar-more">+{homeChips.length - 3}</span>}</span>
             </button>;
           })}
         </div>
@@ -1539,7 +1539,7 @@ function CalendarView({
             const holidayName = getKoreanHolidayName(date);
             const finances = dayItems.filter((item) => ["income", "expense", "loan"].includes(item.type));
             const allChips = sortCalendarChips(dayItems.filter((item) => item.type === "todo" || item.type === "event"));
-            const chips = allChips.slice(0, 2);
+            const chips = allChips.slice(0, 3)
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className={`calendar-date-line ${holidayName ? "is-holiday" : ""}`} title={holidayName}><span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span></span>
