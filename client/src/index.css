@@ -788,3 +788,6 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
   .composer-sheet, .family-sheet { max-height: calc(100dvh - 10px); padding-top: max(15px, env(safe-area-inset-top)); padding-bottom: max(18px, env(safe-area-inset-bottom)); }
   .composer-sheet .sheet-header, .family-sheet .sheet-topline { padding-top: 3px; }
 }
+
+/* 일정이 많은 날짜도 일부 항목이 숨겨졌다는 사실을 알 수 있게 표시 */
+.calendar-more { display: inline-flex; align-items: center; min-height: 16px; padding: 0 4px; color: #8d817b; font-size: 9px; font-weight: 850; white-space: nowrap; }

@@ -128,12 +128,22 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int visibleRow = 0;
             for (int index = 0; index < entries.length(); index++) {
                 JSONObject item = entries.optJSONObject(index);
-                if (item == null || !todayKey.equals(item.optString("date"))) continue;
+                if (item == null || !itemMatchesDate(item, todayKey)) continue;
                 String type = item.optString("type");
                 if (!"todo".equals(type) && !"event".equals(type)) continue;
                 if (visibleRow == targetRow && "todo".equals(type)) {
                     try {
-                        item.put("completed", !item.optBoolean("completed", false));
+                        JSONArray completedDates = item.optJSONArray("completedDates");
+                        if (completedDates == null) completedDates = new JSONArray();
+                        boolean wasCompleted = isCompletedForDate(item, todayKey);
+                        JSONArray nextCompletedDates = new JSONArray();
+                        for (int completedIndex = 0; completedIndex < completedDates.length(); completedIndex++) {
+                            String completedDate = completedDates.optString(completedIndex, "");
+                            if (!todayKey.equals(completedDate)) nextCompletedDates.put(completedDate);
+                        }
+                        if (!wasCompleted) nextCompletedDates.put(todayKey);
+                        item.put("completedDates", nextCompletedDates);
+                        item.put("completed", !wasCompleted);
                         preferences.edit().putString("calendarItems", entries.toString()).apply();
                         drawWallpaper();
                     } catch (Exception ignored) {
@@ -243,16 +253,30 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             drawText(canvas, time, right, height * 0.155f, 26, primaryColor, true, true);
         }
 
+        private boolean itemMatchesDate(JSONObject item, String key) {
+            String start = item.optString("date", "");
+            String end = item.optString("endDate", "");
+            return key.equals(start) || ("event".equals(item.optString("type")) && !end.isEmpty() && start.compareTo(key) <= 0 && key.compareTo(end) <= 0);
+        }
+
+        private boolean isCompletedForDate(JSONObject item, String key) {
+            JSONArray completedDates = item.optJSONArray("completedDates");
+            if (completedDates != null) {
+                for (int index = 0; index < completedDates.length(); index++) if (key.equals(completedDates.optString(index, ""))) return true;
+            }
+            return item.optBoolean("completed", false);
+        }
+
         private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, boolean showSchedule, boolean showTodo, boolean darkTheme) {
             String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
             int shown = 0;
             for (int i = 0; i < entries.length() && shown < 2; i++) {
                 JSONObject item = entries.optJSONObject(i);
-                if (item == null || !key.equals(item.optString("date"))) continue;
+                if (item == null || !itemMatchesDate(item, key)) continue;
                 String type = item.optString("type");
                 if (("event".equals(type) && !showSchedule) || ("todo".equals(type) && !showTodo) || (!"event".equals(type) && !"todo".equals(type))) continue;
                 int color = itemColor(type, item.optString("accentColor", ""));
-                boolean completed = "todo".equals(type) && item.optBoolean("completed", false);
+                boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
                 float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 18;
