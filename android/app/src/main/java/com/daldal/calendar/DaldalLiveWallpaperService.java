@@ -366,7 +366,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int shown = 0;
             List<JSONObject> visibleItems = orderedCalendarItems(entries, key, showSchedule, showTodo);
             for (JSONObject item : visibleItems) {
-                if (shown >= 3) break;
+                if (shown >= 4) break;
                 String type = item.optString("type");
                 int color = itemColor(type, item.optString("accentColor", ""));
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
