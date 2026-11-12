@@ -261,6 +261,9 @@ function addDays(date: Date, amount: number) {
   result.setDate(result.getDate() + amount);
   return result;
 }
+function differenceInDays(later: Date, earlier: Date) {
+  return Math.round((Date.UTC(later.getFullYear(), later.getMonth(), later.getDate()) - Date.UTC(earlier.getFullYear(), earlier.getMonth(), earlier.getDate())) / 86400000);
+}
 
 function addMonths(date: Date, amount: number) {
   const target = new Date(date.getFullYear(), date.getMonth() + amount, 1, 12);
@@ -374,7 +377,19 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
       return getRecurringDates(recurringItem)
         .filter((date) => !rangeStart || toISO(date) >= rangeStart)
         .filter((date) => !rangeEnd || toISO(date) <= rangeEnd)
-        .map((date, index) => ({ ...scheduleBase, id: `${item.id}-repeat-${toISO(date)}`, sourceLoanId: item.id, date: toISO(date), completed: item.completedDates ? item.completedDates.includes(toISO(date)) : item.completed, title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
+        .map((date, index) => {
+          const occurrenceDate = toISO(date);
+          const originalDuration = scheduleBase.type === "event" && scheduleBase.endDate ? differenceInDays(fromISO(scheduleBase.endDate), fromISO(scheduleBase.date)) : 0;
+          return {
+            ...scheduleBase,
+            id: `${item.id}-repeat-${occurrenceDate}`,
+            sourceLoanId: item.id,
+            date: occurrenceDate,
+            endDate: scheduleBase.type === "event" && scheduleBase.endDate ? toISO(addDays(date, Math.max(0, originalDuration))) : scheduleBase.endDate,
+            completed: item.completedDates ? item.completedDates.includes(occurrenceDate) : item.completed,
+            title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title,
+          };
+        });
     }
     if (["expense", "loan"].includes(item.type) && item.dueDate && item.dueDate !== item.date) {
       return [{ ...item, id: `${item.id}-due`, date: item.dueDate, title: `${item.title} · ${item.autopay ? "자동이체" : "결제 예정"}` }];
