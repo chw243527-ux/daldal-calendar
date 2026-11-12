@@ -214,9 +214,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     int accent = parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme));
                     if (isToday) {
                         paint.setStyle(Paint.Style.STROKE);
-                        paint.setStrokeWidth(1.8f);
+                        paint.setStrokeWidth(1.7f);
                         paint.setColor(accent);
-                        canvas.drawRoundRect(new RectF(cellX + 1, cellY - 18, cellX + cellWidth - 1, cellY + cellHeight - 2), 8, 8, paint);
+                        // 테두리는 날짜 칸 안쪽에만 그려 인접한 칸으로 넘어가지 않게 합니다.
+                        canvas.drawRoundRect(new RectF(cellX + 2.5f, cellY - 15, cellX + cellWidth - 2.5f, cellY + cellHeight - 5), 8, 8, paint);
                         paint.setStyle(Paint.Style.FILL);
                     }
                     // 날짜 숫자와 음력을 해당 날짜 칸의 왼쪽 기준으로 정렬합니다.

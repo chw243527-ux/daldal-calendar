@@ -696,3 +696,14 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .lockscreen-customizer select, .lockscreen-customizer input[type="color"] { width: 100%; min-height: 44px; border: 1px solid rgba(80, 65, 60, 0.15); border-radius: 12px; background: #fffdfa; }
 .lockscreen-customizer input[type="color"] { padding: 4px; }
 @media (max-width: 520px) { .lockscreen-customizer { grid-template-columns: 1fr; } }
+
+/* 초보자용 사용 안내 */
+.tutorial-backdrop { z-index: 20; align-items: center; }
+.tutorial-sheet { width: min(100%, 560px); max-height: min(760px, calc(100vh - 28px)); overflow: auto; padding: 10px 22px 22px; border-radius: 26px; background: #fffdfb; box-shadow: 0 18px 55px rgba(38,29,35,.22); animation: sheet-up .28s cubic-bezier(.2,.8,.2,1) both; }
+.tutorial-lead { margin: 13px 0 16px; color: #817672; font-size: 12px; line-height: 1.55; }
+.tutorial-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: tutorial; }
+.tutorial-list li { display: grid; grid-template-columns: 29px 1fr; gap: 9px; padding: 12px; border: 1px solid #f0e6e1; border-radius: 15px; background: #fffaf7; counter-increment: tutorial; }
+.tutorial-list li::before { content: counter(tutorial, decimal-leading-zero); display: grid; place-items: center; width: 29px; height: 29px; border-radius: 10px; background: #fff0ed; color: var(--coral); font-size: 9px; font-weight: 900; }
+.tutorial-list li b { display: block; color: #4c4447; font-size: 12px; font-weight: 850; }
+.tutorial-list li span { grid-column: 2; margin-top: -2px; color: #908582; font-size: 10px; line-height: 1.45; }
+.tutorial-close { width: 100%; margin-top: 15px; background: var(--coral); }

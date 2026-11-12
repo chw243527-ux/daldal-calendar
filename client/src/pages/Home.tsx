@@ -627,6 +627,7 @@ export default function Home() {
   const [isCategoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [isAssetManagerOpen, setAssetManagerOpen] = useState(false);
   const [isFamilyOpen, setFamilyOpen] = useState(false);
+  const [isTutorialOpen, setTutorialOpen] = useState(() => typeof window !== "undefined" && window.localStorage.getItem("daldal-calendar-tutorial-seen") !== "1");
   const [familyName, setFamilyName] = useState("우리 가족 가계부");
   const [familyInviteCode, setFamilyInviteCode] = useState("");
   const [familyMessage, setFamilyMessage] = useState<string | null>(null);
@@ -1077,20 +1078,17 @@ export default function Home() {
   };
 
   const exportBackup = () => {
-    const backup = { app: "daldal-calendar", version: 1, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances };
+    const backup = { app: "daldal-calendar", version: 2, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const fileName = `daldal-calendar-backup-${toISO(new Date())}.json`;
-    const file = new File([blob], fileName, { type: "application/json" });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      void navigator.share({ title: "달달 캘린더 백업", text: "달달 캘린더 데이터를 백업했어요.", files: [file] }).catch(() => undefined);
-      return;
-    }
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
     anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => { anchor.remove(); URL.revokeObjectURL(url); }, 1000);
   };
 
   const importBackup = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1099,13 +1097,14 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const backup = JSON.parse(String(reader.result)) as { app?: string; items?: CalendarItem[]; customCategories?: Partial<Record<ItemType, string[]>>; monthlyBudgets?: typeof monthlyBudgets; emergencyReserve?: number; assetBalances?: AssetBalance[] };
+        const backup = JSON.parse(String(reader.result)) as { app?: string; items?: CalendarItem[]; customCategories?: Partial<Record<ItemType, string[]>>; monthlyBudgets?: typeof monthlyBudgets; emergencyReserve?: number; assetBalances?: AssetBalance[]; lockScreenConfig?: LockScreenConfig };
         if (backup.app !== "daldal-calendar" || !Array.isArray(backup.items)) throw new Error("invalid backup");
         setItems(backup.items);
         if (backup.customCategories) setCustomCategories(backup.customCategories);
         if (backup.monthlyBudgets) setMonthlyBudgets(backup.monthlyBudgets);
         if (typeof backup.emergencyReserve === "number") setEmergencyReserve(backup.emergencyReserve);
         if (Array.isArray(backup.assetBalances)) setAssetBalances(backup.assetBalances);
+        if (backup.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...backup.lockScreenConfig });
         window.alert("백업을 복원했어요.");
       } catch {
         window.alert("달달 캘린더 백업 파일이 아니에요.");
@@ -1270,7 +1269,7 @@ export default function Home() {
           />
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} onCreate={(type) => openCreate(type, toISO(month))} />}
-        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} />}
+        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} onOpenTutorial={() => setTutorialOpen(true)} />}
       </main>
 
       <button className="record-button" type="button" onClick={() => openCreate("todo")}>
@@ -1305,11 +1304,16 @@ export default function Home() {
       )}
       {isCategoryManagerOpen && <CategoryManager customCategories={customCategories} onChange={setCustomCategories} onClose={() => setCategoryManagerOpen(false)} />}
       {isAssetManagerOpen && <AssetManager assets={assetBalances} items={displayItems} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
+      {isTutorialOpen && <TutorialSheet onClose={() => { window.localStorage.setItem("daldal-calendar-tutorial-seen", "1"); setTutorialOpen(false); }} />}
     </div>
   );
 }
 
-function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef, onReset, onAddTestData }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void; onAddTestData: () => void }) {
+function TutorialSheet({ onClose }: { onClose: () => void }) {
+  return <div className="sheet-backdrop tutorial-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="tutorial-sheet" role="dialog" aria-modal="true" aria-labelledby="tutorial-title"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">FIRST STEPS</span><h2 id="tutorial-title">달달 캘린더 사용 안내</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="tutorial-lead">처음에는 아래 순서대로 한 번만 설정하면 편하게 사용할 수 있어요.</p><ol className="tutorial-list"><li><b>일정·할 일 등록</b><span>하단의 기록하기를 누르고 날짜, 제목, 색상을 선택해요. 반복 일정은 반복 주기와 종료 여부를 함께 설정할 수 있어요.</span></li><li><b>계좌와 자산 등록</b><span>설정 → 자산 관리에서 계좌·현금·지역화폐·주식·코인을 먼저 등록해요. 이후 수입·지출 입력에서 등록된 계좌를 선택할 수 있어요.</span></li><li><b>달력 확인</b><span>달력 메뉴에서 오늘 날짜와 음력, 공휴일, 일정·할 일을 한눈에 확인해요. 할 일 앞의 원을 누르면 완료 처리됩니다.</span></li><li><b>잠금화면 적용</b><span>설정 → 잠금화면 구성에서 표시 항목, 색상, 글자 크기를 고른 뒤 Android 잠금화면 설정에서 달달 캘린더 라이브 배경화면을 선택해요.</span></li><li><b>백업 저장</b><span>설정 → 내 데이터 백업 → 백업 파일 저장을 누르면 JSON 파일이 기기에 저장돼요. 앱을 바꾸거나 재설치하기 전에 저장해 두세요.</span></li></ol><button className="save-button tutorial-close" type="button" onClick={onClose}>사용 시작하기 <Check size={17} /></button></section></div>;
+}
+
+function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onFamily, onExport, onImport, backupInputRef, onReset, onAddTestData, onOpenTutorial }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void; onAddTestData: () => void; onOpenTutorial: () => void }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetText, setResetText] = useState("");
   const confirmReset = () => {
@@ -1318,7 +1322,7 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
     setResetOpen(false);
     setResetText("");
   };
-  return <div className="settings-view view-stack"><div className="page-title-row"><div><span className="section-eyebrow">SETTINGS</span><h1>설정과 관리</h1><p>자주 쓰는 순서대로 정리해 두었어요.</p></div></div><section className="settings-steps"><button type="button" onClick={() => onCreate("expense")}><span className="settings-step-number">01</span><span><strong>기록 추가</strong><small>일정·할 일·수입·지출·이체를 바로 기록해요.</small></span><Plus size={17} /></button><button type="button" onClick={onManageAssets}><span className="settings-step-number">02</span><span><strong>자산 관리</strong><small>계좌·카드·현금·지역화폐와 초기 잔액을 관리해요.</small></span><WalletCards size={17} /></button><button type="button" onClick={onManageCategories}><span className="settings-step-number">03</span><span><strong>카테고리 관리</strong><small>AI 분류에 사용할 카테고리를 추가하거나 정리해요.</small></span><ListChecks size={17} /></button><button type="button" onClick={onFamily}><span className="settings-step-number">04</span><span><strong>가족 공유</strong><small>신랑과 장부를 공유하고 충돌·백업을 관리해요.</small></span><Users size={17} /></button></section><section className="lockscreen-settings surface-card"><SectionHeading eyebrow="LIVE LOCKSCREEN" title="잠금화면 구성" /><p className="settings-description">잠금화면에 보일 요소를 직접 선택할 수 있어요. 변경하면 잠금화면에 자동으로 반영됩니다.</p><div className="lockscreen-toggle-list">{([
+  return <div className="settings-view view-stack"><div className="page-title-row"><div><span className="section-eyebrow">SETTINGS</span><h1>설정과 관리</h1><p>자주 쓰는 순서대로 정리해 두었어요.</p></div></div><section className="settings-steps"><button type="button" onClick={onOpenTutorial}><span className="settings-step-number">00</span><span><strong>처음 사용 안내</strong><small>등록·백업·잠금화면 설정 순서를 다시 볼 수 있어요.</small></span><Sparkles size={17} /></button><button type="button" onClick={() => onCreate("expense")}><span className="settings-step-number">01</span><span><strong>기록 추가</strong><small>일정·할 일·수입·지출·이체를 바로 기록해요.</small></span><Plus size={17} /></button><button type="button" onClick={onManageAssets}><span className="settings-step-number">02</span><span><strong>자산 관리</strong><small>계좌·카드·현금·지역화폐와 초기 잔액을 관리해요.</small></span><WalletCards size={17} /></button><button type="button" onClick={onManageCategories}><span className="settings-step-number">03</span><span><strong>카테고리 관리</strong><small>AI 분류에 사용할 카테고리를 추가하거나 정리해요.</small></span><ListChecks size={17} /></button><button type="button" onClick={onFamily}><span className="settings-step-number">04</span><span><strong>가족 공유</strong><small>신랑과 장부를 공유하고 충돌·백업을 관리해요.</small></span><Users size={17} /></button></section><section className="lockscreen-settings surface-card"><SectionHeading eyebrow="LIVE LOCKSCREEN" title="잠금화면 구성" /><p className="settings-description">잠금화면에 보일 요소를 직접 선택할 수 있어요. 변경하면 잠금화면에 자동으로 반영됩니다.</p><div className="lockscreen-toggle-list">{([
   ["showCalendar", "월간 달력", "달력과 날짜별 기록 표시"],
   ["showSchedule", "일정", "오늘 일정 표시"],
   ["showTodo", "할 일", "오늘 할 일 표시"],
