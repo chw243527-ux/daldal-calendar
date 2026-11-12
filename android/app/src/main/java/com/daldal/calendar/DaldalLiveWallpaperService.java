@@ -351,16 +351,18 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
                 float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 25;
+                // 휴대폰 폭이 좁거나 큰 글자 설정이어도 날짜 칸 밖으로 넘치지 않게 합니다.
+                float cellTextSize = Math.min(7.6f, Math.max(5.8f, cellWidth * 0.13f));
                 if ("event".equals(type)) {
-                    float eventWidth = Math.min(cellWidth - 4, Math.max(24f, measureCellTextWidth(title, 7.6f) + 8f));
+                    float eventWidth = Math.min(cellWidth - 4, Math.max(24f, measureCellTextWidth(title, cellTextSize) + 8f));
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
                     canvas.drawRoundRect(new RectF(left, top, left + eventWidth, top + 24), 4, 4, paint);
-                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, eventWidth - 6), 7.6f, color, true, 2);
+                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, eventWidth - 6), cellTextSize, color, true, 2);
                 } else {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
                     if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 7, top + 9, 5.2f, paint); drawText(canvas, "✓", left + 4f, top + 11f, 7, Color.WHITE, true); }
                     paint.setStyle(Paint.Style.FILL);
-                    drawWrappedCellText(canvas, title, left + 16, top + 9, Math.max(5.2f, cellWidth - 20), 7.6f, completed ? secondaryTextColor(darkTheme) : color, false, 2);
+                    drawWrappedCellText(canvas, title, left + 16, top + 9, Math.max(5.2f, cellWidth - 20), cellTextSize, completed ? secondaryTextColor(darkTheme) : color, false, 2);
                     if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 16, top + 9, Math.min(right, left + 16 + Math.min(cellWidth - 20, paint.measureText(title))), top + 9, paint); }
                 }
                 shown++;
@@ -384,7 +386,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             for (; index < value.length(); index++) {
                 String candidate = line.toString() + value.charAt(index);
                 if (line.length() > 0 && paint.measureText(candidate) > maxWidth) {
-                    canvas.drawText(line.toString(), x, firstBaseline + lineNumber * 9, paint);
+                    canvas.drawText(line.toString(), x, firstBaseline + lineNumber * Math.max(7f, size + 1.5f), paint);
                     line.setLength(0);
                     line.append(value.charAt(index));
                     lineNumber++;
@@ -395,7 +397,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 String last = line.toString();
                 boolean clipped = index < value.length();
                 while (paint.measureText(last + (clipped ? "…" : "")) > maxWidth && last.length() > 1) last = last.substring(0, last.length() - 1);
-                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * 9, paint);
+                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * Math.max(7f, size + 1.5f), paint);
             }
         }
 
