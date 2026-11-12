@@ -352,18 +352,25 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 if (title.isEmpty()) title = "기록";
                 float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 25;
                 if ("event".equals(type)) {
+                    float eventWidth = Math.min(cellWidth - 4, Math.max(24f, measureCellTextWidth(title, 7.6f) + 8f));
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
-                    canvas.drawRoundRect(new RectF(left, top, right, top + 24), 4, 4, paint);
-                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, cellWidth - 8), 7.6f, color, true, 2);
+                    canvas.drawRoundRect(new RectF(left, top, left + eventWidth, top + 24), 4, 4, paint);
+                    drawWrappedCellText(canvas, title, left + 3, top + 9, Math.max(5.2f, eventWidth - 6), 7.6f, color, true, 2);
                 } else {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
                     if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 7, top + 9, 5.2f, paint); drawText(canvas, "✓", left + 4f, top + 11f, 7, Color.WHITE, true); }
                     paint.setStyle(Paint.Style.FILL);
                     drawWrappedCellText(canvas, title, left + 16, top + 9, Math.max(5.2f, cellWidth - 20), 7.6f, completed ? secondaryTextColor(darkTheme) : color, false, 2);
-                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 16, top + 9, Math.min(right, left + 16 + Math.min(cellWidth - 20, paint.measureText(title))), top + 7, paint); }
+                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); canvas.drawLine(left + 16, top + 9, Math.min(right, left + 16 + Math.min(cellWidth - 20, paint.measureText(title))), top + 9, paint); }
                 }
                 shown++;
             }
+        }
+
+        private float measureCellTextWidth(String value, float size) {
+            paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
+            paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
+            return Math.min(80f, paint.measureText(value));
         }
 
         private void drawWrappedCellText(Canvas canvas, String value, float x, float firstBaseline, float maxWidth, float size, int color, boolean bold, int maxLines) {
