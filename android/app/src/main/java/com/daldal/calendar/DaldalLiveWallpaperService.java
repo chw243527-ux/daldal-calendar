@@ -372,7 +372,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
-                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 25;
+                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 22;
                 // 휴대폰 폭이 좁거나 큰 글자 설정이어도 날짜 칸 밖으로 넘치지 않게 합니다.
                 float cellTextSize = Math.min(7.6f, Math.max(5.8f, cellWidth * 0.13f));
                 if ("event".equals(type)) {
