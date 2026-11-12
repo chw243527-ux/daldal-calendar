@@ -303,22 +303,28 @@ function addMonthsClamped(date: Date, amount: number) {
 
 function getRecurringDates(item: CalendarItem) {
   const start = fromISO(item.date);
-  if (!item.recurrence || item.recurrence === "none") return [start];
+  // 이전 버전에서 반복 주기를 recurrence 대신 다른 이름으로 저장한
+  // 일정도 읽어 매년 반복이 끊기지 않도록 호환합니다.
+  const legacyItem = item as CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string };
+  const recurrence = item.recurrence ?? legacyItem.repeatCycle ?? legacyItem.repeatType ?? legacyItem.recurring ?? "none";
+  if (recurrence === "none") return [start];
   // 종료일이 비어 있으면 없음으로 간주해 장기간 달력을 이동해도 반복 일정을 표시합니다.
-  const fallbackEnd = item.recurrence === "daily" ? addDays(start, 1000) : item.recurrence === "weekly" ? addDays(start, 3640) : item.recurrence === "monthly" ? addMonths(start, 360) : addYears(start, 30);
+  const fallbackEnd = recurrence === "daily" ? addDays(start, 1000) : recurrence === "weekly" ? addDays(start, 3640) : recurrence === "monthly" ? addMonths(start, 360) : addYears(start, 50);
   const storedEnd = item.repeatUntil ? fromISO(item.repeatUntil) : undefined;
-  // 예전 버전에서 종료 없음이 시작일로 저장된 연간 일정은 반복을 계속하도록 복구합니다.
-  const end = storedEnd && storedEnd > start ? storedEnd : fallbackEnd;
+  // 예전 버전에서 종료 없음이 시작일 또는 시작 연도 안의 값으로 저장된
+  // 매년 반복 일정은 이후 연도까지 계속 표시되도록 복구합니다.
+  const legacyYearlyNoEnd = recurrence === "yearly" && storedEnd && storedEnd.getFullYear() === start.getFullYear();
+  const end = storedEnd && storedEnd > start && !legacyYearlyNoEnd ? storedEnd : fallbackEnd;
   if (end < start) return [start];
   const dates: Date[] = [];
   const limit = 1000;
   for (let index = 0; index < limit; index += 1) {
     let date: Date;
-    if (item.recurrence === "daily") date = addDays(start, index);
-    else if (item.recurrence === "weekly") date = addDays(start, index * 7);
-    else if (item.recurrence === "yearly" && item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay, item.lunarLeapMonth) ?? addYears(start, index);
-    else if (item.recurrence === "monthly") date = addMonthsClamped(start, index);
-    else if (item.recurrence === "yearly") date = addYears(start, index);
+    if (recurrence === "daily") date = addDays(start, index);
+    else if (recurrence === "weekly") date = addDays(start, index * 7);
+    else if (recurrence === "yearly" && item.calendarKind === "lunar" && item.lunarMonth && item.lunarDay) date = findLunarDate(start.getFullYear() + index, item.lunarMonth, item.lunarDay, item.lunarLeapMonth) ?? addYears(start, index);
+    else if (recurrence === "monthly") date = addMonthsClamped(start, index);
+    else if (recurrence === "yearly") date = addYears(start, index);
     else date = addYears(start, index);
     if (date > end) break;
     if (date >= start) dates.push(date);
