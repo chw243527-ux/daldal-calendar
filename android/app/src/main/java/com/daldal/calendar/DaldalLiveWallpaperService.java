@@ -237,8 +237,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                         float lunarLeft = cellX + (day >= 10 ? 24f : 18f);
                         drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 7.2f, secondaryTextColor(darkTheme), false);
                     }
-                    // 일정·할 일은 날짜 숫자와 겹치지 않는 선에서 기존보다 확실히 위에서 시작합니다.
-                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 4, cellWidth, showSchedule, showTodo, darkTheme);
+                    // 첫 내역은 날짜·음력 아래의 안전한 위치에 두고, drawCellItems 내부에서 아래 항목 간격만 줄입니다.
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 17, cellWidth, showSchedule, showTodo, darkTheme);
                     canvas.restore();
                 }
             }
