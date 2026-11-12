@@ -256,7 +256,59 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private boolean itemMatchesDate(JSONObject item, String key) {
             String start = item.optString("date", "");
             String end = item.optString("endDate", "");
-            return key.equals(start) || ("event".equals(item.optString("type")) && !end.isEmpty() && start.compareTo(key) <= 0 && key.compareTo(end) <= 0);
+            if (key.equals(start) || ("event".equals(item.optString("type")) && !end.isEmpty() && start.compareTo(key) <= 0 && key.compareTo(end) <= 0)) return true;
+            String recurrence = item.optString("recurrence", "");
+            if (recurrence.isEmpty()) recurrence = item.optString("repeatType", "");
+            if (recurrence.isEmpty() || "none".equals(recurrence) || start.isEmpty() || key.compareTo(start) < 0) return false;
+            if (!recurrenceMatchesDate(start, item.optString("repeatUntil", ""), recurrence, key)) return false;
+            if (!"event".equals(item.optString("type")) || end.isEmpty()) return true;
+            int duration = dayDifference(start, end);
+            Calendar occurrenceEnd = addDays(parseDate(key), Math.max(0, duration));
+            return key.compareTo(formatDate(occurrenceEnd)) <= 0;
+        }
+
+        private boolean recurrenceMatchesDate(String startValue, String untilValue, String recurrence, String key) {
+            Calendar start = parseDate(startValue);
+            Calendar target = parseDate(key);
+            if (start == null || target == null) return false;
+            if (!untilValue.isEmpty() && untilValue.compareTo(key) < 0) {
+                boolean legacyAnnual = "yearly".equals(recurrence)
+                        && untilValue.length() >= 4 && startValue.length() >= 4
+                        && untilValue.substring(0, 4).equals(startValue.substring(0, 4));
+                if (!legacyAnnual) return false;
+            }
+            int days = dayDifference(startValue, key);
+            if ("daily".equals(recurrence)) return days >= 0;
+            if ("weekly".equals(recurrence)) return days >= 0 && days % 7 == 0;
+            if ("monthly".equals(recurrence)) return target.get(Calendar.DAY_OF_MONTH) == start.get(Calendar.DAY_OF_MONTH);
+            if ("yearly".equals(recurrence)) return target.get(Calendar.MONTH) == start.get(Calendar.MONTH) && target.get(Calendar.DAY_OF_MONTH) == start.get(Calendar.DAY_OF_MONTH);
+            return false;
+        }
+
+        private Calendar parseDate(String value) {
+            try {
+                String[] parts = value.split("-");
+                Calendar result = Calendar.getInstance();
+                result.set(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) - 1, Integer.parseInt(parts[2]), 12, 0, 0);
+                result.set(Calendar.MILLISECOND, 0);
+                return result;
+            } catch (Exception ignored) { return null; }
+        }
+
+        private int dayDifference(String earlier, String later) {
+            Calendar first = parseDate(earlier), second = parseDate(later);
+            if (first == null || second == null) return -1;
+            return (int) ((second.getTimeInMillis() - first.getTimeInMillis()) / 86400000L);
+        }
+
+        private Calendar addDays(Calendar source, int amount) {
+            Calendar result = (Calendar) source.clone();
+            result.add(Calendar.DAY_OF_MONTH, amount);
+            return result;
+        }
+
+        private String formatDate(Calendar value) {
+            return String.format(Locale.US, "%04d-%02d-%02d", value.get(Calendar.YEAR), value.get(Calendar.MONTH) + 1, value.get(Calendar.DAY_OF_MONTH));
         }
 
         private boolean isCompletedForDate(JSONObject item, String key) {

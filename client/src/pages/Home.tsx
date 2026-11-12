@@ -915,9 +915,11 @@ export default function Home() {
         const lunar = getLunarMonthDay(date);
         return { date: toISO(date), label: `${lunar.month}.${lunar.day}` };
       })),
-      calendarItems: JSON.stringify(displayItems.map(({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }) => ({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, localCurrencyDiscountRate, localCurrencyTarget, localCurrencyCashbackRate, localCurrencyCashbackAmount }))),
+      // 잠금화면은 앱이 열려 있지 않아도 현재 연·월을 다시 계산해야 하므로
+      // 화면에 펼친 한 달치가 아니라 일정·할 일 원본과 반복 정보를 전달합니다.
+      calendarItems: JSON.stringify(items.filter((item) => item.type === "event" || item.type === "todo").map(({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }) => ({ type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }))),
     });
-  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, displayItems, lockScreenConfig]);
+  }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, items, lockScreenConfig]);
 
   const openCreate = (type: ItemType = "todo", date = selectedDate) => {
     setEditingId(null);
