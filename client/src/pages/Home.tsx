@@ -362,7 +362,9 @@ function getDisplayItems(items: CalendarItem[]) {
     }
     // 결제일·납부일을 기준으로 반복해야 하는 자동이체는 dueDate에서 확장합니다.
     const scheduleBase = ["expense", "loan"].includes(item.type) && item.dueDate ? { ...item, date: item.dueDate } : item;
-    if (scheduleBase.recurrence && scheduleBase.recurrence !== "none") {
+    const legacySchedule = scheduleBase as CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string };
+    const recurrence = scheduleBase.recurrence ?? legacySchedule.repeatCycle ?? legacySchedule.repeatType ?? legacySchedule.recurring ?? "none";
+    if (recurrence !== "none") {
       return getRecurringDates(scheduleBase).map((date, index) => ({ ...scheduleBase, id: `${item.id}-repeat-${index}`, sourceLoanId: item.id, date: toISO(date), completed: item.completedDates ? item.completedDates.includes(toISO(date)) : item.completed, title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title }));
     }
     if (["expense", "loan"].includes(item.type) && item.dueDate && item.dueDate !== item.date) {
