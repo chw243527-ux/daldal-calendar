@@ -241,8 +241,40 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 20, cellWidth, cellHeight, showSchedule, showTodo, darkTheme);
                     canvas.restore();
                 }
+                drawBelowCalendarItems(canvas, entries, year, month, days, gridTop, cellHeight, margin, width, showSchedule, showTodo, darkTheme);
             }
             canvas.restore();
+        }
+
+        private void drawBelowCalendarItems(Canvas canvas, JSONArray entries, int year, int month, int days, float gridTop, float cellHeight, float margin, float width, boolean showSchedule, boolean showTodo, boolean darkTheme) {
+            float listTop = gridTop + 28 + cellHeight * 6 + 10;
+            int row = 0;
+            int datesWithItems = 0;
+            for (int day = 1; day <= days && row < 4; day++) {
+                String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
+                List<JSONObject> items = orderedCalendarItems(entries, key, showSchedule, showTodo);
+                if (items.isEmpty()) continue;
+                StringBuilder line = new StringBuilder(String.format(Locale.KOREA, "%d일  ", day));
+                int itemLimit = Math.min(3, items.size());
+                for (int index = 0; index < itemLimit; index++) {
+                    JSONObject item = items.get(index);
+                    if (index > 0) line.append("  ·  ");
+                    line.append("todo".equals(item.optString("type")) ? "할 일: " : "일정: ");
+                    line.append(item.optString("title", "기록").trim());
+                }
+                if (items.size() > itemLimit) line.append("  +").append(items.size() - itemLimit);
+                drawWrappedCellText(canvas, line.toString(), margin, listTop + row * 12, Math.max(80f, width - margin * 2), 7.2f, secondaryTextColor(darkTheme), false, 1);
+                row++;
+                datesWithItems++;
+            }
+            if (datesWithItems > 0 && row < 4) {
+                int remainingDates = 0;
+                for (int day = 1; day <= days; day++) {
+                    String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
+                    if (!orderedCalendarItems(entries, key, showSchedule, showTodo).isEmpty()) remainingDates++;
+                }
+                if (remainingDates > datesWithItems) drawText(canvas, "+" + (remainingDates - datesWithItems) + "일", margin, listTop + row * 12, 7.2f, secondaryTextColor(darkTheme), false);
+            }
         }
 
         private void drawLockScreenClock(Canvas canvas, float right, int height, int primaryColor, int secondaryColor) {
