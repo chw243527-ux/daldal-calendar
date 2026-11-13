@@ -355,8 +355,23 @@ function getRecurringDates(item: CalendarItem) {
 
 function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
   if (item.type !== "loan" || !item.loanPrincipal || item.interestRate === undefined || !item.repaymentDate || !item.termMonths) return [];
-  if (item.repaymentMethod === "lumpSum") return [];
   const principal = item.loanPrincipal;
+  if (item.repaymentMethod === "lumpSum") {
+    const monthlyRate = item.interestRate / 100 / 12;
+    const intervalMonths = item.recurrence === "quarterly" ? 3 : 1;
+    const repaymentMonths = item.termMonths;
+    const repaymentDate = item.repaymentDate;
+    const periods = Math.ceil(repaymentMonths / intervalMonths);
+    return Array.from({ length: periods }, (_, index) => {
+      const elapsedMonths = index * intervalMonths;
+      const monthsInPeriod = Math.min(intervalMonths, Math.max(1, repaymentMonths - elapsedMonths));
+      const interest = Math.round(principal * (((1 + monthlyRate) ** monthsInPeriod) - 1));
+      const isFinal = index === periods - 1;
+      const amount = isFinal ? principal + interest : index === 0 && item.amount ? item.amount : interest;
+      const date = toISO(addMonthsClamped(fromISO(repaymentDate), elapsedMonths));
+      return { ...item, id: `${item.id}-schedule-${index + 1}`, sourceLoanId: item.id, title: `${item.title} · ${isFinal ? "만기 원금 일시상환" : "이자 납부"}`, date, dueDate: date, amount, paymentNumber: index + 1, principalPaid: isFinal ? principal : 0, interestPaid: index === 0 && item.amount ? Math.max(0, amount - (isFinal ? principal : 0)) : interest, remainingBalance: isFinal ? 0 : principal };
+    });
+  }
   const monthlyRate = item.interestRate / 100 / 12;
   const graceMonths = Math.max(0, item.gracePeriod ?? 0);
   const repaymentMonths = Math.max(1, item.termMonths);
