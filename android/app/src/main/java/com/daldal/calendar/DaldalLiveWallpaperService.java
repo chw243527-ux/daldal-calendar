@@ -638,7 +638,6 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         }
 
         private String compactWon(int value) {
-            if (Math.abs(value) >= 10000) return NumberFormat.getNumberInstance(Locale.KOREA).format(value / 10000) + "만";
             return NumberFormat.getNumberInstance(Locale.KOREA).format(value);
         }
 

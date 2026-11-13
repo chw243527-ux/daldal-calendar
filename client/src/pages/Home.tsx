@@ -557,10 +557,7 @@ function getFinanceColor(item: CalendarItem) {
   return item.autopay ? "#D49A18" : typeMeta[item.type].color;
 }
 function formatCompact(value = 0) {
-  const abs = Math.abs(value);
-  if (abs >= 100000000) return `${value < 0 ? "−" : ""}${(abs / 100000000).toFixed(1).replace(".0", "")}억`;
-  if (abs >= 10000) return `${value < 0 ? "−" : ""}${(abs / 10000).toFixed(1).replace(".0", "")}만`;
-  return `${value < 0 ? "−" : ""}${new Intl.NumberFormat("ko-KR").format(abs)}`;
+  return new Intl.NumberFormat("ko-KR").format(Math.round(value));
 }
 
 function formatLongDate(value: string) {
