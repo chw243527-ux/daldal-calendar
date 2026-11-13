@@ -238,7 +238,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                         drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 7.2f, secondaryTextColor(darkTheme), false);
                     }
                     // 첫 내역은 날짜·음력 아래에 충분한 여백을 두고, drawCellItems 내부에서 아래 항목 간격만 줄입니다.
-                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, cellHeight, showSchedule, showTodo, darkTheme);
+                    drawCellItems(canvas, entries, year, month, day, cellX, cellY + 31, cellWidth, showSchedule, showTodo, darkTheme);
                     canvas.restore();
                 }
             }
@@ -361,19 +361,18 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
         }
 
-        private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, float cellHeight, boolean showSchedule, boolean showTodo, boolean darkTheme) {
+        private void drawCellItems(Canvas canvas, JSONArray entries, int year, int month, int day, float cellX, float y, float cellWidth, boolean showSchedule, boolean showTodo, boolean darkTheme) {
             String key = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day);
             int shown = 0;
             List<JSONObject> visibleItems = orderedCalendarItems(entries, key, showSchedule, showTodo);
-            float itemStep = visibleItems.size() >= 4 ? Math.min(18f, Math.max(11f, (cellHeight - 31f) / 4f)) : 18f;
             for (JSONObject item : visibleItems) {
-                if (shown >= 4) break;
+                if (shown >= 3) break;
                 String type = item.optString("type");
                 int color = itemColor(type, item.optString("accentColor", ""));
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
-                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * itemStep;
+                float left = cellX + 2, right = cellX + cellWidth - 2, top = y + shown * 18;
                 // 휴대폰 폭이 좁거나 큰 글자 설정이어도 날짜 칸 밖으로 넘치지 않게 합니다.
                 float cellTextSize = Math.min(7.6f, Math.max(5.8f, cellWidth * 0.13f));
                 if ("event".equals(type)) {
@@ -382,8 +381,8 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     float measuredTitleWidth = measureCellTextWidth(title, cellTextSize);
                     float eventWidth = rangedEvent ? cellWidth : Math.min(cellWidth - 4, Math.max(24f, measuredTitleWidth + 8f));
                     boolean showTitle = !rangedEvent || "start".equals(rangePosition);
-                    boolean wraps = showTitle && itemStep >= 18f && measuredTitleWidth > eventWidth - 6f;
-                    float eventHeight = Math.min(itemStep, wraps ? 24f : 18f);
+                    boolean wraps = showTitle && measuredTitleWidth > eventWidth - 6f;
+                    float eventHeight = wraps ? 24f : 18f;
                     paint.setColor(blend(color, Color.rgb(249, 246, 242), .72f));
                     float barLeft = rangedEvent ? cellX : left;
                     float barRight = rangedEvent ? cellX + cellWidth : left + eventWidth;
