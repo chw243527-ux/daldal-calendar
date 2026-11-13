@@ -860,3 +860,11 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .loan-overview-values small { margin-top: 4px; white-space: nowrap; }
 .loan-overview-row > svg { color: #83a492; }
 @media (max-width: 420px) { .loan-overview-row { grid-template-columns: 8px minmax(0, 1fr) auto 13px; gap: 6px; padding-inline: 8px; } .loan-overview-values b { font-size: 11px; } }
+/* 월 예산 전용 등록 시트 */
+.budget-manager-sheet { max-width: 560px; }
+.budget-manager-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.budget-manager-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.budget-manager-section > strong { display: block; margin-bottom: 12px; color: var(--ink); }
+.budget-manager-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.budget-manager-tip { display: flex; gap: 8px; align-items: flex-start; margin: 18px 0; padding: 12px 14px; border-radius: 14px; background: #f3eefb; color: #71658f; font-size: 12px; line-height: 1.5; }
+@media (max-width: 520px) { .budget-manager-fields, .budget-manager-category-grid { grid-template-columns: 1fr; } }
