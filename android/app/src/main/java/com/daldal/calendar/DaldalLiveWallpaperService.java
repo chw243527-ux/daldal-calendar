@@ -564,9 +564,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if (accentColor != null && accentColor.startsWith("#")) { try { return Color.parseColor(accentColor); } catch (Exception ignored) {} }
             if ("todo".equals(type)) return Color.rgb(111, 99, 182);
             if ("event".equals(type)) return Color.rgb(232, 130, 114);
-            if ("income".equals(type)) return Color.rgb(76, 157, 131);
-            if ("loan".equals(type)) return Color.rgb(184, 137, 77);
-            return Color.rgb(216, 117, 104);
+            if ("income".equals(type)) return Color.rgb(36, 116, 198);
+            if ("loan".equals(type)) return Color.rgb(31, 122, 77);
+            return Color.rgb(180, 35, 24);
         }
 
         private boolean isOutgoingCategory(String category) {
