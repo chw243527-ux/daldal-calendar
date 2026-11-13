@@ -932,7 +932,7 @@ export default function Home() {
           cloudSignatureRef.current = cloudPayloadJson;
         }
       } });
-    }, 700);
+    }, 150);
     return () => window.clearTimeout(timer);
   }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, isOnline, items, loadedStorageScope]);
 
@@ -959,7 +959,7 @@ export default function Home() {
         if (result.conflict) setConflictState({ version: result.version, remoteRecords: result.records as CalendarItem[] });
         else lastSyncedRecords.current = signature;
       } });
-    }, 700);
+    }, 150);
     return () => window.clearTimeout(timer);
   }, [items, isLoaded, familyQuery.data, familySync.isPending, conflictState]);
 
@@ -1238,7 +1238,7 @@ export default function Home() {
 
   const setViewAndScroll = (nextView: View) => {
     setView(nextView);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
   const goToTodayCalendar = () => {
     setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -1396,6 +1396,7 @@ export default function Home() {
 
       <main className="page-content">
         {shareGuestMode && <div className="share-guest-banner"><Share2 size={14} /><span>공유용 빈 화면입니다. 기존 사용자의 로그인·내역은 포함되지 않았어요.</span></div>}
+        <div key={view} className="route-transition">
         {view === "home" && (
           <HomeView
             clock={clock}
@@ -1448,6 +1449,7 @@ export default function Home() {
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} onCreate={(type) => openCreate(type, toISO(month))} onOpenBudgetManager={() => setBudgetManagerOpen(true)} />}
         {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} onOpenTutorial={() => setTutorialOpen(true)} />}
+        </div>
       </main>
 
       <button className="record-button" type="button" onClick={() => openCreate("todo")}>

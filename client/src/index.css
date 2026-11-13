@@ -868,3 +868,10 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .budget-manager-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .budget-manager-tip { display: flex; gap: 8px; align-items: flex-start; margin: 18px 0; padding: 12px 14px; border-radius: 14px; background: #f3eefb; color: #71658f; font-size: 12px; line-height: 1.5; }
 @media (max-width: 520px) { .budget-manager-fields, .budget-manager-category-grid { grid-template-columns: 1fr; } }
+
+/* 저장 후 즉시 반영하고, 탭 전환은 짧고 끊김 없이 표시 */
+.route-transition { min-height: 1px; animation: route-enter .16s ease-out both; will-change: opacity, transform; }
+@keyframes route-enter { from { opacity: .72; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .route-transition, .view-stack { animation: none !important; }
+}
