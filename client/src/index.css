@@ -839,3 +839,24 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .home-calendar-grid .event-chip.event-range-end { border-radius: 0 8px 8px 0; }
 .calendar-view .event-chip.event-range-single,
 .home-calendar-grid .event-chip.event-range-single { border-radius: 8px; }
+
+/* 전체 대출 현황: 잔액·이율·다음 상환을 한눈에 확인 */
+.loan-overview-panel { border-color: #dcebe2; background: linear-gradient(145deg, #fbfffc, #f1f8f3); }
+.loan-overview-head { display: flex; align-items: center; justify-content: space-between; color: #1f7a4d; }
+.loan-overview-head strong { display: block; margin-top: 4px; color: #2f3d35; font-size: 18px; }
+.loan-overview-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0 12px; }
+.loan-overview-summary > div { padding: 12px; border-radius: 14px; background: rgba(255,255,255,.75); }
+.loan-overview-summary span, .loan-overview-values small { display: block; color: #789084; font-size: 10px; font-weight: 700; }
+.loan-overview-summary strong { display: block; margin-top: 4px; color: #1f7a4d; font-size: 16px; }
+.loan-overview-list { display: grid; gap: 7px; }
+.loan-overview-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 15px; align-items: center; gap: 9px; width: 100%; padding: 11px 10px; border: 1px solid #e0eee4; border-radius: 13px; background: rgba(255,255,255,.86); text-align: left; }
+.loan-overview-row:active { transform: scale(.99); }
+.loan-overview-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f7a4d; }
+.loan-overview-copy, .loan-overview-values { min-width: 0; }
+.loan-overview-copy strong { display: block; overflow: hidden; color: #34463a; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.loan-overview-copy small { display: block; margin-top: 4px; overflow: hidden; color: #789084; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.loan-overview-values { text-align: right; }
+.loan-overview-values b { display: block; color: #1f7a4d; font-size: 12px; }
+.loan-overview-values small { margin-top: 4px; white-space: nowrap; }
+.loan-overview-row > svg { color: #83a492; }
+@media (max-width: 420px) { .loan-overview-row { grid-template-columns: 8px minmax(0, 1fr) auto 13px; gap: 6px; padding-inline: 8px; } .loan-overview-values b { font-size: 11px; } }
