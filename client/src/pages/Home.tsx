@@ -358,9 +358,12 @@ function calculateLoanSchedule(item: CalendarItem): CalendarItem[] {
     const isGrace = index <= graceMonths;
     const interest = Math.round(balance * monthlyRate);
     const principalPaid = isGrace ? 0 : Math.min(balance, index === graceMonths + repaymentMonths ? balance : Math.round(item.repaymentMethod === "equalPrincipal" ? principal / repaymentMonths : fixedPayment - interest));
-    const amount = interest + principalPaid;
+    // 은행 명세서의 첫 실제 출금액이 입력되어 있으면 계산값보다 우선합니다.
+    // 일수 계산·기준일·원 단위 절사 때문에 앱의 단순 월이율 계산과 실제 금액이 다를 수 있습니다.
+    const amount = index === 1 && item.amount ? item.amount : interest + principalPaid;
+    const recordedInterest = index === 1 && item.amount ? Math.max(0, amount - principalPaid) : interest;
     balance = Math.max(0, balance - principalPaid);
-    schedule.push({ ...item, id: `${item.id}-schedule-${index}`, sourceLoanId: item.id, title: isGrace ? `${item.title} · 거치 ${index}회차` : `${item.title} · ${index - graceMonths}회차`, date: toISO(addMonthsClamped(fromISO(item.repaymentDate), index - 1)), amount, note: `${isGrace ? "거치기간 이자" : item.repaymentMethod === "equalPrincipal" ? "원금균등 상환" : "원리금균등 상환"} · 원금 ${formatWon(principalPaid)} · 이자 ${formatWon(interest)} · 잔액 ${formatWon(balance)}`, paymentNumber: index, principalPaid, interestPaid: interest, remainingBalance: balance });
+    schedule.push({ ...item, id: `${item.id}-schedule-${index}`, sourceLoanId: item.id, title: isGrace ? `${item.title} · 거치 ${index}회차` : `${item.title} · ${index - graceMonths}회차`, date: toISO(addMonthsClamped(fromISO(item.repaymentDate), index - 1)), amount, note: `${isGrace ? "거치기간 이자" : item.repaymentMethod === "equalPrincipal" ? "원금균등 상환" : "원리금균등 상환"} · 원금 ${formatWon(principalPaid)} · 이자 ${formatWon(recordedInterest)} · 잔액 ${formatWon(balance)}`, paymentNumber: index, principalPaid, interestPaid: recordedInterest, remainingBalance: balance });
   }
   return schedule;
 }
