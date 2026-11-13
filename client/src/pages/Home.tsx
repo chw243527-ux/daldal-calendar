@@ -952,7 +952,8 @@ export default function Home() {
   };
 
   const openEdit = (item: CalendarItem) => {
-    const sourceItem = item.sourceLoanId ? items.find((candidate) => candidate.id === item.sourceLoanId) ?? item : item;
+    const generatedSourceId = item.sourceLoanId ?? item.id.split("-repeat-")[0].split("-due")[0];
+    const sourceItem = items.find((candidate) => candidate.id === generatedSourceId) ?? item;
     setEditingId(sourceItem.id);
     setDraft({
       type: sourceItem.type,
@@ -1064,7 +1065,11 @@ export default function Home() {
       paymentStatus: ["expense", "loan"].includes(draft.type) && draft.dueDate ? draft.paymentStatus : undefined,
     };
 
-    setItems((current) => editingId ? current.map((item) => item.id === editingId ? nextItem : item) : [...current, nextItem]);
+    setItems((current) => {
+      if (!editingId) return [...current, nextItem];
+      const exists = current.some((item) => item.id === editingId);
+      return exists ? current.map((item) => item.id === editingId ? nextItem : item) : [...current, nextItem];
+    });
     setSelectedDate(draft.date);
     const nextMonth = new Date(`${draft.date}T12:00:00`);
     nextMonth.setDate(1);
