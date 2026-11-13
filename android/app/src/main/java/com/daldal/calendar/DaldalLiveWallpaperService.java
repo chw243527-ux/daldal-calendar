@@ -315,6 +315,12 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 int expectedDay = Math.min(start.get(Calendar.DAY_OF_MONTH), target.getActualMaximum(Calendar.DAY_OF_MONTH));
                 return target.get(Calendar.DAY_OF_MONTH) == expectedDay;
             }
+            if ("quarterly".equals(recurrence)) {
+                int monthDelta = (target.get(Calendar.YEAR) - start.get(Calendar.YEAR)) * 12
+                        + target.get(Calendar.MONTH) - start.get(Calendar.MONTH);
+                int expectedDay = Math.min(start.get(Calendar.DAY_OF_MONTH), target.getActualMaximum(Calendar.DAY_OF_MONTH));
+                return monthDelta >= 0 && monthDelta % 3 == 0 && target.get(Calendar.DAY_OF_MONTH) == expectedDay;
+            }
             if ("yearly".equals(recurrence)) {
                 int expectedDay = Math.min(start.get(Calendar.DAY_OF_MONTH), target.getActualMaximum(Calendar.DAY_OF_MONTH));
                 return target.get(Calendar.MONTH) == start.get(Calendar.MONTH) && target.get(Calendar.DAY_OF_MONTH) == expectedDay;
