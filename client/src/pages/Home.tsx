@@ -226,7 +226,7 @@ const categories: Record<ItemType, string[]> = {
   savings: ["적금", "목돈", "여행", "주택"],
   transfer: ["계좌 이체", "현금 이체", "자산 이동"],
 };
-const CARD_COMPANIES = ["신한카드", "삼성카드", "현대카드", "KB국민카드", "롯데카드", "우리카드", "하나카드", "NH농협카드", "카카오뱅크"];
+const CARD_COMPANIES = ["신한카드", "삼성카드", "현대카드", "KB국민카드", "롯데카드", "우리카드", "하나카드", "NH농협카드", "카카오뱅크", "토스뱅크", "케이뱅크", "IBK기업은행", "새마을금고", "우체국", "수협은행", "부산은행", "경남은행", "광주은행", "전북은행", "제주은행"];
 const ASSET_KINDS = [{ value: "account", label: "계좌" }, { value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "savings", label: "적금" }, { value: "loan", label: "대출" }, { value: "localCurrency", label: "지역화폐" }, { value: "stock", label: "주식" }, { value: "crypto", label: "코인" }, { value: "other", label: "기타" }] as const;
 const PAYMENT_METHODS = [{ value: "card", label: "카드" }, { value: "cash", label: "현금" }, { value: "account", label: "계좌이체" }, { value: "localCurrency", label: "지역화폐" }, { value: "other", label: "기타" }] as const;
 const CARD_BENEFITS: Record<string, { threshold: number; cap: number; categories: string[] }> = {
