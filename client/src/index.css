@@ -875,3 +875,17 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .route-transition, .view-stack { animation: none !important; }
 }
+
+/* 보유 자산과 대출 부채를 시각적으로 분리 */
+.asset-liability-section { margin-top: 18px; padding: 15px; border: 1px solid #dcebe3; border-radius: 14px; background: #f7fcf8; }
+.asset-liability-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.asset-liability-heading > div { display: grid; gap: 4px; }
+.asset-liability-heading strong { color: #246f57; font-size: 14px; }
+.asset-liability-heading > b { color: #246f57; font-size: 16px; }
+.asset-liability-list { display: grid; gap: 8px; margin-top: 12px; }
+.asset-liability-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border: 1px solid #e1eee6; border-radius: 11px; background: rgba(255,255,255,.72); }
+.asset-liability-row > div { min-width: 0; }
+.asset-liability-row strong, .asset-liability-row small { display: block; overflow-wrap: anywhere; }
+.asset-liability-row strong { color: #365b4d; font-size: 12px; }
+.asset-liability-row small { margin-top: 3px; color: #87998f; font-size: 10px; }
+.asset-liability-row > b { flex: 0 0 auto; color: #246f57; font-size: 13px; }
