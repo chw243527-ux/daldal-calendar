@@ -889,3 +889,21 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .asset-liability-row strong { color: #365b4d; font-size: 12px; }
 .asset-liability-row small { margin-top: 3px; color: #87998f; font-size: 10px; }
 .asset-liability-row > b { flex: 0 0 auto; color: #246f57; font-size: 13px; }
+
+/* 자산 화면 요약: 보유 자산과 대출 부채를 첫 화면에서 즉시 구분 */
+.asset-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 16px 0 18px; }
+.asset-overview-card { min-width: 0; display: grid; gap: 5px; padding: 13px 12px; border: 1px solid; border-radius: 14px; }
+.asset-overview-card span { font-size: 10px; font-weight: 800; }
+.asset-overview-card strong { overflow: hidden; font-size: clamp(14px, 3.8vw, 19px); letter-spacing: -.06em; text-overflow: ellipsis; white-space: nowrap; }
+.asset-overview-card small { overflow: hidden; color: #8c817c; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.asset-overview-card.owned { border-color: #f0d8d1; background: #fff8f5; }
+.asset-overview-card.owned span, .asset-overview-card.owned strong { color: #bb665a; }
+.asset-overview-card.liability { border-color: #d6e9de; background: #f4fbf6; }
+.asset-overview-card.liability span, .asset-overview-card.liability strong { color: #257451; }
+.asset-overview-card.net { border-color: #d8d0ea; background: #faf8ff; }
+.asset-overview-card.net span, .asset-overview-card.net strong { color: #70639a; }
+.asset-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 8px; padding-top: 4px; border-top: 1px solid var(--line); }
+.asset-section-heading > div { display: grid; gap: 3px; }
+.asset-section-heading strong { color: var(--ink); font-size: 14px; }
+.asset-section-heading > span { color: #a39892; font-size: 10px; font-weight: 800; }
+@media (max-width: 430px) { .asset-overview-grid { gap: 6px; }.asset-overview-card { padding: 11px 8px; }.asset-overview-card strong { font-size: 13px; }.asset-overview-card small { font-size: 8px; } }
