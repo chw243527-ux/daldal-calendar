@@ -1049,3 +1049,23 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .loan-quick-presets button { padding: 7px 9px; border: 1px solid #eadbd4; border-radius: 9px; background: #fff9f6; color: #8b655b; font-size: 10px; font-weight: 750; }
 .insurance-block .detail-block-title { color: #397b68; }
 .app-theme-night .loan-quick-presets button { border-color: #5e5261; background: #443c49; color: #ead7df; }
+
+/* 대출·보험 납부 캘린더 */
+.calendar-mode-switch { display: flex; gap: 8px; padding: 4px; border: 1px solid #eaded8; border-radius: 14px; background: #fffaf7; }
+.calendar-mode-switch button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: #9b8c87; font-size: 12px; font-weight: 800; }
+.calendar-mode-switch button.active { background: #fff; color: #c96f64; box-shadow: 0 3px 12px rgba(116,80,67,.1); }
+.payment-calendar-summary { padding: 18px; background: linear-gradient(135deg,#fffaf5,#f5f2ed); }
+.payment-summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.payment-summary-head h3 { margin: 3px 0 4px; font-size: 20px; color: #393238; }
+.payment-summary-head p { margin: 0; color: #9b8c87; font-size: 11px; }
+.payment-summary-head > strong { color: #4b4447; font-size: 20px; white-space: nowrap; }
+.payment-summary-stats, .payment-calendar-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 15px; color: #756b68; font-size: 11px; font-weight: 750; }
+.payment-summary-stats span { display: inline-flex; align-items: center; gap: 5px; }
+.payment-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.payment-dot.loan { background: #1f7a4d; }.payment-dot.insurance { background: #d49a18; }
+.payment-calendar-cell { align-items: stretch; }
+.payment-day-items { display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 5px; }
+.payment-chip { display: block; overflow: hidden; padding: 4px 3px; border-radius: 6px; text-align: left; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; font-weight: 750; }
+.payment-chip.loan { background: #e8f5ee; color: #1f7a4d; }.payment-chip.insurance { background: #fff3d6; color: #a27100; }
+.payment-chip b { font-size: 8px; }.payment-more { color: #9b8c87; font-size: 9px; font-weight: 800; }
+@media (max-width: 600px) { .payment-summary-head h3 { font-size: 18px; }.payment-summary-head > strong { font-size: 16px; }.payment-chip { font-size: 7px; }.payment-chip b { font-size: 7px; } }
