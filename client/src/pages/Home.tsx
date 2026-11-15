@@ -754,10 +754,12 @@ function CalendarItemRow({
   item,
   onToggle,
   onEdit,
+  onDelete,
 }: {
   item: CalendarItem;
   onToggle: (item: CalendarItem) => void;
   onEdit: (item: CalendarItem) => void;
+  onDelete: (item: CalendarItem) => void;
 }) {
   const meta = typeMeta[item.type];
   const Icon = meta.icon;
@@ -789,6 +791,7 @@ function CalendarItemRow({
           {item.completed && <Check size={13} strokeWidth={3} />}
         </span>
       )}
+      <span className="row-actions" aria-label="기록 관리"><span className="row-action edit" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); onEdit(item); }} onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); onEdit(item); } }}>수정</span><span className="row-action delete" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); onDelete(item); }} onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); onDelete(item); } }}>삭제</span></span>
       <ChevronRight className="row-arrow" size={16} />
     </button>
   );
@@ -1348,6 +1351,12 @@ export default function Home() {
     setComposerOpen(false);
   };
 
+  const deleteRecord = (item: CalendarItem) => {
+    const sourceId = item.sourceLoanId ?? item.id;
+    if (!window.confirm(`“${item.title}” 기록을 삭제할까요?`)) return;
+    setItems((current) => current.filter((entry) => entry.id !== sourceId));
+  };
+
   const toggleTodo = (item: CalendarItem) => {
     const sourceId = item.sourceLoanId ?? item.id;
     const legacyItem = item as CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string };
@@ -1576,6 +1585,7 @@ export default function Home() {
             monthSummary={monthSummary}
             onCreate={openCreate}
             onEdit={openEdit}
+            onDelete={deleteRecord}
             onToggle={toggleTodo}
             onGoCalendar={goToTodayCalendar}
             formatLongDate={formatLongDate}
@@ -1591,6 +1601,7 @@ export default function Home() {
             onSelectDate={setSelectedDate}
             onCreate={openCreate}
             onEdit={openEdit}
+            onDelete={deleteRecord}
             onToggle={toggleTodo}
             monthSummary={monthSummary}
             onGenerateWallpaper={generateWallpaper}
@@ -1723,6 +1734,7 @@ function HomeView({
   monthSummary,
   onCreate,
   onEdit,
+  onDelete,
   onToggle,
   onGoCalendar,
   formatLongDate,
@@ -1739,6 +1751,7 @@ function HomeView({
   monthSummary: { income: number; expense: number; loan: number; balance: number };
   onCreate: (type?: ItemType, date?: string) => void;
   onEdit: (item: CalendarItem) => void;
+  onDelete: (item: CalendarItem) => void;
   onToggle: (item: CalendarItem) => void;
   onGoCalendar: () => void;
   formatLongDate: (value: string) => string;
@@ -1774,8 +1787,8 @@ function HomeView({
       <section className="home-category-section">
         <div className="home-category-heading"><span className="section-eyebrow">TODAY</span><h2>오늘의 항목</h2></div>
         <div className="home-category-grid">
-          <div className="surface-card today-list-card"><SectionHeading eyebrow="SCHEDULE · TODO" title="일정 · 할 일" action={<button className="mini-add" type="button" onClick={() => onCreate("todo", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{[...todayEvents, ...todayTodos].length ? [...todayEvents, ...todayTodos].map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="오늘 일정과 할 일을 추가해요" onClick={() => onCreate("todo", todayISO)} />}</div></div>
-          <div className="surface-card today-list-card finance-today-card"><SectionHeading eyebrow="MONEY" title="수입 · 지출 · 대출" action={<button className="mini-add" type="button" onClick={() => onCreate("expense", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{homeFinanceItems.length ? homeFinanceItems.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="오늘 금융 기록을 추가해요" onClick={() => onCreate("expense", todayISO)} />}</div></div>
+          <div className="surface-card today-list-card"><SectionHeading eyebrow="SCHEDULE · TODO" title="일정 · 할 일" action={<button className="mini-add" type="button" onClick={() => onCreate("todo", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{[...todayEvents, ...todayTodos].length ? [...todayEvents, ...todayTodos].map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />) : <EmptyState label="오늘 일정과 할 일을 추가해요" onClick={() => onCreate("todo", todayISO)} />}</div></div>
+          <div className="surface-card today-list-card finance-today-card"><SectionHeading eyebrow="MONEY" title="수입 · 지출 · 대출" action={<button className="mini-add" type="button" onClick={() => onCreate("expense", todayISO)}><Plus size={15} /></button>} /><div className="list-stack">{homeFinanceItems.length ? homeFinanceItems.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />) : <EmptyState label="오늘 금융 기록을 추가해요" onClick={() => onCreate("expense", todayISO)} />}</div></div>
         </div>
       </section>
 
@@ -1818,6 +1831,7 @@ function CalendarView({
   onSelectDate,
   onCreate,
   onEdit,
+  onDelete,
   onToggle,
   monthSummary,
   onGenerateWallpaper,
@@ -1832,6 +1846,7 @@ function CalendarView({
   onSelectDate: (date: string) => void;
   onCreate: (type?: ItemType, date?: string) => void;
   onEdit: (item: CalendarItem) => void;
+  onDelete: (item: CalendarItem) => void;
   onToggle: (item: CalendarItem) => void;
   monthSummary: { income: number; expense: number; loan: number; balance: number };
   onGenerateWallpaper: () => void;
@@ -1873,7 +1888,7 @@ function CalendarView({
       <section className="selected-day-section">
         <SectionHeading eyebrow="SELECTED DAY" title={formatLongDate(selectedDate)} action={<button className="icon-link" type="button" onClick={() => onCreate("todo", selectedDate)}>+ 추가</button>} />
         <div className="selected-items surface-card">
-          {selectedItems.length ? selectedItems.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} />) : <EmptyState label="이 날에는 아직 기록이 없어요." onClick={() => onCreate("todo", selectedDate)} />}
+          {selectedItems.length ? selectedItems.map((item) => <CalendarItemRow key={item.id} item={item} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />) : <EmptyState label="이 날에는 아직 기록이 없어요." onClick={() => onCreate("todo", selectedDate)} />}
         </div>
       </section>
       <div className="calendar-legend"><span><i className="legend-dot todo-dot" />할 일</span><span><i className="legend-dot event-dot" />일정</span><span><i className="legend-dot expense-dot" />지출</span><span><i className="legend-dot income-dot" />수입</span></div>

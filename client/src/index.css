@@ -1032,3 +1032,13 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .app-theme-night .easy-guide-mascot strong, .app-theme-night .easy-guide-character-ideas > strong { color: #fff0e9; }
 .app-theme-night .easy-guide-mascot p, .app-theme-night .easy-guide-character-ideas small { color: #d4bdc1; }
 .app-theme-night .easy-guide-character-ideas { border-color: #6b5960; background: rgba(69, 59, 72, .8); }
+
+/* 기록 카드에서 바로 수정·삭제 */
+.row-actions { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.row-action { padding: 5px 6px; border-radius: 7px; color: #9a8b85; font-size: 9px; font-weight: 800; line-height: 1; }
+.row-action.edit { background: #fff0eb; color: #bd6c5e; }
+.row-action.delete { background: #f8f3f1; color: #9c8178; }
+.row-action:focus-visible { outline: 2px solid var(--coral); outline-offset: 1px; }
+.row-action.delete:hover { background: #fbe4e0; color: #ae574d; }
+.app-theme-night .row-action.edit { background: #4a3d46; color: #f3b1a4; }
+.app-theme-night .row-action.delete { background: #49424c; color: #d2c1c8; }
