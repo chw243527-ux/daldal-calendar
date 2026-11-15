@@ -1764,13 +1764,15 @@ function CalendarView({
             const isToday = iso === toISO(new Date());
             const holidayName = getKoreanHolidayName(date);
             const finances = dayItems.filter((item) => ["income", "expense", "loan"].includes(item.type) && !isAccountTransfer(item));
+            const dayIncome = finances.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+            const dayOutgoing = finances.filter((item) => ["expense", "loan"].includes(item.type)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
             const allChips = sortCalendarChips(dayItems.filter((item) => item.type === "todo" || item.type === "event"));
             const chips = allChips.slice(0, 3)
             return (
               <button className={`calendar-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`} key={iso} type="button" onClick={() => onSelectDate(iso)}>
                 <span className={`calendar-date-line ${holidayName ? "is-holiday" : ""}`} title={holidayName}><span className="calendar-day-number">{date.getDate()}</span><span className="calendar-lunar-date">{formatLunarDate(date)}</span></span>
                 <span className="calendar-chips">{chips.map((item) => { const rangePosition = getRangePosition(item, iso); return <span className={`calendar-chip ${item.type === "todo" ? "todo-chip" : "event-chip"} ${item.type === "event" ? `event-range-${rangePosition}` : ""} ${item.completed ? "is-complete" : ""}`} style={getCalendarChipStyle(item)} key={item.id} role={item.type === "todo" ? "checkbox" : undefined} aria-checked={item.type === "todo" ? item.completed : undefined} title={rangePosition === "start" || rangePosition === "single" ? item.title : undefined} onClick={(event) => { if (item.type === "todo") { event.stopPropagation(); onToggle(item); } }}>{item.type === "todo" && <span className="todo-calendar-check" aria-hidden="true" />}{item.type === "todo" || rangePosition === "start" || rangePosition === "single" ? item.title : ""}</span>; })}{allChips.length > chips.length && <span className="calendar-more">+{allChips.length - chips.length}</span>}</span>
-                {finances.length > 0 && <span className={`calendar-money ${finances.some((item) => item.type === "income") ? "has-income" : ""}`}>{finances.some((item) => item.type === "income") ? "+" : "−"}{formatCompact(finances.reduce((sum, item) => sum + (item.amount ?? 0), 0))}</span>}
+                {finances.length > 0 && <span className={`calendar-money ${dayIncome > 0 ? "has-income" : ""}`} title={`수입 ${formatWon(dayIncome)} · 지출·대출 ${formatWon(dayOutgoing)}`}>{dayIncome > 0 ? `+${formatCompact(dayIncome)}` : `−${formatCompact(dayOutgoing)}`}{dayIncome > 0 && dayOutgoing > 0 ? ` · −${formatCompact(dayOutgoing)}` : ""}</span>}
               </button>
             );
           })}
