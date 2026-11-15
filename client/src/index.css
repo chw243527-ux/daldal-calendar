@@ -1200,3 +1200,17 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
   background-color: color-mix(in srgb, var(--event-color, #c96f62) 42%, #fbf7f1) !important;
   color: var(--event-color, #c96f62) !important;
 }
+
+/* 보험 관리 패널 */
+.insurance-manager-panel { padding: 20px; margin: 8px 0 4px; }
+.insurance-manager-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.insurance-manager-summary div { padding: 12px; border-radius: 16px; background: #fff4ed; }
+.insurance-manager-summary span, .insurance-manager-row small { display: block; color: var(--muted, #8f8984); font-size: 12px; }
+.insurance-manager-summary strong { display: block; margin-top: 5px; color: var(--ink, #302c32); font-size: 18px; }
+.insurance-manager-list { display: grid; gap: 8px; }
+.insurance-manager-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 4px; border: 0; border-top: 1px solid #eee6df; background: transparent; text-align: left; color: inherit; }
+.insurance-manager-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 13px; background: #e8f4ed; color: #3d8a70; }
+.insurance-manager-copy { min-width: 0; flex: 1; }
+.insurance-manager-copy strong { display: block; font-size: 15px; white-space: normal; overflow-wrap: anywhere; }
+.insurance-manager-copy small + small { margin-top: 3px; }
+.insurance-manager-row > b { display: flex; align-items: center; gap: 3px; white-space: nowrap; color: #c96f62; font-size: 14px; }
