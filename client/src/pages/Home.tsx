@@ -1094,7 +1094,9 @@ export default function Home() {
   }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, isOnline, items, loadedStorageScope, monthlyCycleStartDay, netWorthPolicy]);
 
   useEffect(() => {
-    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items));
+    if (!isLoaded || loadedStorageScope !== accountStorageScope) return;
+    const timer = window.setTimeout(() => window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items)), 60);
+    return () => window.clearTimeout(timer);
   }, [items, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
@@ -1109,9 +1111,9 @@ export default function Home() {
   useEffect(() => {
     if (!isLoaded || !familyQuery.data || conflictState || familySync.isPending) return;
     const currentFamily = familyQuery.data;
-    const signature = JSON.stringify(items);
-    if (signature === lastSyncedRecords.current) return;
     const timer = window.setTimeout(() => {
+      const signature = JSON.stringify(items);
+      if (signature === lastSyncedRecords.current) return;
       familySync.mutate({ records: items, baseVersion: currentFamily.version }, { onSuccess: (result) => {
         if (result.conflict) setConflictState({ version: result.version, remoteRecords: result.records as CalendarItem[] });
         else lastSyncedRecords.current = signature;
@@ -2410,25 +2412,29 @@ function Composer({
 }) {
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const meta = typeMeta[draft.type];
-  const assetsForKind = assets.filter((asset) => asset.kind === draft.assetKind);
-  const cardAssets = assets.filter((asset) => asset.kind === "card");
-  const accountAssets = assets.filter((asset) => ["account", "cash"].includes(asset.kind));
-  const localCurrencyAssets = assets.filter((asset) => asset.kind === "localCurrency");
-  const currencyTargetAssets = assets.filter((asset) => asset.kind === "localCurrency" || /지역화폐|상품권/.test(asset.name));
+  const assetsForKind = useMemo(() => assets.filter((asset) => asset.kind === draft.assetKind), [assets, draft.assetKind]);
+  const cardAssets = useMemo(() => assets.filter((asset) => asset.kind === "card"), [assets]);
+  const accountAssets = useMemo(() => assets.filter((asset) => ["account", "cash"].includes(asset.kind)), [assets]);
+  const localCurrencyAssets = useMemo(() => assets.filter((asset) => asset.kind === "localCurrency"), [assets]);
+  const currencyTargetAssets = useMemo(() => assets.filter((asset) => asset.kind === "localCurrency" || /지역화폐|상품권/.test(asset.name)), [assets]);
   const isFinance = ["income", "expense", "transfer", "loan", "savings"].includes(draft.type);
   const isVoucherExpense = draft.type === "expense" && draft.assetKind === "voucher";
-  const aiSuggestion = isFinance ? (isVoucherExpense ? suggestVoucherCategory(`${draft.title} ${draft.note} ${draft.assetName}`, categoryMap) : aiSuggestCategory(draft.type, `${draft.title} ${draft.note}`, categoryMap)) : null;
+  const suggestionText = `${draft.title} ${draft.note} ${draft.assetName}`;
+  const aiSuggestion = useMemo(() => {
+    if (!isFinance) return null;
+    return isVoucherExpense ? suggestVoucherCategory(suggestionText, categoryMap) : aiSuggestCategory(draft.type, `${draft.title} ${draft.note}`, categoryMap);
+  }, [categoryMap, draft.assetName, draft.note, draft.title, draft.type, isFinance, isVoucherExpense, suggestionText]);
   const [categoryMode, setCategoryMode] = useState<"single" | "hierarchical">(() => draft.category.includes(" / ") ? "hierarchical" : "single");
   useEffect(() => {
     setCategoryMode(draft.category.includes(" / ") ? "hierarchical" : "single");
   }, [draft.type]);
-  const categoryPaths = (["income", "expense"] as ItemType[]).includes(draft.type) ? categoryMap[draft.type] : [];
-  const singleCategories = categoryPaths.filter((category) => !category.includes(" / "));
-  const hierarchicalCategoryPaths = categoryPaths.filter((category) => category.includes(" / ")).map((category) => { const parts = category.split(" / "); return { category, major: parts[0], middle: parts[1] ?? "기본", minor: parts[2] ?? parts[1] ?? parts[0] }; });
-  const selectedCategoryPath = hierarchicalCategoryPaths.find((path) => path.category === draft.category) ?? hierarchicalCategoryPaths[0];
-  const categoryMajors = [...new Set(hierarchicalCategoryPaths.map((path) => path.major))];
-  const categoryMiddles = [...new Set(hierarchicalCategoryPaths.filter((path) => path.major === selectedCategoryPath?.major).map((path) => path.middle))];
-  const categoryMinors = hierarchicalCategoryPaths.filter((path) => path.major === selectedCategoryPath?.major && path.middle === selectedCategoryPath?.middle);
+  const categoryPaths = useMemo(() => (["income", "expense"] as ItemType[]).includes(draft.type) ? categoryMap[draft.type] : [], [categoryMap, draft.type]);
+  const singleCategories = useMemo(() => categoryPaths.filter((category) => !category.includes(" / ")), [categoryPaths]);
+  const hierarchicalCategoryPaths = useMemo(() => categoryPaths.filter((category) => category.includes(" / ")).map((category) => { const parts = category.split(" / "); return { category, major: parts[0], middle: parts[1] ?? "기본", minor: parts[2] ?? parts[1] ?? parts[0] }; }), [categoryPaths]);
+  const selectedCategoryPath = useMemo(() => hierarchicalCategoryPaths.find((path) => path.category === draft.category) ?? hierarchicalCategoryPaths[0], [draft.category, hierarchicalCategoryPaths]);
+  const categoryMajors = useMemo(() => [...new Set(hierarchicalCategoryPaths.map((path) => path.major))], [hierarchicalCategoryPaths]);
+  const categoryMiddles = useMemo(() => [...new Set(hierarchicalCategoryPaths.filter((path) => path.major === selectedCategoryPath?.major).map((path) => path.middle))], [hierarchicalCategoryPaths, selectedCategoryPath?.major]);
+  const categoryMinors = useMemo(() => hierarchicalCategoryPaths.filter((path) => path.major === selectedCategoryPath?.major && path.middle === selectedCategoryPath?.middle), [hierarchicalCategoryPaths, selectedCategoryPath?.major, selectedCategoryPath?.middle]);
   const selectCategoryLevel = (level: "major" | "middle" | "minor", value: string) => {
     const candidates = hierarchicalCategoryPaths.filter((path) => level === "major" ? path.major === value : level === "middle" ? path.major === selectedCategoryPath?.major && path.middle === value : path.major === selectedCategoryPath?.major && path.middle === selectedCategoryPath?.middle && path.minor === value);
     if (candidates[0]) update({ category: candidates[0].category });
@@ -2443,8 +2449,8 @@ function Composer({
   const existingCardSpend = monthlyCardSpend[draft.cardCompany] ?? 0;
   const previewCardSpend = existingCardSpend + (draft.type === "expense" && draft.paymentMethod === "card" && !editing ? cardAmount : 0);
   const cardSpendProgress = Math.min(100, Math.round((previewCardSpend / cardBenefit.threshold) * 100));
-  const linkedLoan = draft.category === "중도상환" ? items.find((item) => item.id === draft.linkedLoanId && item.type === "loan") : undefined;
-  const earlyRepaymentSimulation = linkedLoan ? getEarlyRepaymentSimulation(linkedLoan, Number(draft.amount || 0), draft.earlyRepaymentEffect, Number(draft.prepaymentFeeRate || 0)) : null;
+  const linkedLoan = useMemo(() => draft.category === "중도상환" ? items.find((item) => item.id === draft.linkedLoanId && item.type === "loan") : undefined, [draft.category, draft.linkedLoanId, items]);
+  const earlyRepaymentSimulation = useMemo(() => linkedLoan ? getEarlyRepaymentSimulation(linkedLoan, Number(draft.amount || 0), draft.earlyRepaymentEffect, Number(draft.prepaymentFeeRate || 0)) : null, [draft.amount, draft.earlyRepaymentEffect, draft.prepaymentFeeRate, linkedLoan]);
   const cardBenefitReady = previewCardSpend >= cardBenefit.threshold;
   const categoryBenefitReady = cardBenefit.categories.includes(draft.category);
   const localCurrencyName = draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐";
