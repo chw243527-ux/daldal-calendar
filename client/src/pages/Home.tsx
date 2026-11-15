@@ -883,9 +883,9 @@ export default function Home() {
   const [shareGuestUnlocked, setShareGuestUnlocked] = useState(false);
   const shareGuestMode = shareLinkMode && !shareGuestUnlocked;
   const auth = useAuth();
-  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 5000 : false, refetchOnWindowFocus: true });
+  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 15000 : false, refetchOnWindowFocus: true });
   const accountCloudSync = trpc.accountCloud.sync.useMutation();
-  const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 5000 : false });
+  const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 15000 : false });
   const familyCreate = trpc.family.create.useMutation();
   const familyJoin = trpc.family.join.useMutation();
   const familySync = trpc.family.sync.useMutation();
@@ -1176,10 +1176,10 @@ export default function Home() {
 
   const todayTodos = todayItems.filter((item) => item.type === "todo");
   const todayEvents = todayItems.filter((item) => item.type === "event");
-  const nextItems = displayItems
+  const nextItems = useMemo(() => displayItems
     .filter((item) => item.date > todayISO && (item.type === "event" || item.type === "todo"))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 2);
+    .slice(0, 2), [displayItems, todayISO]);
 
   useEffect(() => {
     void syncNativeWidget({
@@ -1885,8 +1885,8 @@ function CalendarView({
 }) {
   const cells = getCalendarCells(month);
   const [calendarMode, setCalendarMode] = useState<"all" | "payments">("all");
-  const paymentItems = items.filter((item) => item.type === "loan" || (item.type === "expense" && item.category === "보험"));
-  const paymentMonthItems = paymentItems.filter((item) => item.date.startsWith(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)).sort((a, b) => a.date.localeCompare(b.date));
+  const paymentItems = useMemo(() => items.filter((item) => item.type === "loan" || (item.type === "expense" && item.category === "보험")), [items]);
+  const paymentMonthItems = useMemo(() => paymentItems.filter((item) => item.date.startsWith(`${month.getFullYear()}-${pad(month.getMonth() + 1)}`)).sort((a, b) => a.date.localeCompare(b.date)), [paymentItems, month]);
   const paymentTotal = paymentMonthItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const loanTotal = paymentMonthItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const insuranceTotal = paymentMonthItems.filter((item) => item.type === "expense" && item.category === "보험").reduce((sum, item) => sum + (item.amount ?? 0), 0);
