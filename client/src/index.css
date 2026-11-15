@@ -930,3 +930,23 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .expected-income-copy small { overflow: hidden; color: #8c9c94; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .expected-income-row > b { flex: 0 0 auto; font-size: 11px; white-space: nowrap; }
 .expected-income-row > svg { color: #b7c9c0; }
+
+
+/* 자산 유형별 총액과 순자산 기여도 시각화 */
+.asset-role-visualization { margin-top: 16px; padding: 15px; border: 1px solid #eee1db; border-radius: 16px; background: linear-gradient(135deg, #fffdfb, #fff8f4); }
+.asset-role-visualization-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.asset-role-visualization-head > div { display: grid; gap: 4px; }
+.asset-role-visualization-head strong { color: var(--ink); font-size: 14px; }
+.asset-role-visualization-head > b { color: var(--coral); font-size: 12px; white-space: nowrap; }
+.asset-role-chart { display: grid; gap: 13px; margin-top: 16px; }
+.asset-role-chart-row { display: grid; gap: 5px; }
+.asset-role-chart-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #635956; font-size: 11px; font-weight: 800; }
+.asset-role-chart-label span { display: inline-flex; align-items: center; gap: 7px; }
+.asset-role-chart-label i { width: 8px; height: 8px; border-radius: 50%; }
+.asset-role-chart-label b { color: var(--ink); font-size: 11px; }
+.asset-role-track { height: 9px; overflow: hidden; border-radius: 99px; background: #f1e7e2; }
+.asset-role-track i { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width .25s ease; }
+.asset-role-chart-row small { color: #9a8e89; font-size: 9px; font-weight: 700; }
+.app-theme-night .asset-role-visualization { border-color: #514b5d; background: #38343f; }
+.app-theme-night .asset-role-chart-label, .app-theme-night .asset-role-chart-label b { color: #f8f2ee; }
+.app-theme-night .asset-role-track { background: #514b5d; }
