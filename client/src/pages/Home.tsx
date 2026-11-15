@@ -676,7 +676,7 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
 function isAccountTransfer(item: CalendarItem) {
   // 계좌 간 이체는 자산의 위치만 바뀌는 내부 이동이므로 수입·지출로 집계하지 않는다.
   // transferFrom/transferTo가 남아 있는 구버전 기록도 이체로 안전하게 판별한다.
-  return item.type === "transfer" || Boolean(item.transferFrom || item.transferTo);
+  return item.type === "transfer" || item.category === "지역화폐 충전" || Boolean(item.transferFrom || item.transferTo);
 }
 
 function isLocalCurrencyTransfer(item: CalendarItem) {
