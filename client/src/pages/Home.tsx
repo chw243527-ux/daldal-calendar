@@ -734,6 +734,25 @@ function CalendarItemRow({
   );
 }
 
+function mergeCalendarItems(localItems: CalendarItem[], remoteItems: CalendarItem[]): CalendarItem[] {
+  const merged = new Map<string, CalendarItem>();
+  [...remoteItems, ...localItems].forEach((item) => {
+    const existing = merged.get(item.id);
+    if (!existing) {
+      merged.set(item.id, item);
+      return;
+    }
+    const existingTime = existing.updatedAt ? Date.parse(existing.updatedAt) : 0;
+    const itemTime = item.updatedAt ? Date.parse(item.updatedAt) : 0;
+    if (itemTime >= existingTime) merged.set(item.id, item);
+  });
+  return Array.from(merged.values()).sort((a, b) => {
+    const aTime = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+    const bTime = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+    return aTime - bTime;
+  });
+}
+
 function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: string; action?: ReactNode }) {
   return (
     <div className="section-heading">
@@ -887,7 +906,7 @@ export default function Home() {
     if (remote?.payloadJson) {
       try {
         const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
-        if (Array.isArray(payload.items)) setItems(payload.items);
+        if (Array.isArray(payload.items)) setItems((current) => mergeCalendarItems(current, payload.items as CalendarItem[]));
         if (payload.customCategories) setCustomCategories(payload.customCategories);
         if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
         if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
@@ -909,7 +928,7 @@ export default function Home() {
     if (resetInProgressRef.current || !remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
     try {
       const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
-      if (Array.isArray(payload.items)) setItems(payload.items);
+        if (Array.isArray(payload.items)) setItems((current) => mergeCalendarItems(current, payload.items as CalendarItem[]));
       if (payload.customCategories) setCustomCategories(payload.customCategories);
       if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
       if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
@@ -929,10 +948,7 @@ export default function Home() {
           try {
             const remote = JSON.parse(result.payloadJson) as Partial<{ items: CalendarItem[] }>;
             if (Array.isArray(remote.items)) {
-              const merged = new Map<string, CalendarItem>();
-              remote.items.forEach((item) => merged.set(item.id, item));
-              items.forEach((item) => merged.set(item.id, item));
-              setItems(Array.from(merged.values()));
+              setItems((current) => mergeCalendarItems(current, remote.items as CalendarItem[]));
             }
           } catch {}
           cloudVersionRef.current = result.version;
@@ -956,7 +972,7 @@ export default function Home() {
     const remoteRecords = Array.isArray(remote.records) ? remote.records as CalendarItem[] : [];
     lastFamilySignature.current = remote.updatedAt;
     lastSyncedRecords.current = JSON.stringify(remoteRecords);
-    if (remoteRecords.length > 0 || items.length === 0) setItems(remoteRecords);
+    if (remoteRecords.length > 0 || items.length === 0) setItems((current) => mergeCalendarItems(current, remoteRecords));
   }, [familyQuery.data, isLoaded, conflictState]);
 
   useEffect(() => {
