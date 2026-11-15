@@ -753,6 +753,32 @@ function mergeCalendarItems(localItems: CalendarItem[], remoteItems: CalendarIte
   });
 }
 
+type CloudPayload = {
+  items: CalendarItem[];
+  customCategories: Partial<Record<ItemType, string[]>>;
+  monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>;
+  emergencyReserve: number;
+  assetBalances: AssetBalance[];
+  lockScreenConfig: LockScreenConfig;
+};
+
+function mergeCloudPayload(local: CloudPayload, remote: Partial<CloudPayload>, lastSyncedJson: string | null): CloudPayload {
+  let baseline: Partial<CloudPayload> = {};
+  if (lastSyncedJson) {
+    try { baseline = JSON.parse(lastSyncedJson) as Partial<CloudPayload>; } catch { baseline = {}; }
+  }
+  const localChanged = <K extends keyof CloudPayload>(key: K) => JSON.stringify(local[key]) !== JSON.stringify(baseline[key]);
+  const choose = <K extends keyof CloudPayload>(key: K): CloudPayload[K] => localChanged(key) || remote[key] === undefined ? local[key] : remote[key] as CloudPayload[K];
+  return {
+    items: mergeCalendarItems(local.items, remote.items ?? []),
+    customCategories: choose("customCategories"),
+    monthlyBudgets: choose("monthlyBudgets"),
+    emergencyReserve: choose("emergencyReserve"),
+    assetBalances: choose("assetBalances"),
+    lockScreenConfig: choose("lockScreenConfig"),
+  };
+}
+
 function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: string; action?: ReactNode }) {
   return (
     <div className="section-heading">
@@ -928,16 +954,17 @@ export default function Home() {
     if (resetInProgressRef.current || !remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
     try {
       const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
-        if (Array.isArray(payload.items)) setItems((current) => mergeCalendarItems(current, payload.items as CalendarItem[]));
-      if (payload.customCategories) setCustomCategories(payload.customCategories);
-      if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
-      if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
-      if (Array.isArray(payload.assetBalances)) setAssetBalances(payload.assetBalances);
-      if (payload.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...payload.lockScreenConfig });
+      const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }, payload, cloudSignatureRef.current);
+      setItems(merged.items);
+      setCustomCategories(merged.customCategories);
+      setMonthlyBudgets(merged.monthlyBudgets);
+      setEmergencyReserve(merged.emergencyReserve);
+      setAssetBalances(merged.assetBalances);
+      setLockScreenConfig(merged.lockScreenConfig);
       cloudVersionRef.current = remote.version;
       cloudSignatureRef.current = remote.payloadJson;
     } catch {}
-  }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated]);
+  }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated, assetBalances, customCategories, emergencyReserve, items, lockScreenConfig, monthlyBudgets]);
 
   const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig]);
   useEffect(() => {
@@ -946,10 +973,14 @@ export default function Home() {
       accountCloudSync.mutate({ payloadJson: cloudPayloadJson, baseVersion: cloudVersionRef.current }, { onSuccess: (result) => {
         if (result.conflict) {
           try {
-            const remote = JSON.parse(result.payloadJson) as Partial<{ items: CalendarItem[] }>;
-            if (Array.isArray(remote.items)) {
-              setItems((current) => mergeCalendarItems(current, remote.items as CalendarItem[]));
-            }
+            const remote = JSON.parse(result.payloadJson) as Partial<CloudPayload>;
+            const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }, remote, cloudSignatureRef.current);
+            setItems(merged.items);
+            setCustomCategories(merged.customCategories);
+            setMonthlyBudgets(merged.monthlyBudgets);
+            setEmergencyReserve(merged.emergencyReserve);
+            setAssetBalances(merged.assetBalances);
+            setLockScreenConfig(merged.lockScreenConfig);
           } catch {}
           cloudVersionRef.current = result.version;
           cloudSignatureRef.current = result.payloadJson;
