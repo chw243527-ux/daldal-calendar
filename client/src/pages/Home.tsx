@@ -883,7 +883,7 @@ export default function Home() {
   const [shareGuestUnlocked, setShareGuestUnlocked] = useState(false);
   const shareGuestMode = shareLinkMode && !shareGuestUnlocked;
   const auth = useAuth();
-  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 15000 : false, refetchOnWindowFocus: true });
+  const accountCloudQuery = trpc.accountCloud.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 60000 : false, refetchOnWindowFocus: false });
   const accountCloudSync = trpc.accountCloud.sync.useMutation();
   const familyQuery = trpc.family.get.useQuery(undefined, { enabled: auth.isAuthenticated && !shareGuestMode, refetchInterval: auth.isAuthenticated && !shareGuestMode ? 15000 : false });
   const familyCreate = trpc.family.create.useMutation();
@@ -905,7 +905,7 @@ export default function Home() {
   const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
   const accountStorageScope = shareGuestMode ? "__empty_share_guest__" : (auth.user?.openId ?? "");
   const marketSymbols = useMemo(() => [...new Set(assetBalances.filter((asset) => (asset.kind === "stock" || asset.kind === "crypto") && asset.ticker?.trim()).map((asset) => asset.kind === "crypto" && !asset.ticker!.toUpperCase().startsWith("BITHUMB:") ? `BITHUMB:${asset.ticker!.trim().toUpperCase().replace(/-/g, "_")}` : asset.ticker!.trim().toUpperCase()))], [assetBalances]);
-  const marketQuotesQuery = trpc.market.quotes.useQuery({ symbols: marketSymbols }, { enabled: marketSymbols.length > 0, refetchInterval: marketSymbols.length > 0 ? 60_000 : false, refetchOnWindowFocus: true });
+  const marketQuotesQuery = trpc.market.quotes.useQuery({ symbols: marketSymbols }, { enabled: marketSymbols.length > 0, refetchInterval: marketSymbols.length > 0 ? 60_000 : false, refetchOnWindowFocus: false });
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [isComposerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => createDraft(todayISO));
@@ -1276,91 +1276,92 @@ export default function Home() {
     setComposerOpen(true);
   };
 
-  const saveItem = () => {
-    if (!draft.title.trim()) return;
-    const isLocalCurrency = ["expense", "transfer", "income"].includes(draft.type) && draft.category === "지역화폐 충전";
-    const isTransferRecord = isLocalCurrency || draft.type === "transfer" || Boolean(draft.transferFrom.trim() || draft.transferTo.trim());
-    const transferFrom = isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() : draft.transferFrom.trim();
-    const transferTo = isLocalCurrency ? draft.localCurrencyTarget.trim() : draft.transferTo.trim();
+  const saveItem = (draftOverride?: Draft) => {
+    const activeDraft = draftOverride ?? draft;
+    if (!activeDraft.title.trim()) return;
+    const isLocalCurrency = ["expense", "transfer", "income"].includes(activeDraft.type) && activeDraft.category === "지역화폐 충전";
+    const isTransferRecord = isLocalCurrency || activeDraft.type === "transfer" || Boolean(activeDraft.transferFrom.trim() || activeDraft.transferTo.trim());
+    const transferFrom = isLocalCurrency ? activeDraft.localCurrencySource.trim() || activeDraft.assetName.trim() : activeDraft.transferFrom.trim();
+    const transferTo = isLocalCurrency ? activeDraft.localCurrencyTarget.trim() : activeDraft.transferTo.trim();
     if (isTransferRecord && (!transferFrom || !transferTo || transferFrom === transferTo || (isLocalCurrency && transferTo === "지역화폐"))) {
       window.alert("이체는 서로 다른 출발 자산과 도착 자산을 선택해 주세요.");
       return;
     }
-    const nextItemType: ItemType = isTransferRecord ? "transfer" : draft.type;
-    const isLocalCurrencyPurchase = nextItemType === "expense" && draft.paymentMethod === "localCurrency";
-    const localCurrencyRate = isLocalCurrency ? Math.min(100, Math.max(0, Number(draft.localCurrencyDiscountRate || 0))) : undefined;
-    const localCurrencyDiscountAmount = isLocalCurrency ? Math.round(Number(draft.amount || 0) * Number(localCurrencyRate || 0) / 100) : undefined;
-    const localCurrencyLoadedAmount = isLocalCurrency ? Number(draft.amount || 0) : undefined;
-    const localCurrencyChargedAmount = isLocalCurrency ? Math.max(0, Number(draft.amount || 0) - (localCurrencyDiscountAmount ?? 0)) : undefined;
-    const localCurrencyCashbackRate = isLocalCurrencyPurchase ? Math.min(100, Math.max(0, Number(draft.localCurrencyCashbackRate || 0))) : undefined;
-    const localCurrencyCashbackAmount = isLocalCurrencyPurchase ? Math.round(Number(draft.amount || 0) * Number(localCurrencyCashbackRate || 0) / 100) : undefined;
-    const selectedCard = draft.paymentMethod === "card" ? assetBalances.find((asset) => asset.kind === "card" && (asset.name === draft.assetName || asset.name === draft.cardCompany)) : undefined;
-    const linkedAccountName = selectedCard?.cardType === "debit" ? (draft.linkedAccountName || selectedCard.linkedAccountName) : undefined;
+    const nextItemType: ItemType = isTransferRecord ? "transfer" : activeDraft.type;
+    const isLocalCurrencyPurchase = nextItemType === "expense" && activeDraft.paymentMethod === "localCurrency";
+    const localCurrencyRate = isLocalCurrency ? Math.min(100, Math.max(0, Number(activeDraft.localCurrencyDiscountRate || 0))) : undefined;
+    const localCurrencyDiscountAmount = isLocalCurrency ? Math.round(Number(activeDraft.amount || 0) * Number(localCurrencyRate || 0) / 100) : undefined;
+    const localCurrencyLoadedAmount = isLocalCurrency ? Number(activeDraft.amount || 0) : undefined;
+    const localCurrencyChargedAmount = isLocalCurrency ? Math.max(0, Number(activeDraft.amount || 0) - (localCurrencyDiscountAmount ?? 0)) : undefined;
+    const localCurrencyCashbackRate = isLocalCurrencyPurchase ? Math.min(100, Math.max(0, Number(activeDraft.localCurrencyCashbackRate || 0))) : undefined;
+    const localCurrencyCashbackAmount = isLocalCurrencyPurchase ? Math.round(Number(activeDraft.amount || 0) * Number(localCurrencyCashbackRate || 0) / 100) : undefined;
+    const selectedCard = activeDraft.paymentMethod === "card" ? assetBalances.find((asset) => asset.kind === "card" && (asset.name === activeDraft.assetName || asset.name === activeDraft.cardCompany)) : undefined;
+    const linkedAccountName = selectedCard?.cardType === "debit" ? (activeDraft.linkedAccountName || selectedCard.linkedAccountName) : undefined;
     const nextItem: CalendarItem = {
       id: editingId ?? `item-${Date.now()}`,
       updatedAt: new Date().toISOString(),
       type: nextItemType,
-      title: draft.title.trim(),
-      date: draft.date,
-      endDate: draft.type === "event" ? (draft.endDate || draft.date) : undefined,
-      time: draft.type === "event" ? draft.time : undefined,
-      amount: ["income", "expense", "transfer", "loan", "savings"].includes(nextItemType) && draft.amount ? Number(draft.amount.replace(/,/g, "")) : undefined,
-      category: draft.category,
-      note: draft.note.trim() || undefined,
+      title: activeDraft.title.trim(),
+      date: activeDraft.date,
+      endDate: activeDraft.type === "event" ? (activeDraft.endDate || activeDraft.date) : undefined,
+      time: activeDraft.type === "event" ? activeDraft.time : undefined,
+      amount: ["income", "expense", "transfer", "loan", "savings"].includes(nextItemType) && activeDraft.amount ? Number(activeDraft.amount.replace(/,/g, "")) : undefined,
+      category: activeDraft.category,
+      note: activeDraft.note.trim() || undefined,
       completed: editingId ? items.find((item) => item.id === editingId)?.completed : false,
       completedDates: editingId ? items.find((item) => item.id === editingId)?.completedDates : undefined,
-      expectedIncome: nextItemType === "income" ? draft.expectedIncome : undefined,
-      expectedExpense: draft.type === "expense" ? draft.expectedExpense : undefined,
-      loanPrincipal: draft.type === "loan" && draft.loanPrincipal ? Number(draft.loanPrincipal.replace(/,/g, "")) : undefined,
-      interestRate: draft.type === "loan" && draft.interestRate ? Number(draft.interestRate) : undefined,
-      gracePeriod: draft.type === "loan" && draft.gracePeriod ? Number(draft.gracePeriod) : undefined,
-      repaymentDate: draft.type === "loan" ? draft.repaymentDate : undefined,
-      repaymentMethod: draft.type === "loan" ? draft.repaymentMethod : undefined,
-      termMonths: draft.type === "loan" && ["대출", "추가대출"].includes(draft.category) && draft.termMonths ? Number(draft.termMonths) : undefined,
-      linkedLoanId: draft.type === "loan" && draft.category === "중도상환" ? draft.linkedLoanId || undefined : undefined,
-      earlyRepaymentEffect: draft.type === "loan" && draft.category === "중도상환" ? draft.earlyRepaymentEffect : undefined,
-      prepaymentFeeRate: draft.type === "loan" && draft.category === "중도상환" && draft.prepaymentFeeRate ? Number(draft.prepaymentFeeRate) : undefined,
-      maturityAction: draft.type === "loan" && ["lumpSum", "equalPrincipal"].includes(draft.repaymentMethod) ? draft.maturityAction : undefined,
-      maturityPartialRepayment: draft.type === "loan" && draft.repaymentMethod === "lumpSum" && draft.maturityAction === "partialRepay" ? Number(draft.maturityPartialRepayment || 0) : undefined,
-      maturityRenewalTermMonths: draft.type === "loan" && ["lumpSum", "equalPrincipal"].includes(draft.repaymentMethod) && draft.maturityAction === "renew" ? Number(draft.maturityRenewalTermMonths || 0) : undefined,
-      maturityBalloonAmount: draft.type === "loan" && draft.repaymentMethod === "equalPrincipal" && draft.maturityAction === "balloon" ? Number(draft.maturityBalloonAmount || 0) : undefined,
-      recurrence: ["todo", "event", "expense", "loan", "savings"].includes(draft.type) ? (draft.type === "savings" ? "monthly" : draft.recurrence) : undefined,
-      repeatUntil: ["todo", "event", "expense", "loan", "savings"].includes(draft.type) && (draft.type === "savings" || draft.recurrence !== "none") ? draft.type === "savings" ? draft.savingsMaturityDate || toISO(addMonths(fromISO(draft.date), Math.max(1, Number(draft.savingsTermMonths || 12)) - 1)) : draft.repeatUntil : undefined,
-      calendarKind: ["todo", "event"].includes(draft.type) ? draft.calendarKind : undefined,
-      lunarMonth: ["todo", "event"].includes(draft.type) && draft.calendarKind === "lunar" ? draft.lunarMonth : undefined,
-      lunarDay: ["todo", "event"].includes(draft.type) && draft.calendarKind === "lunar" ? draft.lunarDay : undefined,
-      lunarLeapMonth: ["todo", "event"].includes(draft.type) && draft.calendarKind === "lunar" ? draft.lunarLeapMonth : undefined,
-      owner: ["income", "expense", "loan", "savings"].includes(draft.type) ? draft.owner : undefined,
-      accentColor: ["todo", "event"].includes(draft.type) ? draft.accentColor : undefined,
-      cardCompany: draft.type === "expense" && draft.paymentMethod === "card" ? draft.cardCompany : draft.type === "loan" && draft.category === "카드값" ? draft.cardCompany : undefined,
-      cardMode: draft.type === "loan" && draft.category === "카드값" ? draft.cardMode : undefined,
-      installments: draft.type === "loan" && draft.category === "카드값" ? Number(draft.installments) : undefined,
-      cardFeeRate: draft.type === "loan" && draft.category === "카드값" ? Number(draft.cardFeeRate) : undefined,
-      savingsMaturityDate: draft.type === "savings" ? draft.savingsMaturityDate || undefined : undefined,
-      savingsInterestRate: draft.type === "savings" && draft.savingsInterestRate ? Number(draft.savingsInterestRate) : undefined,
-      savingsTermMonths: draft.type === "savings" && draft.savingsTermMonths ? Number(draft.savingsTermMonths) : undefined,
-      assetKind: isLocalCurrency ? undefined : isLocalCurrencyPurchase ? "localCurrency" : ["income", "expense", "loan", "savings"].includes(draft.type) ? draft.assetKind : undefined,
-      assetName: isLocalCurrency ? undefined : isLocalCurrencyPurchase ? draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐" : ["income", "expense", "loan", "savings"].includes(draft.type) && draft.assetName.trim() ? draft.assetName.trim() : undefined,
-      paymentMethod: isLocalCurrency ? undefined : draft.type === "expense" ? draft.paymentMethod : undefined,
+      expectedIncome: nextItemType === "income" ? activeDraft.expectedIncome : undefined,
+      expectedExpense: activeDraft.type === "expense" ? activeDraft.expectedExpense : undefined,
+      loanPrincipal: activeDraft.type === "loan" && activeDraft.loanPrincipal ? Number(activeDraft.loanPrincipal.replace(/,/g, "")) : undefined,
+      interestRate: activeDraft.type === "loan" && activeDraft.interestRate ? Number(activeDraft.interestRate) : undefined,
+      gracePeriod: activeDraft.type === "loan" && activeDraft.gracePeriod ? Number(activeDraft.gracePeriod) : undefined,
+      repaymentDate: activeDraft.type === "loan" ? activeDraft.repaymentDate : undefined,
+      repaymentMethod: activeDraft.type === "loan" ? activeDraft.repaymentMethod : undefined,
+      termMonths: activeDraft.type === "loan" && ["대출", "추가대출"].includes(activeDraft.category) && activeDraft.termMonths ? Number(activeDraft.termMonths) : undefined,
+      linkedLoanId: activeDraft.type === "loan" && activeDraft.category === "중도상환" ? activeDraft.linkedLoanId || undefined : undefined,
+      earlyRepaymentEffect: activeDraft.type === "loan" && activeDraft.category === "중도상환" ? activeDraft.earlyRepaymentEffect : undefined,
+      prepaymentFeeRate: activeDraft.type === "loan" && activeDraft.category === "중도상환" && activeDraft.prepaymentFeeRate ? Number(activeDraft.prepaymentFeeRate) : undefined,
+      maturityAction: activeDraft.type === "loan" && ["lumpSum", "equalPrincipal"].includes(activeDraft.repaymentMethod) ? activeDraft.maturityAction : undefined,
+      maturityPartialRepayment: activeDraft.type === "loan" && activeDraft.repaymentMethod === "lumpSum" && activeDraft.maturityAction === "partialRepay" ? Number(activeDraft.maturityPartialRepayment || 0) : undefined,
+      maturityRenewalTermMonths: activeDraft.type === "loan" && ["lumpSum", "equalPrincipal"].includes(activeDraft.repaymentMethod) && activeDraft.maturityAction === "renew" ? Number(activeDraft.maturityRenewalTermMonths || 0) : undefined,
+      maturityBalloonAmount: activeDraft.type === "loan" && activeDraft.repaymentMethod === "equalPrincipal" && activeDraft.maturityAction === "balloon" ? Number(activeDraft.maturityBalloonAmount || 0) : undefined,
+      recurrence: ["todo", "event", "expense", "loan", "savings"].includes(activeDraft.type) ? (activeDraft.type === "savings" ? "monthly" : activeDraft.recurrence) : undefined,
+      repeatUntil: ["todo", "event", "expense", "loan", "savings"].includes(activeDraft.type) && (activeDraft.type === "savings" || activeDraft.recurrence !== "none") ? activeDraft.type === "savings" ? activeDraft.savingsMaturityDate || toISO(addMonths(fromISO(activeDraft.date), Math.max(1, Number(activeDraft.savingsTermMonths || 12)) - 1)) : activeDraft.repeatUntil : undefined,
+      calendarKind: ["todo", "event"].includes(activeDraft.type) ? activeDraft.calendarKind : undefined,
+      lunarMonth: ["todo", "event"].includes(activeDraft.type) && activeDraft.calendarKind === "lunar" ? activeDraft.lunarMonth : undefined,
+      lunarDay: ["todo", "event"].includes(activeDraft.type) && activeDraft.calendarKind === "lunar" ? activeDraft.lunarDay : undefined,
+      lunarLeapMonth: ["todo", "event"].includes(activeDraft.type) && activeDraft.calendarKind === "lunar" ? activeDraft.lunarLeapMonth : undefined,
+      owner: ["income", "expense", "loan", "savings"].includes(activeDraft.type) ? activeDraft.owner : undefined,
+      accentColor: ["todo", "event"].includes(activeDraft.type) ? activeDraft.accentColor : undefined,
+      cardCompany: activeDraft.type === "expense" && activeDraft.paymentMethod === "card" ? activeDraft.cardCompany : activeDraft.type === "loan" && activeDraft.category === "카드값" ? activeDraft.cardCompany : undefined,
+      cardMode: activeDraft.type === "loan" && activeDraft.category === "카드값" ? activeDraft.cardMode : undefined,
+      installments: activeDraft.type === "loan" && activeDraft.category === "카드값" ? Number(activeDraft.installments) : undefined,
+      cardFeeRate: activeDraft.type === "loan" && activeDraft.category === "카드값" ? Number(activeDraft.cardFeeRate) : undefined,
+      savingsMaturityDate: activeDraft.type === "savings" ? activeDraft.savingsMaturityDate || undefined : undefined,
+      savingsInterestRate: activeDraft.type === "savings" && activeDraft.savingsInterestRate ? Number(activeDraft.savingsInterestRate) : undefined,
+      savingsTermMonths: activeDraft.type === "savings" && activeDraft.savingsTermMonths ? Number(activeDraft.savingsTermMonths) : undefined,
+      assetKind: isLocalCurrency ? undefined : isLocalCurrencyPurchase ? "localCurrency" : ["income", "expense", "loan", "savings"].includes(activeDraft.type) ? activeDraft.assetKind : undefined,
+      assetName: isLocalCurrency ? undefined : isLocalCurrencyPurchase ? activeDraft.localCurrencyTarget.trim() || activeDraft.assetName.trim() || "지역화폐" : ["income", "expense", "loan", "savings"].includes(activeDraft.type) && activeDraft.assetName.trim() ? activeDraft.assetName.trim() : undefined,
+      paymentMethod: isLocalCurrency ? undefined : activeDraft.type === "expense" ? activeDraft.paymentMethod : undefined,
       localCurrencyDiscountRate: localCurrencyRate,
-      localCurrencySource: isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() || "주거래 계좌" : undefined,
-      localCurrencyTarget: isLocalCurrency || isLocalCurrencyPurchase ? draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐" : undefined,
+      localCurrencySource: isLocalCurrency ? activeDraft.localCurrencySource.trim() || activeDraft.assetName.trim() || "주거래 계좌" : undefined,
+      localCurrencyTarget: isLocalCurrency || isLocalCurrencyPurchase ? activeDraft.localCurrencyTarget.trim() || activeDraft.assetName.trim() || "지역화폐" : undefined,
       localCurrencyLoadedAmount,
       localCurrencyChargedAmount,
       localCurrencyCashbackRate,
       localCurrencyCashbackAmount,
       transferFrom: isTransferRecord ? transferFrom || undefined : undefined,
       transferTo: isTransferRecord ? transferTo || undefined : undefined,
-      dueDate: ["expense", "loan"].includes(draft.type) ? draft.dueDate || draft.date : undefined,
-      autopay: ["expense", "loan"].includes(draft.type) ? draft.autopay : undefined,
-      autopayAccount: ["expense", "loan"].includes(draft.type) && draft.autopay ? draft.autopayAccount.trim() || undefined : undefined,
-      paymentStatus: ["expense", "loan"].includes(draft.type) && draft.dueDate ? draft.paymentStatus : undefined,
-      insuranceCompany: draft.type === "expense" && draft.category === "보험" ? draft.insuranceCompany.trim() || undefined : undefined,
-      insuranceType: draft.type === "expense" && draft.category === "보험" ? draft.insuranceType.trim() || undefined : undefined,
-      insurancePolicyNumber: draft.type === "expense" && draft.category === "보험" ? draft.insurancePolicyNumber.trim() || undefined : undefined,
-      insuranceRenewalDate: draft.type === "expense" && draft.category === "보험" ? draft.insuranceRenewalDate || undefined : undefined,
-      insuranceCoverage: draft.type === "expense" && draft.category === "보험" ? draft.insuranceCoverage.trim() || undefined : undefined,
-      insurancePaymentCycle: draft.type === "expense" && draft.category === "보험" ? draft.insurancePaymentCycle : undefined,
+      dueDate: ["expense", "loan"].includes(activeDraft.type) ? activeDraft.dueDate || activeDraft.date : undefined,
+      autopay: ["expense", "loan"].includes(activeDraft.type) ? activeDraft.autopay : undefined,
+      autopayAccount: ["expense", "loan"].includes(activeDraft.type) && activeDraft.autopay ? activeDraft.autopayAccount.trim() || undefined : undefined,
+      paymentStatus: ["expense", "loan"].includes(activeDraft.type) && activeDraft.dueDate ? activeDraft.paymentStatus : undefined,
+      insuranceCompany: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insuranceCompany.trim() || undefined : undefined,
+      insuranceType: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insuranceType.trim() || undefined : undefined,
+      insurancePolicyNumber: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insurancePolicyNumber.trim() || undefined : undefined,
+      insuranceRenewalDate: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insuranceRenewalDate || undefined : undefined,
+      insuranceCoverage: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insuranceCoverage.trim() || undefined : undefined,
+      insurancePaymentCycle: activeDraft.type === "expense" && activeDraft.category === "보험" ? activeDraft.insurancePaymentCycle : undefined,
     };
 
     setItems((current) => {
@@ -1368,8 +1369,8 @@ export default function Home() {
       const exists = current.some((item) => item.id === editingId);
       return exists ? current.map((item) => item.id === editingId ? nextItem : item) : [...current, nextItem];
     });
-    setSelectedDate(draft.date);
-    const nextMonth = new Date(`${draft.date}T12:00:00`);
+    setSelectedDate(activeDraft.date);
+    const nextMonth = new Date(`${activeDraft.date}T12:00:00`);
     nextMonth.setDate(1);
     setMonth(nextMonth);
     setComposerOpen(false);
@@ -1677,9 +1678,8 @@ export default function Home() {
 
       {isComposerOpen && (
         <Composer
-          draft={draft}
+          initialDraft={draft}
           editing={Boolean(editingId)}
-          onChange={setDraft}
           categoryMap={categoryMap}
           assets={assetBalances}
           monthlyCardSpend={monthlyCardSpend}
@@ -2342,11 +2342,10 @@ function FamilyShareSheet({
 }
 
 function Composer({
-  draft,
+  initialDraft,
   editing,
   categoryMap,
   assets,
-  onChange,
   onClose,
   onSave,
   onDelete,
@@ -2354,18 +2353,18 @@ function Composer({
   localCurrencyBalances,
   items,
 }: {
-  draft: Draft;
+  initialDraft: Draft;
   editing: boolean;
   categoryMap: CategoryMap;
   assets: AssetBalance[];
-  onChange: (draft: Draft) => void;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (draft: Draft) => void;
   onDelete: () => void;
   monthlyCardSpend: Record<string, number>;
   localCurrencyBalances: Record<string, number>;
   items: CalendarItem[];
 }) {
+  const [draft, setDraft] = useState<Draft>(initialDraft);
   const meta = typeMeta[draft.type];
   const assetsForKind = assets.filter((asset) => asset.kind === draft.assetKind);
   const cardAssets = assets.filter((asset) => asset.kind === "card");
@@ -2415,7 +2414,7 @@ function Composer({
     }
     const shouldAutoClassify = isFinance && categoryMode === "single" && (typeof patch.title === "string" || (next.type === "expense" && next.assetKind === "voucher" && (typeof patch.note === "string" || typeof patch.assetName === "string" || typeof patch.assetKind === "string"))) && `${next.title} ${next.note} ${next.assetName}`.trim().length >= 2;
     const suggestion = next.type === "expense" && next.assetKind === "voucher" ? suggestVoucherCategory(`${next.title} ${next.note} ${next.assetName}`, categoryMap) : aiSuggestCategory(next.type, `${next.title} ${next.note}`, categoryMap);
-    onChange(shouldAutoClassify ? { ...next, category: suggestion.category } : next);
+    setDraft(shouldAutoClassify ? { ...next, category: suggestion.category } : next);
   };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -2436,7 +2435,7 @@ function Composer({
           {draft.type === "expense" && draft.category === "보험" && <div className="detail-block insurance-block"><div className="detail-block-title"><Landmark size={15} /> 보험 상세 정보</div><div className="field-row"><label className="field-label">보험사<input value={draft.insuranceCompany} onChange={(event) => update({ insuranceCompany: event.target.value })} placeholder="예: 삼성화재" /></label><label className="field-label">보험 종류<select value={draft.insuranceType} onChange={(event) => update({ insuranceType: event.target.value })}><option value="">선택하세요</option><option value="실손의료보험">실손의료보험</option><option value="암보험">암보험</option><option value="종신보험">종신보험</option><option value="자동차보험">자동차보험</option><option value="운전자보험">운전자보험</option><option value="여행자보험">여행자보험</option><option value="기타보험">기타보험</option></select></label></div><div className="field-row"><label className="field-label">납부 주기<select value={draft.insurancePaymentCycle} onChange={(event) => update({ insurancePaymentCycle: event.target.value as Draft["insurancePaymentCycle"], recurrence: event.target.value === "yearly" ? "yearly" : event.target.value === "quarterly" ? "quarterly" : "monthly" })}><option value="monthly">매월</option><option value="quarterly">3개월마다</option><option value="yearly">매년</option></select></label><label className="field-label">갱신일<input type="date" value={draft.insuranceRenewalDate} onChange={(event) => update({ insuranceRenewalDate: event.target.value })} /></label></div><div className="field-row"><label className="field-label">증권번호 <span className="optional">선택</span><input value={draft.insurancePolicyNumber} onChange={(event) => update({ insurancePolicyNumber: event.target.value })} placeholder="예: 1234-5678" /></label><label className="field-label">보장 내용 <span className="optional">선택</span><input value={draft.insuranceCoverage} onChange={(event) => update({ insuranceCoverage: event.target.value })} placeholder="예: 입원·통원 보장" /></label></div><span className="field-hint">납부 주기에 맞춰 보험료가 달력과 한 달 합계에 자동으로 표시돼요.</span></div>}{draft.type === "savings" && <div className="detail-block savings-block"><div className="detail-block-title">적금 상세 설정</div><div className="field-row"><label className="field-label">연 이자율(%)<input inputMode="decimal" value={draft.savingsInterestRate} onChange={(event) => update({ savingsInterestRate: event.target.value.replace(/[^0-9.]/g, "") })} placeholder="예: 3.5" /></label><label className="field-label">납입 기간(개월)<input inputMode="numeric" value={draft.savingsTermMonths} onChange={(event) => update({ savingsTermMonths: event.target.value.replace(/[^0-9]/g, "") })} placeholder="12" /></label></div><label className="field-label">만기일<input type="date" value={draft.savingsMaturityDate} onChange={(event) => update({ savingsMaturityDate: event.target.value })} /></label>{draft.amount && draft.savingsTermMonths && <div className="detail-estimate">예상 원금 {formatWon(Number(draft.amount) * Number(draft.savingsTermMonths))} · 월 {formatWon(Number(draft.amount))} 납입</div>}</div>}
           <label className="field-label">메모 <span className="optional">선택</span><textarea value={draft.note} onChange={(event) => update({ note: event.target.value })} placeholder="잊지 않을 한마디를 남겨보세요" rows={2} /></label>
         </div>
-        <div className="sheet-actions"><button className="save-button" type="button" style={{ backgroundColor: meta.color }} onClick={onSave}>{editing ? "수정 저장" : "기록 저장"}<Check size={17} /></button>{editing && <button className="delete-button" type="button" onClick={onDelete}><Trash2 size={16} /> 삭제</button>}</div>
+        <div className="sheet-actions"><button className="save-button" type="button" style={{ backgroundColor: meta.color }} onClick={() => onSave(draft)}>{editing ? "수정 저장" : "기록 저장"}<Check size={17} /></button>{editing && <button className="delete-button" type="button" onClick={onDelete}><Trash2 size={16} /> 삭제</button>}</div>
       </section>
     </div>
   );
