@@ -1672,6 +1672,7 @@ export default function Home() {
         <button className={view === "home" ? "active" : ""} type="button" onClick={() => setViewAndScroll("home")}><LayoutGrid size={19} /><span>오늘</span></button>
         <button className={view === "calendar" ? "active" : ""} type="button" onClick={goToTodayCalendar}><CalendarDays size={19} /><span>달력</span></button>
         <button className={view === "ledger" ? "active" : ""} type="button" onClick={() => setViewAndScroll("ledger")}><Wallet size={19} /><span>가계부</span></button>
+        <button className={view === "assets" ? "active" : ""} type="button" onClick={() => setViewAndScroll("assets")}><WalletCards size={19} /><span>자산</span></button>
         <button className={view === "report" ? "active" : ""} type="button" onClick={() => setViewAndScroll("report")}><Repeat2 size={19} /><span>현금흐름</span></button>
       </nav>
 
