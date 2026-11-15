@@ -1156,3 +1156,37 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .asset-detail-kind-grid > button strong { grid-column: 1; }
 .asset-detail-kind-grid > button b { grid-column: 2; grid-row: 2; text-align: right; }
 @media (max-width: 380px) { .asset-detail-kind-grid > button { width: 100%; min-width: 0; padding: 11px 12px; } }
+
+/* 금융 유형 색상 기준: 모든 화면에서 동일하게 유지 */
+:root {
+  --finance-income: #2474c6;
+  --finance-expense: #b42318;
+  --finance-loan: #1f7a4d;
+  --finance-savings: #8064a8;
+  --finance-transfer: #716a65;
+  --finance-autopay: #d49a18;
+  --calendar-surface: #fbf7f1;
+}
+.app-theme-night { --calendar-surface: #302d38; }
+.ledger-entry > b.finance-income,
+.cashflow-row > b.finance-income,
+.asset-detail-row > b.finance-income { color: var(--finance-income) !important; }
+.ledger-entry > b.finance-expense,
+.cashflow-row > b.finance-expense,
+.asset-detail-row > b.finance-expense { color: var(--finance-expense) !important; }
+.ledger-entry > b.finance-loan,
+.cashflow-row > b.finance-loan,
+.asset-detail-row > b.finance-loan { color: var(--finance-loan) !important; }
+.ledger-entry > b.finance-savings,
+.cashflow-row > b.finance-savings,
+.asset-detail-row > b.finance-savings { color: var(--finance-savings) !important; }
+.ledger-entry > b.finance-transfer,
+.cashflow-row > b.finance-transfer,
+.asset-detail-row > b.finance-transfer { color: var(--finance-transfer) !important; }
+/* 연속 일정은 사용자가 고른 색을 유지하고 현재 테마 배경과 섞습니다. */
+.event-chip.event-range-start,
+.event-chip.event-range-middle,
+.event-chip.event-range-end {
+  background-color: color-mix(in srgb, var(--event-color, #c96f62) 42%, var(--calendar-surface)) !important;
+  color: var(--event-color, #c96f62) !important;
+}
