@@ -200,6 +200,9 @@ const RESERVE_STORAGE_KEY = "daldal-calendar-emergency-reserve";
 const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 const LOCKSCREEN_STORAGE_KEY = "daldal-calendar-lockscreen-config";
 const MONTHLY_CYCLE_START_DAY_STORAGE_KEY = "daldal-calendar-monthly-cycle-start-day";
+const NET_WORTH_POLICY_STORAGE_KEY = "daldal-calendar-net-worth-policy";
+type NetWorthPolicy = { custody: boolean; borrowed: boolean };
+const DEFAULT_NET_WORTH_POLICY: NetWorthPolicy = { custody: false, borrowed: true };
 const scopedStorageKey = (key: string, openId?: string) => openId ? `${key}-${encodeURIComponent(openId)}` : key;
 type LockScreenTheme = "ivory" | "blush" | "sage" | "night";
 type LockScreenConfig = { showCalendar: boolean; showSchedule: boolean; showTodo: boolean; showMonthlyFunds: boolean; backgroundTheme: LockScreenTheme; fontScale: "small" | "medium" | "large"; customBackgroundColor: string; customAccentColor: string };
@@ -797,6 +800,7 @@ type CloudPayload = {
   assetBalances: AssetBalance[];
   lockScreenConfig: LockScreenConfig;
   monthlyCycleStartDay: number;
+  netWorthPolicy: NetWorthPolicy;
 };
 
 function mergeCloudPayload(local: CloudPayload, remote: Partial<CloudPayload>, lastSyncedJson: string | null): CloudPayload {
@@ -814,6 +818,7 @@ function mergeCloudPayload(local: CloudPayload, remote: Partial<CloudPayload>, l
     assetBalances: choose("assetBalances"),
     lockScreenConfig: choose("lockScreenConfig"),
     monthlyCycleStartDay: choose("monthlyCycleStartDay"),
+    netWorthPolicy: choose("netWorthPolicy"),
   };
 }
 
@@ -853,6 +858,7 @@ export default function Home() {
   const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([]);
   const [lockScreenConfig, setLockScreenConfig] = useState<LockScreenConfig>(DEFAULT_LOCKSCREEN_CONFIG);
   const [monthlyCycleStartDay, setMonthlyCycleStartDay] = useState(1);
+  const [netWorthPolicy, setNetWorthPolicy] = useState<NetWorthPolicy>(DEFAULT_NET_WORTH_POLICY);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
   const accountStorageScope = shareGuestMode ? "__empty_share_guest__" : (auth.user?.openId ?? "");
@@ -931,6 +937,7 @@ export default function Home() {
         setAssetBalances([]);
         setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
         setMonthlyCycleStartDay(1);
+        setNetWorthPolicy(DEFAULT_NET_WORTH_POLICY);
         setLoadedStorageScope(scope);
         setIsLoaded(true);
         return;
@@ -960,6 +967,8 @@ export default function Home() {
       if (savedLockScreen) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...JSON.parse(savedLockScreen) });
       const savedCycleStartDay = read(MONTHLY_CYCLE_START_DAY_STORAGE_KEY);
       if (savedCycleStartDay) setMonthlyCycleStartDay(Math.min(28, Math.max(1, Number(savedCycleStartDay) || 1)));
+      const savedNetWorthPolicy = read(NET_WORTH_POLICY_STORAGE_KEY);
+      if (savedNetWorthPolicy) setNetWorthPolicy({ ...DEFAULT_NET_WORTH_POLICY, ...JSON.parse(savedNetWorthPolicy) });
     } catch {
       // Keep the starter entries if local storage is unavailable.
     } finally {
@@ -974,7 +983,7 @@ export default function Home() {
     const remote = accountCloudQuery.data;
     if (remote?.payloadJson) {
       try {
-        const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number }>;
+        const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number; netWorthPolicy?: NetWorthPolicy }>;
         if (Array.isArray(payload.items)) setItems((current) => mergeCalendarItems(current, payload.items as CalendarItem[]));
         if (payload.customCategories) setCustomCategories(payload.customCategories);
         if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
@@ -982,6 +991,7 @@ export default function Home() {
         if (Array.isArray(payload.assetBalances)) setAssetBalances(payload.assetBalances);
         if (payload.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...payload.lockScreenConfig });
         if (typeof (payload as Partial<CloudPayload>).monthlyCycleStartDay === "number") setMonthlyCycleStartDay(Math.min(28, Math.max(1, (payload as Partial<CloudPayload>).monthlyCycleStartDay ?? 1)));
+        if (payload.netWorthPolicy) setNetWorthPolicy({ ...DEFAULT_NET_WORTH_POLICY, ...payload.netWorthPolicy });
         cloudVersionRef.current = remote.version;
         cloudSignatureRef.current = remote.payloadJson;
       } catch {
@@ -997,8 +1007,8 @@ export default function Home() {
     const remote = accountCloudQuery.data;
     if (resetInProgressRef.current || !remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
     try {
-      const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number }>;
-      const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }, payload, cloudSignatureRef.current);
+      const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number; netWorthPolicy?: NetWorthPolicy }>;
+      const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay, netWorthPolicy }, payload, cloudSignatureRef.current);
       setItems(merged.items);
       setCustomCategories(merged.customCategories);
       setMonthlyBudgets(merged.monthlyBudgets);
@@ -1006,12 +1016,13 @@ export default function Home() {
       setAssetBalances(merged.assetBalances);
       setLockScreenConfig(merged.lockScreenConfig);
       setMonthlyCycleStartDay(merged.monthlyCycleStartDay);
+      setNetWorthPolicy(merged.netWorthPolicy);
       cloudVersionRef.current = remote.version;
       cloudSignatureRef.current = remote.payloadJson;
     } catch {}
-  }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated, assetBalances, customCategories, emergencyReserve, items, lockScreenConfig, monthlyBudgets]);
+  }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated, assetBalances, customCategories, emergencyReserve, items, lockScreenConfig, monthlyBudgets, monthlyCycleStartDay, netWorthPolicy]);
 
-  const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay]);
+  const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay, netWorthPolicy }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay, netWorthPolicy]);
   useEffect(() => {
     if (!isOnline || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || cloudPayloadJson === cloudSignatureRef.current) return;
     const timer = window.setTimeout(() => {
@@ -1019,7 +1030,7 @@ export default function Home() {
         if (result.conflict) {
           try {
             const remote = JSON.parse(result.payloadJson) as Partial<CloudPayload>;
-            const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }, remote, cloudSignatureRef.current);
+            const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay, netWorthPolicy }, remote, cloudSignatureRef.current);
             setItems(merged.items);
             setCustomCategories(merged.customCategories);
             setMonthlyBudgets(merged.monthlyBudgets);
@@ -1027,6 +1038,7 @@ export default function Home() {
             setAssetBalances(merged.assetBalances);
             setLockScreenConfig(merged.lockScreenConfig);
             setMonthlyCycleStartDay(merged.monthlyCycleStartDay);
+            setNetWorthPolicy(merged.netWorthPolicy);
           } catch {}
           cloudVersionRef.current = result.version;
           cloudSignatureRef.current = result.payloadJson;
@@ -1037,7 +1049,7 @@ export default function Home() {
       } });
     }, 150);
     return () => window.clearTimeout(timer);
-  }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, isOnline, items, loadedStorageScope]);
+  }, [accountCloudSync, accountStorageScope, auth.isAuthenticated, cloudPayloadJson, isLoaded, isOnline, items, loadedStorageScope, monthlyCycleStartDay, netWorthPolicy]);
 
   useEffect(() => {
     if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(STORAGE_KEY, accountStorageScope), JSON.stringify(items));
@@ -1088,6 +1100,9 @@ export default function Home() {
   useEffect(() => {
     if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(MONTHLY_CYCLE_START_DAY_STORAGE_KEY, accountStorageScope), String(monthlyCycleStartDay));
   }, [monthlyCycleStartDay, isLoaded, loadedStorageScope, accountStorageScope]);
+  useEffect(() => {
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(NET_WORTH_POLICY_STORAGE_KEY, accountStorageScope), JSON.stringify(netWorthPolicy));
+  }, [netWorthPolicy, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -1338,8 +1353,8 @@ export default function Home() {
     resetInProgressRef.current = true;
     lastSyncedRecords.current = JSON.stringify([]);
     lastFamilySignature.current = null;
-    const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG, monthlyCycleStartDay: 1 });
-    [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY, MONTHLY_CYCLE_START_DAY_STORAGE_KEY].forEach((key) => {
+    const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG, monthlyCycleStartDay: 1, netWorthPolicy: DEFAULT_NET_WORTH_POLICY });
+    [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY, MONTHLY_CYCLE_START_DAY_STORAGE_KEY, NET_WORTH_POLICY_STORAGE_KEY].forEach((key) => {
       window.localStorage.removeItem(key);
       if (accountStorageScope) window.localStorage.removeItem(scopedStorageKey(key, accountStorageScope));
     });
@@ -1350,6 +1365,7 @@ export default function Home() {
     setAssetBalances([]);
     setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
     setMonthlyCycleStartDay(1);
+    setNetWorthPolicy(DEFAULT_NET_WORTH_POLICY);
     setSelectedDate(todayISO);
     setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setViewAndScroll("home");
@@ -1382,7 +1398,7 @@ export default function Home() {
   };
 
   const exportBackup = () => {
-    const backup = { app: "daldal-calendar", version: 3, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay };
+    const backup = { app: "daldal-calendar", version: 3, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay, netWorthPolicy };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const fileName = `daldal-calendar-backup-${toISO(new Date())}.json`;
     const url = URL.createObjectURL(blob);
@@ -1401,7 +1417,7 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const backup = JSON.parse(String(reader.result)) as { app?: string; items?: CalendarItem[]; customCategories?: Partial<Record<ItemType, string[]>>; monthlyBudgets?: typeof monthlyBudgets; emergencyReserve?: number; assetBalances?: AssetBalance[]; lockScreenConfig?: LockScreenConfig };
+        const backup = JSON.parse(String(reader.result)) as { app?: string; items?: CalendarItem[]; customCategories?: Partial<Record<ItemType, string[]>>; monthlyBudgets?: typeof monthlyBudgets; emergencyReserve?: number; assetBalances?: AssetBalance[]; lockScreenConfig?: LockScreenConfig; monthlyCycleStartDay?: number; netWorthPolicy?: NetWorthPolicy };
         if (backup.app !== "daldal-calendar" || !Array.isArray(backup.items)) throw new Error("invalid backup");
         setItems(backup.items);
         if (backup.customCategories) setCustomCategories(backup.customCategories);
@@ -1409,6 +1425,8 @@ export default function Home() {
         if (typeof backup.emergencyReserve === "number") setEmergencyReserve(backup.emergencyReserve);
         if (Array.isArray(backup.assetBalances)) setAssetBalances(backup.assetBalances);
         if (backup.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...backup.lockScreenConfig });
+        if (typeof backup.monthlyCycleStartDay === "number") setMonthlyCycleStartDay(Math.min(28, Math.max(1, backup.monthlyCycleStartDay)));
+        if (backup.netWorthPolicy) setNetWorthPolicy({ ...DEFAULT_NET_WORTH_POLICY, ...backup.netWorthPolicy });
         window.alert("백업을 복원했어요.");
       } catch {
         window.alert("달달 캘린더 백업 파일이 아니에요.");
@@ -1611,7 +1629,7 @@ export default function Home() {
         />
       )}
       {isCategoryManagerOpen && <CategoryManager customCategories={customCategories} onChange={setCustomCategories} onClose={() => setCategoryManagerOpen(false)} />}
-      {isAssetManagerOpen && <AssetManager assets={assetBalances} items={displayItems} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
+      {isAssetManagerOpen && <AssetManager assets={assetBalances} items={displayItems} netWorthPolicy={netWorthPolicy} onNetWorthPolicyChange={setNetWorthPolicy} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
       {isBudgetManagerOpen && <BudgetManager month={month} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} expenseCategories={categoryMap.expense} onChange={(budget) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onClose={() => setBudgetManagerOpen(false)} />}
       {isBulkTransferOpen && <BulkTransferSheet items={items} assets={assetBalances} onChange={setItems} onClose={() => setBulkTransferOpen(false)} />}
       {isTutorialOpen && <TutorialSheet onClose={() => { window.localStorage.setItem("daldal-calendar-tutorial-seen", "1"); setTutorialOpen(false); }} />}
@@ -2079,7 +2097,7 @@ function inferMarketTicker(kind: AssetBalance["kind"], name: string, ticker: str
   if (kind === "crypto") return ({ 비트코인: "BITHUMB:BTC_KRW", btc: "BITHUMB:BTC_KRW", 이더리움: "BITHUMB:ETH_KRW", eth: "BITHUMB:ETH_KRW", 리플: "BITHUMB:XRP_KRW", xrp: "BITHUMB:XRP_KRW", 솔라나: "BITHUMB:SOL_KRW", sol: "BITHUMB:SOL_KRW", 도지코인: "BITHUMB:DOGE_KRW", doge: "BITHUMB:DOGE_KRW", 에이다: "BITHUMB:ADA_KRW", ada: "BITHUMB:ADA_KRW" } as Record<string, string>)[normalized];
   return undefined;
 }
-function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalance[]; items: CalendarItem[]; onChange: (value: AssetBalance[]) => void; onClose: () => void }) {
+function AssetManager({ assets, items, netWorthPolicy, onNetWorthPolicyChange, onChange, onClose }: { assets: AssetBalance[]; items: CalendarItem[]; netWorthPolicy: NetWorthPolicy; onNetWorthPolicyChange: (policy: NetWorthPolicy) => void; onChange: (value: AssetBalance[]) => void; onClose: () => void }) {
   const [kind, setKind] = useState<AssetBalance["kind"]>("account");
   const [name, setName] = useState("");
   const [cardCompany, setCardCompany] = useState(CARD_COMPANIES[0]);
@@ -2116,11 +2134,13 @@ function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalan
   const totalAssetBalance = assets.filter((asset) => (asset.assetRole ?? "personal") === "personal").reduce((sum, asset) => sum + (asset.kind === "card" && asset.cardType === "debit" && asset.linkedAccountName ? 0 : currentBalance(asset)), 0);
   const custodyBalance = assets.filter((asset) => asset.assetRole === "custody").reduce((sum, asset) => sum + currentBalance(asset), 0);
   const borrowedBalance = assets.filter((asset) => asset.assetRole === "borrowed").reduce((sum, asset) => sum + currentBalance(asset), 0);
-  const netAssetBalance = totalAssetBalance - totalLoanBalance - borrowedBalance;
+  const custodyContribution = netWorthPolicy.custody ? custodyBalance : 0;
+  const borrowedContribution = netWorthPolicy.borrowed ? -borrowedBalance : 0;
+  const netAssetBalance = totalAssetBalance + custodyContribution + borrowedContribution - totalLoanBalance;
   const roleRows = [
-    { key: "personal", label: "개인 자산", amount: totalAssetBalance, contribution: totalAssetBalance, color: "#62a889", note: "순자산에 더해짐" },
-    { key: "custody", label: "보관금", amount: custodyBalance, contribution: 0, color: "#d9ae51", note: "개인 순자산 제외" },
-    { key: "borrowed", label: "차입금", amount: borrowedBalance, contribution: -borrowedBalance, color: "#cf756b", note: "순자산에서 차감" },
+    { key: "personal", label: "개인 자산", amount: totalAssetBalance, contribution: totalAssetBalance, color: "#62a889", note: "항상 순자산에 더해짐" },
+    { key: "custody", label: "보관금", amount: custodyBalance, contribution: custodyContribution, color: "#d9ae51", note: netWorthPolicy.custody ? "순자산에 포함" : "순자산에서 제외" },
+    { key: "borrowed", label: "차입금", amount: borrowedBalance, contribution: borrowedContribution, color: "#cf756b", note: netWorthPolicy.borrowed ? "순자산에서 차감" : "순자산에서 제외" },
   ];
   const roleMax = Math.max(...roleRows.map((row) => row.amount), 1);
   const addAsset = () => {
@@ -2131,7 +2151,7 @@ function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalan
   };
   const labelForKind = (assetKind: AssetBalance["kind"]) => assetKind === "account" ? "계좌" : assetKind === "cash" ? "현금" : assetKind === "card" ? "카드" : assetKind === "localCurrency" ? "지역화폐" : assetKind === "stock" ? "주식" : "코인";
   const labelForRole = (role: AssetBalance["assetRole"] = "personal") => role === "custody" ? "타인자금·보관금" : role === "borrowed" ? "차입금·부채" : "개인 자산";
-  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet asset-manager-sheet" role="dialog" aria-modal="true" aria-label="자산 잔액 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MY ASSETS</span><h2>현재 가진 돈과 투자자산을 관리해요</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">계좌·카드·현금·지역화폐와 주식·코인의 보유 정보를 입력해요. 종목코드를 넣으면 현재가를 60초마다 자동으로 갱신해요.</p><div className="asset-overview-grid"><div className="asset-overview-card owned"><span>개인 보유 자산</span><strong>{formatWon(totalAssetBalance)}</strong><small>타인자금·차입금 제외</small></div><div className="asset-overview-card liability"><span>대출·차입금</span><strong>{formatWon(totalLoanBalance + borrowedBalance)}</strong><small>대출 {loanGroups.length}건 · 차입금 {formatWon(borrowedBalance)}</small></div><div className="asset-overview-card net"><span>개인 순자산</span><strong>{formatWon(netAssetBalance)}</strong><small>개인 자산 − 부채</small></div><div className="asset-overview-card custody"><span>보관 중인 타인자금</span><strong>{formatWon(custodyBalance)}</strong><small>개인 순자산에 미포함</small></div></div><section className="asset-role-visualization"><div className="asset-role-visualization-head"><div><span className="section-eyebrow">ASSET COMPOSITION</span><strong>자산 유형별 현황</strong></div><b>순자산 {formatWon(netAssetBalance)}</b></div><div className="asset-role-chart">{roleRows.map((row) => <div className="asset-role-chart-row" key={row.key}><div className="asset-role-chart-label"><span><i style={{ backgroundColor: row.color }} />{row.label}</span><b>{formatWon(row.amount)}</b></div><div className="asset-role-track"><i style={{ width: `${Math.max(row.amount ? 5 : 0, row.amount / roleMax * 100)}%`, backgroundColor: row.color }} /></div><small>{row.note} · 순자산 기여 {row.contribution >= 0 ? "+" : "−"}{formatWon(Math.abs(row.contribution))}</small></div>)}</div></section><div className="asset-manager-form"><div className="manager-tabs">{([["account", "계좌"], ["card", "카드"], ["cash", "현금"], ["localCurrency", "지역화폐"], ["stock", "주식"], ["crypto", "코인"]] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? "active" : ""} onClick={() => setKind(value)}>{label}</button>)}</div><div className="field-row"><label className="field-label">{kind === "stock" ? "종목명" : kind === "crypto" ? "코인명" : kind === "card" ? "카드 이름" : "자산 이름"}<input value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "stock" ? "예: 삼성전자" : kind === "crypto" ? "예: 비트코인" : kind === "card" ? "예: KB 국민카드" : kind === "account" ? "예: 신한 주거래" : kind === "cash" ? "예: 지갑" : "예: 경기지역화폐"} /></label>{isInvestment && <label className="field-label">시세 코드<input value={ticker} onChange={(event) => setTicker(event.target.value)} placeholder={kind === "stock" ? "예: 005930.KS" : "예: BTC-KRW"} /><small className="investment-hint">국내 주식은 .KS/.KQ, 미국 주식·미니스탁 ETF는 AAPL·SPY·QQQ처럼 입력해요. 코인은 빗썸 원화마켓으로 조회해요.</small></label>}{!isInvestment && <label className="field-label">초기 잔액<input inputMode="numeric" value={balance} onChange={(event) => setBalance(event.target.value.replace(/[^0-9]/g, ""))} placeholder="0" /></label>}</div>{!isInvestment && <label className="field-label">자산 역할<select value={assetRole} onChange={(event) => setAssetRole(event.target.value as NonNullable<AssetBalance["assetRole"]>)}><option value="personal">개인 자산</option><option value="custody">타인자금·보관금 (개인 자산 제외)</option><option value="borrowed">차입금·부채 (순자산에서 차감)</option></select><small className="field-hint">모임 공동금은 타인자금·보관금, 빌린 돈은 차입금·부채로 선택하세요.</small></label>}{kind === "card" && <div className="field-row"><label className="field-label">카드 종류<select value={cardType} onChange={(event) => setCardType(event.target.value as "credit" | "debit")}><option value="credit">신용카드</option><option value="debit">체크카드</option></select></label><label className="field-label">카드사<select value={cardCompany} onChange={(event) => setCardCompany(event.target.value)}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제일<input inputMode="numeric" value={paymentDay} onChange={(event) => setPaymentDay(event.target.value.replace(/[^0-9]/g, "").slice(0, 2))} placeholder="매월 예: 20" /></label></div>}{kind === "card" && cardType === "debit" && <label className="field-label">연결 계좌<select value={linkedAccountName} onChange={(event) => setLinkedAccountName(event.target.value)}><option value="">계좌를 선택하세요</option>{assets.filter((asset) => asset.kind === "account").map((asset) => <option value={asset.name} key={`linked-${asset.id}`}>{asset.name}</option>)}</select><small className="field-hint">체크카드 결제 시 이 계좌 잔액에서 자동 차감돼요.</small></label>}{kind === "card" && cardType === "credit" && <label className="field-label">신용 한도<input inputMode="numeric" value={creditLimit} onChange={(event) => setCreditLimit(event.target.value.replace(/[^0-9]/g, ""))} placeholder="예: 3000000" /></label>}{isInvestment && <><div className="field-row"><label className="field-label">보유 수량<input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="예: 3.5" /></label><label className="field-label">평균 매수가<input inputMode="decimal" value={averagePurchasePrice} onChange={(event) => setAveragePurchasePrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="원화 기준" /></label></div><label className="field-label">현재가<input inputMode="decimal" value={currentPrice} onChange={(event) => setCurrentPrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="자동 조회 실패 시 수동 입력" /></label><small className="investment-hint">평가액 = 보유 수량 × 현재가 · 평가손익 = 평가액 − 매수원가 · 종목코드가 있으면 자동 갱신</small></>}<div className="asset-owner-row"><span>소유자</span><div>{["나", "신랑", "공동"].map((value) => <button type="button" className={owner === value ? "selected" : ""} key={value} onClick={() => setOwner(value)}>{value}</button>)}</div></div><button className="save-button asset-add-button" type="button" onClick={addAsset}>{editingAssetId ? "자산 수정 저장" : "자산 추가"} {editingAssetId ? <Check size={16} /> : <Plus size={16} />}</button>{editingAssetId && <button className="asset-cancel-button" type="button" onClick={resetForm}>수정 취소</button>}</div><div className="asset-balance-list">{assets.length ? assets.map((asset) => { const current = Math.max(0, getAssetCurrentBalance(asset, items, assets)); const usage = getAssetUsageSummary(asset, items); const assetIsInvestment = asset.kind === "stock" || asset.kind === "crypto"; const cost = assetIsInvestment ? getInvestmentCost(asset) : 0; const profit = current - cost; const profitRate = assetIsInvestment ? getInvestmentProfitRate(asset) : 0; return <div className="asset-balance-row" key={asset.id}><div><strong>{asset.name}</strong><small>{labelForKind(asset.kind)} · {labelForRole(asset.assetRole)} · {asset.owner}</small>{asset.kind !== "stock" && asset.kind !== "crypto" && <small className="asset-usage-summary">수입 {formatWon(usage.income)} · 지출 {formatWon(usage.expense)} · 이체 {formatWon(usage.transfers)}</small>}{asset.kind === "card" && <small>{asset.cardType === "debit" ? "체크카드" : "신용카드"} · {asset.cardCompany ?? "카드사 미지정"} · 결제일 매월 {asset.paymentDay ?? "미지정"}일{asset.cardType !== "debit" ? ` · 한도 ${formatWon(asset.creditLimit ?? 0)}` : ` · 연결계좌 ${asset.linkedAccountName || "미지정"}`}</small>}{assetIsInvestment && <small>{asset.quantity ?? 0}개 · 평균 {formatWon(asset.averagePurchasePrice ?? 0)} · {asset.ticker || "시세 코드 없음"}</small>}{assetIsInvestment && asset.priceUpdatedAt && <small className="investment-hint">현재가 {asset.nativePrice && asset.nativeCurrency && asset.nativeCurrency !== "KRW" ? `${asset.nativeCurrency} ${asset.nativePrice.toLocaleString("ko-KR")} → 원화 환산` : asset.priceCurrency ?? "KRW"} · {new Date(asset.priceUpdatedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small>}</div>{asset.kind !== "stock" && asset.kind !== "crypto" && usage.recent.length > 0 && <small className="asset-recent-usage">최근 사용처: {usage.recent.map((item) => `${item.category || (item.type === "income" ? "수입" : item.type === "expense" ? "지출" : "이체")} ${formatWon(item.amount)}`).join(" · ")}</small>}<div className="asset-balance-values"><b>{formatWon(current)}</b>{assetIsInvestment && <small className={profit >= 0 ? "investment-profit" : "investment-loss"}>{profit >= 0 ? "▲" : "▼"} {formatWon(Math.abs(profit))} ({cost ? `${profitRate >= 0 ? "+" : "−"}${Math.abs(profitRate).toFixed(2)}%` : "수익률 계산 대기"})</small>}<button className="asset-edit-button" type="button" onClick={() => editAsset(asset)} aria-label={`${asset.name} 수정`}><Pencil size={14} /></button><button type="button" onClick={() => { if (window.confirm(`${asset.name} 자산을 삭제할까요?`)) { if (editingAssetId === asset.id) resetForm(); onChange(assets.filter((item) => item.id !== asset.id)); } }} aria-label={`${asset.name} 삭제`}><X size={14} /></button></div></div>; }) : <div className="soft-empty">등록된 자산이 아직 없어요.</div>}</div><div className="asset-section-heading"><div><span className="section-eyebrow">OWNED ASSETS</span><strong>보유 자산</strong></div><span>{assets.length}개</span></div><section className="asset-liability-section"><div className="asset-liability-heading"><div><span className="section-eyebrow">LIABILITIES</span><strong>대출 잔액</strong></div><b>{formatWon(totalLoanBalance)}</b></div>{loanGroups.length ? <div className="asset-liability-list">{loanGroups.map((loan) => <div className="asset-liability-row" key={loan.id}><div><strong>{loan.title}</strong><small>{loan.owner} · 연 {loan.interestRate}% · 원금 {formatWon(loan.originalPrincipal)} · 중도상환 {formatWon(loan.earlyRepayment)}</small></div><b>{formatWon(loan.balance)}</b></div>)}</div> : <div className="soft-empty">등록된 대출 잔액이 없어요.</div>}</section>{borrowedBalance > 0 && <section className="asset-liability-section"><div className="asset-liability-heading"><div><span className="section-eyebrow">BORROWED FUNDS</span><strong>차입금·부채</strong></div><b>{formatWon(borrowedBalance)}</b></div><div className="asset-liability-list">{assets.filter((asset) => asset.assetRole === "borrowed").map((asset) => <div className="asset-liability-row" key={`borrowed-${asset.id}`}><div><strong>{asset.name}</strong><small>자산 역할: 차입금·부채 · {asset.owner}</small></div><b>{formatWon(currentBalance(asset))}</b></div>)}</div></section>}<section className="asset-transfer-history"><div className="asset-transfer-heading"><div><span className="section-eyebrow">TRANSFER HISTORY</span><strong>계좌 → 지역화폐 이체 내역</strong></div><span>{transfers.length}건</span></div>{transfers.length ? <div className="asset-transfer-list">{transfers.map((item) => <div className="asset-transfer-row" key={item.id}><div><strong>{item.localCurrencySource || item.assetName || "출금 계좌"} <span>→</span> {item.localCurrencyTarget || "지역화폐"}</strong><small>{item.date} · 할인 {item.localCurrencyDiscountRate ?? 0}%</small></div><div><b>{formatWon(item.amount)}</b><small>충전 {formatWon(getLocalCurrencyLoadedAmount(item))} · 실제 출금 {formatWon(getLocalCurrencyChargedAmount(item))}</small></div></div>)}</div> : <div className="soft-empty">지역화폐 충전 이체 내역이 아직 없어요.</div>}</section><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
+  return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet asset-manager-sheet" role="dialog" aria-modal="true" aria-label="자산 잔액 관리"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MY ASSETS</span><h2>현재 가진 돈과 투자자산을 관리해요</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">계좌·카드·현금·지역화폐와 주식·코인의 보유 정보를 입력해요. 종목코드를 넣으면 현재가를 60초마다 자동으로 갱신해요.</p><div className="asset-overview-grid"><div className="asset-overview-card owned"><span>개인 보유 자산</span><strong>{formatWon(totalAssetBalance)}</strong><small>타인자금·차입금 제외</small></div><div className="asset-overview-card liability"><span>대출·차입금</span><strong>{formatWon(totalLoanBalance + borrowedBalance)}</strong><small>대출 {loanGroups.length}건 · 차입금 {formatWon(borrowedBalance)}</small></div><div className="asset-overview-card net"><span>개인 순자산</span><strong>{formatWon(netAssetBalance)}</strong><small>개인 자산 − 부채</small></div><div className="asset-overview-card custody"><span>보관 중인 타인자금</span><strong>{formatWon(custodyBalance)}</strong><small>개인 순자산에 미포함</small></div></div><section className="asset-role-visualization"><div className="asset-role-visualization-head"><div><span className="section-eyebrow">ASSET COMPOSITION</span><strong>자산 유형별 현황</strong></div><b>순자산 {formatWon(netAssetBalance)}</b></div><div className="asset-net-worth-policy"><strong>순자산 계산에 반영할 유형</strong><label><input type="checkbox" checked={netWorthPolicy.custody} onChange={(event) => onNetWorthPolicyChange({ ...netWorthPolicy, custody: event.target.checked })} /> 보관금 포함</label><label><input type="checkbox" checked={netWorthPolicy.borrowed} onChange={(event) => onNetWorthPolicyChange({ ...netWorthPolicy, borrowed: event.target.checked })} /> 차입금 포함</label></div><div className="asset-role-chart">{roleRows.map((row) => <div className="asset-role-chart-row" key={row.key}><div className="asset-role-chart-label"><span><i style={{ backgroundColor: row.color }} />{row.label}</span><b>{formatWon(row.amount)}</b></div><div className="asset-role-track"><i style={{ width: `${Math.max(row.amount ? 5 : 0, row.amount / roleMax * 100)}%`, backgroundColor: row.color }} /></div><small>{row.note} · 순자산 기여 {row.contribution >= 0 ? "+" : "−"}{formatWon(Math.abs(row.contribution))}</small></div>)}</div></section><div className="asset-manager-form"><div className="manager-tabs">{([["account", "계좌"], ["card", "카드"], ["cash", "현금"], ["localCurrency", "지역화폐"], ["stock", "주식"], ["crypto", "코인"]] as const).map(([value, label]) => <button key={value} type="button" className={kind === value ? "active" : ""} onClick={() => setKind(value)}>{label}</button>)}</div><div className="field-row"><label className="field-label">{kind === "stock" ? "종목명" : kind === "crypto" ? "코인명" : kind === "card" ? "카드 이름" : "자산 이름"}<input value={name} onChange={(event) => setName(event.target.value)} placeholder={kind === "stock" ? "예: 삼성전자" : kind === "crypto" ? "예: 비트코인" : kind === "card" ? "예: KB 국민카드" : kind === "account" ? "예: 신한 주거래" : kind === "cash" ? "예: 지갑" : "예: 경기지역화폐"} /></label>{isInvestment && <label className="field-label">시세 코드<input value={ticker} onChange={(event) => setTicker(event.target.value)} placeholder={kind === "stock" ? "예: 005930.KS" : "예: BTC-KRW"} /><small className="investment-hint">국내 주식은 .KS/.KQ, 미국 주식·미니스탁 ETF는 AAPL·SPY·QQQ처럼 입력해요. 코인은 빗썸 원화마켓으로 조회해요.</small></label>}{!isInvestment && <label className="field-label">초기 잔액<input inputMode="numeric" value={balance} onChange={(event) => setBalance(event.target.value.replace(/[^0-9]/g, ""))} placeholder="0" /></label>}</div>{!isInvestment && <label className="field-label">자산 역할<select value={assetRole} onChange={(event) => setAssetRole(event.target.value as NonNullable<AssetBalance["assetRole"]>)}><option value="personal">개인 자산</option><option value="custody">타인자금·보관금 (개인 자산 제외)</option><option value="borrowed">차입금·부채 (순자산에서 차감)</option></select><small className="field-hint">모임 공동금은 타인자금·보관금, 빌린 돈은 차입금·부채로 선택하세요.</small></label>}{kind === "card" && <div className="field-row"><label className="field-label">카드 종류<select value={cardType} onChange={(event) => setCardType(event.target.value as "credit" | "debit")}><option value="credit">신용카드</option><option value="debit">체크카드</option></select></label><label className="field-label">카드사<select value={cardCompany} onChange={(event) => setCardCompany(event.target.value)}>{CARD_COMPANIES.map((company) => <option key={company}>{company}</option>)}</select></label><label className="field-label">결제일<input inputMode="numeric" value={paymentDay} onChange={(event) => setPaymentDay(event.target.value.replace(/[^0-9]/g, "").slice(0, 2))} placeholder="매월 예: 20" /></label></div>}{kind === "card" && cardType === "debit" && <label className="field-label">연결 계좌<select value={linkedAccountName} onChange={(event) => setLinkedAccountName(event.target.value)}><option value="">계좌를 선택하세요</option>{assets.filter((asset) => asset.kind === "account").map((asset) => <option value={asset.name} key={`linked-${asset.id}`}>{asset.name}</option>)}</select><small className="field-hint">체크카드 결제 시 이 계좌 잔액에서 자동 차감돼요.</small></label>}{kind === "card" && cardType === "credit" && <label className="field-label">신용 한도<input inputMode="numeric" value={creditLimit} onChange={(event) => setCreditLimit(event.target.value.replace(/[^0-9]/g, ""))} placeholder="예: 3000000" /></label>}{isInvestment && <><div className="field-row"><label className="field-label">보유 수량<input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="예: 3.5" /></label><label className="field-label">평균 매수가<input inputMode="decimal" value={averagePurchasePrice} onChange={(event) => setAveragePurchasePrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="원화 기준" /></label></div><label className="field-label">현재가<input inputMode="decimal" value={currentPrice} onChange={(event) => setCurrentPrice(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="자동 조회 실패 시 수동 입력" /></label><small className="investment-hint">평가액 = 보유 수량 × 현재가 · 평가손익 = 평가액 − 매수원가 · 종목코드가 있으면 자동 갱신</small></>}<div className="asset-owner-row"><span>소유자</span><div>{["나", "신랑", "공동"].map((value) => <button type="button" className={owner === value ? "selected" : ""} key={value} onClick={() => setOwner(value)}>{value}</button>)}</div></div><button className="save-button asset-add-button" type="button" onClick={addAsset}>{editingAssetId ? "자산 수정 저장" : "자산 추가"} {editingAssetId ? <Check size={16} /> : <Plus size={16} />}</button>{editingAssetId && <button className="asset-cancel-button" type="button" onClick={resetForm}>수정 취소</button>}</div><div className="asset-balance-list">{assets.length ? assets.map((asset) => { const current = Math.max(0, getAssetCurrentBalance(asset, items, assets)); const usage = getAssetUsageSummary(asset, items); const assetIsInvestment = asset.kind === "stock" || asset.kind === "crypto"; const cost = assetIsInvestment ? getInvestmentCost(asset) : 0; const profit = current - cost; const profitRate = assetIsInvestment ? getInvestmentProfitRate(asset) : 0; return <div className="asset-balance-row" key={asset.id}><div><strong>{asset.name}</strong><small>{labelForKind(asset.kind)} · {labelForRole(asset.assetRole)} · {asset.owner}</small>{asset.kind !== "stock" && asset.kind !== "crypto" && <small className="asset-usage-summary">수입 {formatWon(usage.income)} · 지출 {formatWon(usage.expense)} · 이체 {formatWon(usage.transfers)}</small>}{asset.kind === "card" && <small>{asset.cardType === "debit" ? "체크카드" : "신용카드"} · {asset.cardCompany ?? "카드사 미지정"} · 결제일 매월 {asset.paymentDay ?? "미지정"}일{asset.cardType !== "debit" ? ` · 한도 ${formatWon(asset.creditLimit ?? 0)}` : ` · 연결계좌 ${asset.linkedAccountName || "미지정"}`}</small>}{assetIsInvestment && <small>{asset.quantity ?? 0}개 · 평균 {formatWon(asset.averagePurchasePrice ?? 0)} · {asset.ticker || "시세 코드 없음"}</small>}{assetIsInvestment && asset.priceUpdatedAt && <small className="investment-hint">현재가 {asset.nativePrice && asset.nativeCurrency && asset.nativeCurrency !== "KRW" ? `${asset.nativeCurrency} ${asset.nativePrice.toLocaleString("ko-KR")} → 원화 환산` : asset.priceCurrency ?? "KRW"} · {new Date(asset.priceUpdatedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small>}</div>{asset.kind !== "stock" && asset.kind !== "crypto" && usage.recent.length > 0 && <small className="asset-recent-usage">최근 사용처: {usage.recent.map((item) => `${item.category || (item.type === "income" ? "수입" : item.type === "expense" ? "지출" : "이체")} ${formatWon(item.amount)}`).join(" · ")}</small>}<div className="asset-balance-values"><b>{formatWon(current)}</b>{assetIsInvestment && <small className={profit >= 0 ? "investment-profit" : "investment-loss"}>{profit >= 0 ? "▲" : "▼"} {formatWon(Math.abs(profit))} ({cost ? `${profitRate >= 0 ? "+" : "−"}${Math.abs(profitRate).toFixed(2)}%` : "수익률 계산 대기"})</small>}<button className="asset-edit-button" type="button" onClick={() => editAsset(asset)} aria-label={`${asset.name} 수정`}><Pencil size={14} /></button><button type="button" onClick={() => { if (window.confirm(`${asset.name} 자산을 삭제할까요?`)) { if (editingAssetId === asset.id) resetForm(); onChange(assets.filter((item) => item.id !== asset.id)); } }} aria-label={`${asset.name} 삭제`}><X size={14} /></button></div></div>; }) : <div className="soft-empty">등록된 자산이 아직 없어요.</div>}</div><div className="asset-section-heading"><div><span className="section-eyebrow">OWNED ASSETS</span><strong>보유 자산</strong></div><span>{assets.length}개</span></div><section className="asset-liability-section"><div className="asset-liability-heading"><div><span className="section-eyebrow">LIABILITIES</span><strong>대출 잔액</strong></div><b>{formatWon(totalLoanBalance)}</b></div>{loanGroups.length ? <div className="asset-liability-list">{loanGroups.map((loan) => <div className="asset-liability-row" key={loan.id}><div><strong>{loan.title}</strong><small>{loan.owner} · 연 {loan.interestRate}% · 원금 {formatWon(loan.originalPrincipal)} · 중도상환 {formatWon(loan.earlyRepayment)}</small></div><b>{formatWon(loan.balance)}</b></div>)}</div> : <div className="soft-empty">등록된 대출 잔액이 없어요.</div>}</section>{borrowedBalance > 0 && <section className="asset-liability-section"><div className="asset-liability-heading"><div><span className="section-eyebrow">BORROWED FUNDS</span><strong>차입금·부채</strong></div><b>{formatWon(borrowedBalance)}</b></div><div className="asset-liability-list">{assets.filter((asset) => asset.assetRole === "borrowed").map((asset) => <div className="asset-liability-row" key={`borrowed-${asset.id}`}><div><strong>{asset.name}</strong><small>자산 역할: 차입금·부채 · {asset.owner}</small></div><b>{formatWon(currentBalance(asset))}</b></div>)}</div></section>}<section className="asset-transfer-history"><div className="asset-transfer-heading"><div><span className="section-eyebrow">TRANSFER HISTORY</span><strong>계좌 → 지역화폐 이체 내역</strong></div><span>{transfers.length}건</span></div>{transfers.length ? <div className="asset-transfer-list">{transfers.map((item) => <div className="asset-transfer-row" key={item.id}><div><strong>{item.localCurrencySource || item.assetName || "출금 계좌"} <span>→</span> {item.localCurrencyTarget || "지역화폐"}</strong><small>{item.date} · 할인 {item.localCurrencyDiscountRate ?? 0}%</small></div><div><b>{formatWon(item.amount)}</b><small>충전 {formatWon(getLocalCurrencyLoadedAmount(item))} · 실제 출금 {formatWon(getLocalCurrencyChargedAmount(item))}</small></div></div>)}</div> : <div className="soft-empty">지역화폐 충전 이체 내역이 아직 없어요.</div>}</section><button className="save-button manager-done" type="button" onClick={onClose}>완료 <Check size={17} /></button></section></div>;
 }
 function CategoryManager({ customCategories, onChange, onClose }: { customCategories: Partial<Record<ItemType, string[]>>; onChange: (value: Partial<Record<ItemType, string[]>>) => void; onClose: () => void }) {
   const [kind, setKind] = useState<"income" | "expense" | "loan" | "savings">("expense");

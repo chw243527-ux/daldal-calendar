@@ -950,3 +950,12 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .app-theme-night .asset-role-visualization { border-color: #514b5d; background: #38343f; }
 .app-theme-night .asset-role-chart-label, .app-theme-night .asset-role-chart-label b { color: #f8f2ee; }
 .app-theme-night .asset-role-track { background: #514b5d; }
+
+/* 순자산 계산 정책 선택 */
+.asset-net-worth-policy { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 9px; margin-top: 13px; padding-top: 12px; border-top: 1px solid #eee2dc; }
+.asset-net-worth-policy > strong { color: #756965; font-size: 10px; font-weight: 850; }
+.asset-net-worth-policy > label { display: inline-flex; align-items: center; gap: 4px; color: #766b66; font-size: 10px; font-weight: 750; white-space: nowrap; }
+.asset-net-worth-policy input { width: 15px; height: 15px; accent-color: var(--coral); }
+.app-theme-night .asset-net-worth-policy { border-color: #514b5d; }
+.app-theme-night .asset-net-worth-policy > strong, .app-theme-night .asset-net-worth-policy > label { color: #ddd4dc; }
+@media (max-width: 420px) { .asset-net-worth-policy { grid-template-columns: 1fr 1fr; } .asset-net-worth-policy > strong { grid-column: 1 / -1; } }
