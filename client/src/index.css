@@ -1225,3 +1225,5 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-chart-label b { color: #c96f62; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .insurance-chart-track { height: 8px; margin-top: 6px; overflow: hidden; border-radius: 999px; background: #f0e9e4; }
 .insurance-chart-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #70b595, #d87568); }
+/* 보험 관리를 대출 내역 바로 위에서만 표시 */
+.asset-detail-view > .insurance-manager-panel { display: none; }
