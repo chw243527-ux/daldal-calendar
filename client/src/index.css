@@ -907,3 +907,10 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .asset-section-heading strong { color: var(--ink); font-size: 14px; }
 .asset-section-heading > span { color: #a39892; font-size: 10px; font-weight: 800; }
 @media (max-width: 430px) { .asset-overview-grid { gap: 6px; }.asset-overview-card { padding: 11px 8px; }.asset-overview-card strong { font-size: 13px; }.asset-overview-card small { font-size: 8px; } }
+
+/* 대출은 보유 자산에서 분리하고, 계좌·카드에는 실제 사용처 흐름만 표시 */
+.asset-usage-summary { color: #8d817b !important; font-size: 10px !important; line-height: 1.45; }
+.asset-recent-usage { display: block; max-width: 100%; margin-top: 5px; overflow: hidden; color: #a0928b; font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.asset-liability-section { margin-top: 24px; }
+.asset-liability-section .asset-liability-heading { border-top: 1px solid #e9dfda; padding-top: 18px; }
+@media (max-width: 600px) { .asset-recent-usage { max-width: 62vw; } }
