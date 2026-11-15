@@ -652,7 +652,7 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
     linkedAccountName: "",
     localCurrencyDiscountRate: "10",
     localCurrencySource: "",
-    localCurrencyTarget: "지역화폐",
+    localCurrencyTarget: "",
     localCurrencyCashbackRate: "0",
     transferFrom: "",
     transferTo: "",
@@ -1110,14 +1110,17 @@ export default function Home() {
     const generatedSourceId = item.sourceLoanId ?? item.id.split("-repeat-")[0].split("-due")[0];
     const sourceItem = items.find((candidate) => candidate.id === generatedSourceId) ?? item;
     setEditingId(sourceItem.id);
+    const sourceIsTransfer = isAccountTransfer(sourceItem);
     setDraft({
-      type: sourceItem.type,
+      type: sourceIsTransfer ? "transfer" : sourceItem.type,
       title: sourceItem.title,
       date: sourceItem.date,
       endDate: sourceItem.endDate ?? sourceItem.date,
       time: sourceItem.time ?? "",
       amount: sourceItem.amount ? String(sourceItem.amount) : "",
-      category: sourceItem.category ?? categoryMap[sourceItem.type][0],
+      category: sourceIsTransfer
+        ? sourceItem.category === "지역화폐 충전" ? "지역화폐 충전" : categoryMap.transfer.includes(sourceItem.category ?? "") ? sourceItem.category as string : categoryMap.transfer[0]
+        : sourceItem.category ?? categoryMap[sourceItem.type][0],
       note: sourceItem.note ?? "",
       expectedIncome: Boolean(sourceItem.expectedIncome),
       expectedExpense: Boolean(sourceItem.expectedExpense),
@@ -1148,7 +1151,7 @@ export default function Home() {
       linkedAccountName: sourceItem.linkedAccountName ?? "",
       localCurrencyDiscountRate: sourceItem.localCurrencyDiscountRate ? String(sourceItem.localCurrencyDiscountRate) : "10",
       localCurrencySource: sourceItem.localCurrencySource ?? "",
-      localCurrencyTarget: sourceItem.localCurrencyTarget ?? "지역화폐",
+      localCurrencyTarget: sourceItem.localCurrencyTarget ?? "",
       localCurrencyCashbackRate: sourceItem.localCurrencyCashbackRate ? String(sourceItem.localCurrencyCashbackRate) : "0",
       transferFrom: sourceItem.transferFrom ?? "",
       transferTo: sourceItem.transferTo ?? "",
@@ -1169,8 +1172,16 @@ export default function Home() {
 
   const saveItem = () => {
     if (!draft.title.trim()) return;
-    const isLocalCurrency = ["expense", "transfer"].includes(draft.type) && draft.category === "지역화폐 충전";
-    const isLocalCurrencyPurchase = draft.type === "expense" && draft.paymentMethod === "localCurrency";
+    const isLocalCurrency = ["expense", "transfer", "income"].includes(draft.type) && draft.category === "지역화폐 충전";
+    const isTransferRecord = isLocalCurrency || draft.type === "transfer" || Boolean(draft.transferFrom.trim() || draft.transferTo.trim());
+    const transferFrom = isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() : draft.transferFrom.trim();
+    const transferTo = isLocalCurrency ? draft.localCurrencyTarget.trim() : draft.transferTo.trim();
+    if (isTransferRecord && (!transferFrom || !transferTo || transferFrom === transferTo || (isLocalCurrency && transferTo === "지역화폐"))) {
+      window.alert("이체는 서로 다른 출발 자산과 도착 자산을 선택해 주세요.");
+      return;
+    }
+    const nextItemType: ItemType = isTransferRecord ? "transfer" : draft.type;
+    const isLocalCurrencyPurchase = nextItemType === "expense" && draft.paymentMethod === "localCurrency";
     const localCurrencyRate = isLocalCurrency ? Math.min(100, Math.max(0, Number(draft.localCurrencyDiscountRate || 0))) : undefined;
     const localCurrencyLoadedAmount = isLocalCurrency ? Math.round(Number(draft.amount || 0) / Math.max(0.01, 1 - Number(draft.localCurrencyDiscountRate || 0) / 100)) : undefined;
     const localCurrencyCashbackRate = isLocalCurrencyPurchase ? Math.min(100, Math.max(0, Number(draft.localCurrencyCashbackRate || 0))) : undefined;
@@ -1180,17 +1191,17 @@ export default function Home() {
     const nextItem: CalendarItem = {
       id: editingId ?? `item-${Date.now()}`,
       updatedAt: new Date().toISOString(),
-      type: isLocalCurrency ? "transfer" : draft.type,
+      type: nextItemType,
       title: draft.title.trim(),
       date: draft.date,
       endDate: draft.type === "event" ? (draft.endDate || draft.date) : undefined,
       time: draft.type === "event" ? draft.time : undefined,
-      amount: ["income", "expense", "transfer", "loan", "savings"].includes(draft.type) && draft.amount ? Number(draft.amount.replace(/,/g, "")) : undefined,
+      amount: ["income", "expense", "transfer", "loan", "savings"].includes(nextItemType) && draft.amount ? Number(draft.amount.replace(/,/g, "")) : undefined,
       category: draft.category,
       note: draft.note.trim() || undefined,
       completed: editingId ? items.find((item) => item.id === editingId)?.completed : false,
       completedDates: editingId ? items.find((item) => item.id === editingId)?.completedDates : undefined,
-      expectedIncome: draft.type === "income" ? draft.expectedIncome : undefined,
+      expectedIncome: nextItemType === "income" ? draft.expectedIncome : undefined,
       expectedExpense: draft.type === "expense" ? draft.expectedExpense : undefined,
       loanPrincipal: draft.type === "loan" && draft.loanPrincipal ? Number(draft.loanPrincipal.replace(/,/g, "")) : undefined,
       interestRate: draft.type === "loan" && draft.interestRate ? Number(draft.interestRate) : undefined,
@@ -1229,8 +1240,8 @@ export default function Home() {
       localCurrencyLoadedAmount,
       localCurrencyCashbackRate,
       localCurrencyCashbackAmount,
-      transferFrom: isLocalCurrency ? draft.localCurrencySource.trim() || draft.assetName.trim() || "주거래 계좌" : draft.type === "transfer" ? draft.transferFrom.trim() || undefined : undefined,
-      transferTo: isLocalCurrency ? draft.localCurrencyTarget.trim() || draft.assetName.trim() || "지역화폐" : draft.type === "transfer" ? draft.transferTo.trim() || undefined : undefined,
+      transferFrom: isTransferRecord ? transferFrom || undefined : undefined,
+      transferTo: isTransferRecord ? transferTo || undefined : undefined,
       dueDate: ["expense", "loan"].includes(draft.type) ? draft.dueDate || draft.date : undefined,
       autopay: ["expense", "loan"].includes(draft.type) ? draft.autopay : undefined,
       autopayAccount: ["expense", "loan"].includes(draft.type) && draft.autopay ? draft.autopayAccount.trim() || undefined : undefined,
