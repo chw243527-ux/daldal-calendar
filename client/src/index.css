@@ -994,3 +994,23 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .app-theme-night .voucher-report { border-color: #514b5d; background: #38343f; }
 .app-theme-night .voucher-report-head strong, .app-theme-night .voucher-report-month strong, .app-theme-night .voucher-report-subtitle, .app-theme-night .voucher-report-stats b, .app-theme-night .voucher-report-copy strong { color: #f7efeb; }
 @media (max-width: 420px) { .voucher-report-stats { gap: 5px; }.voucher-report-stats > div { padding: 9px 6px; }.voucher-report-balance strong { font-size: 21px; } }
+
+/* 초보자용 쉬운 사용 안내 */
+.simple-guide-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px; border: 1px solid #f0d3c9; border-radius: 18px; background: linear-gradient(135deg, #fff4ef, #fffaf5); }
+.simple-guide-banner h2 { margin: 4px 0 3px; color: var(--ink); font-size: 18px; letter-spacing: -.05em; }
+.simple-guide-banner p { margin: 0; color: #927e76; font-size: 11px; line-height: 1.45; }
+.simple-guide-banner .primary-button { flex: 0 0 auto; padding: 11px 13px; }
+.easy-guide-sheet { max-height: min(88vh, 760px); overflow-y: auto; }
+.easy-guide-steps { display: grid; gap: 8px; margin: 4px 0 14px; }
+.easy-guide-steps > div { display: grid; gap: 4px; padding: 11px 12px; border-radius: 13px; background: #fff7f2; }
+.easy-guide-steps b { color: #594d49; font-size: 12px; }
+.easy-guide-steps span { color: #887873; font-size: 10px; line-height: 1.5; }
+.easy-guide-terms { margin-bottom: 15px; padding: 12px; border: 1px solid #e8dfda; border-radius: 13px; background: #faf8f6; }
+.easy-guide-terms strong { color: #6f5e58; font-size: 11px; }
+.easy-guide-terms p { margin: 6px 0 0; color: #8b7d77; font-size: 10px; line-height: 1.55; }
+.easy-guide-terms b { color: #bb665a; }
+.app-theme-night .simple-guide-banner { border-color: #5a4e5e; background: #3d3541; }
+.app-theme-night .simple-guide-banner h2, .app-theme-night .easy-guide-steps b { color: #fff5ef; }
+.app-theme-night .simple-guide-banner p, .app-theme-night .easy-guide-steps span { color: #d9cbd3; }
+.app-theme-night .easy-guide-steps > div, .app-theme-night .easy-guide-terms { background: #453d4a; border-color: #5a4e5e; }
+@media (max-width: 430px) { .simple-guide-banner { align-items: flex-start; flex-direction: column; }.simple-guide-banner .primary-button { width: 100%; justify-content: center; } }
