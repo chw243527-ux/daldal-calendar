@@ -198,6 +198,7 @@ const BUDGET_STORAGE_KEY = "daldal-calendar-monthly-budgets";
 const RESERVE_STORAGE_KEY = "daldal-calendar-emergency-reserve";
 const ASSET_BALANCE_STORAGE_KEY = "daldal-calendar-asset-balances";
 const LOCKSCREEN_STORAGE_KEY = "daldal-calendar-lockscreen-config";
+const MONTHLY_CYCLE_START_DAY_STORAGE_KEY = "daldal-calendar-monthly-cycle-start-day";
 const scopedStorageKey = (key: string, openId?: string) => openId ? `${key}-${encodeURIComponent(openId)}` : key;
 type LockScreenTheme = "ivory" | "blush" | "sage" | "night";
 type LockScreenConfig = { showCalendar: boolean; showSchedule: boolean; showTodo: boolean; showMonthlyFunds: boolean; backgroundTheme: LockScreenTheme; fontScale: "small" | "medium" | "large"; customBackgroundColor: string; customAccentColor: string };
@@ -618,6 +619,15 @@ function getMonthItems(items: CalendarItem[], date: Date) {
   const prefix = `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
   return items.filter((item) => item.date.startsWith(prefix));
 }
+function getMonthlyCycleRange(month: Date, startDay: number) {
+  const safeDay = Math.min(28, Math.max(1, Math.round(startDay || 1)));
+  if (safeDay === 1) return { start: toISO(new Date(month.getFullYear(), month.getMonth(), 1, 12)), end: toISO(new Date(month.getFullYear(), month.getMonth() + 1, 0, 12)) };
+  return { start: toISO(new Date(month.getFullYear(), month.getMonth() - 1, safeDay, 12)), end: toISO(new Date(month.getFullYear(), month.getMonth(), safeDay - 1, 12)) };
+}
+function getMonthlyCycleItems(items: CalendarItem[], month: Date, startDay: number) {
+  const range = getMonthlyCycleRange(month, startDay);
+  return getDisplayItems(items, range.start, range.end).filter((item) => item.date >= range.start && item.date <= range.end);
+}
 
 function createDraft(date: string, type: ItemType = "todo", categoryMap: CategoryMap = categories): Draft {
   return {
@@ -785,6 +795,7 @@ type CloudPayload = {
   emergencyReserve: number;
   assetBalances: AssetBalance[];
   lockScreenConfig: LockScreenConfig;
+  monthlyCycleStartDay: number;
 };
 
 function mergeCloudPayload(local: CloudPayload, remote: Partial<CloudPayload>, lastSyncedJson: string | null): CloudPayload {
@@ -801,6 +812,7 @@ function mergeCloudPayload(local: CloudPayload, remote: Partial<CloudPayload>, l
     emergencyReserve: choose("emergencyReserve"),
     assetBalances: choose("assetBalances"),
     lockScreenConfig: choose("lockScreenConfig"),
+    monthlyCycleStartDay: choose("monthlyCycleStartDay"),
   };
 }
 
@@ -839,6 +851,7 @@ export default function Home() {
   const [emergencyReserve, setEmergencyReserve] = useState(0);
   const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([]);
   const [lockScreenConfig, setLockScreenConfig] = useState<LockScreenConfig>(DEFAULT_LOCKSCREEN_CONFIG);
+  const [monthlyCycleStartDay, setMonthlyCycleStartDay] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedStorageScope, setLoadedStorageScope] = useState<string | null>(null);
   const accountStorageScope = shareGuestMode ? "__empty_share_guest__" : (auth.user?.openId ?? "");
@@ -916,6 +929,7 @@ export default function Home() {
         setEmergencyReserve(0);
         setAssetBalances([]);
         setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
+        setMonthlyCycleStartDay(1);
         setLoadedStorageScope(scope);
         setIsLoaded(true);
         return;
@@ -943,6 +957,8 @@ export default function Home() {
       if (savedAssets) setAssetBalances(JSON.parse(savedAssets) as AssetBalance[]);
       const savedLockScreen = read(LOCKSCREEN_STORAGE_KEY);
       if (savedLockScreen) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...JSON.parse(savedLockScreen) });
+      const savedCycleStartDay = read(MONTHLY_CYCLE_START_DAY_STORAGE_KEY);
+      if (savedCycleStartDay) setMonthlyCycleStartDay(Math.min(28, Math.max(1, Number(savedCycleStartDay) || 1)));
     } catch {
       // Keep the starter entries if local storage is unavailable.
     } finally {
@@ -957,13 +973,14 @@ export default function Home() {
     const remote = accountCloudQuery.data;
     if (remote?.payloadJson) {
       try {
-        const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
+        const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number }>;
         if (Array.isArray(payload.items)) setItems((current) => mergeCalendarItems(current, payload.items as CalendarItem[]));
         if (payload.customCategories) setCustomCategories(payload.customCategories);
         if (payload.monthlyBudgets) setMonthlyBudgets(payload.monthlyBudgets);
         if (typeof payload.emergencyReserve === "number") setEmergencyReserve(payload.emergencyReserve);
         if (Array.isArray(payload.assetBalances)) setAssetBalances(payload.assetBalances);
         if (payload.lockScreenConfig) setLockScreenConfig({ ...DEFAULT_LOCKSCREEN_CONFIG, ...payload.lockScreenConfig });
+        if (typeof (payload as Partial<CloudPayload>).monthlyCycleStartDay === "number") setMonthlyCycleStartDay(Math.min(28, Math.max(1, (payload as Partial<CloudPayload>).monthlyCycleStartDay ?? 1)));
         cloudVersionRef.current = remote.version;
         cloudSignatureRef.current = remote.payloadJson;
       } catch {
@@ -979,20 +996,21 @@ export default function Home() {
     const remote = accountCloudQuery.data;
     if (resetInProgressRef.current || !remote || !auth.isAuthenticated || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || remote.version <= cloudVersionRef.current) return;
     try {
-      const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig }>;
-      const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }, payload, cloudSignatureRef.current);
+      const payload = JSON.parse(remote.payloadJson) as Partial<{ items: CalendarItem[]; customCategories: Partial<Record<ItemType, string[]>>; monthlyBudgets: Record<string, { expense: number; loan: number; categories?: Record<string, number> }>; emergencyReserve: number; assetBalances: AssetBalance[]; lockScreenConfig: LockScreenConfig; monthlyCycleStartDay?: number }>;
+      const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }, payload, cloudSignatureRef.current);
       setItems(merged.items);
       setCustomCategories(merged.customCategories);
       setMonthlyBudgets(merged.monthlyBudgets);
       setEmergencyReserve(merged.emergencyReserve);
       setAssetBalances(merged.assetBalances);
       setLockScreenConfig(merged.lockScreenConfig);
+      setMonthlyCycleStartDay(merged.monthlyCycleStartDay);
       cloudVersionRef.current = remote.version;
       cloudSignatureRef.current = remote.payloadJson;
     } catch {}
   }, [accountCloudQuery.data, accountCloudSync.isPending, accountStorageScope, auth.isAuthenticated, assetBalances, customCategories, emergencyReserve, items, lockScreenConfig, monthlyBudgets]);
 
-  const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig]);
+  const cloudPayloadJson = useMemo(() => JSON.stringify({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }), [items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay]);
   useEffect(() => {
     if (!isOnline || !auth.isAuthenticated || !accountStorageScope || !isLoaded || loadedStorageScope !== accountStorageScope || cloudHydratedScopeRef.current !== accountStorageScope || accountCloudSync.isPending || cloudPayloadJson === cloudSignatureRef.current) return;
     const timer = window.setTimeout(() => {
@@ -1000,13 +1018,14 @@ export default function Home() {
         if (result.conflict) {
           try {
             const remote = JSON.parse(result.payloadJson) as Partial<CloudPayload>;
-            const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig }, remote, cloudSignatureRef.current);
+            const merged = mergeCloudPayload({ items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay }, remote, cloudSignatureRef.current);
             setItems(merged.items);
             setCustomCategories(merged.customCategories);
             setMonthlyBudgets(merged.monthlyBudgets);
             setEmergencyReserve(merged.emergencyReserve);
             setAssetBalances(merged.assetBalances);
             setLockScreenConfig(merged.lockScreenConfig);
+            setMonthlyCycleStartDay(merged.monthlyCycleStartDay);
           } catch {}
           cloudVersionRef.current = result.version;
           cloudSignatureRef.current = result.payloadJson;
@@ -1065,6 +1084,9 @@ export default function Home() {
   useEffect(() => {
     if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(LOCKSCREEN_STORAGE_KEY, accountStorageScope), JSON.stringify(lockScreenConfig));
   }, [lockScreenConfig, isLoaded, loadedStorageScope, accountStorageScope]);
+  useEffect(() => {
+    if (isLoaded && loadedStorageScope === accountStorageScope) window.localStorage.setItem(scopedStorageKey(MONTHLY_CYCLE_START_DAY_STORAGE_KEY, accountStorageScope), String(monthlyCycleStartDay));
+  }, [monthlyCycleStartDay, isLoaded, loadedStorageScope, accountStorageScope]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -1315,8 +1337,8 @@ export default function Home() {
     resetInProgressRef.current = true;
     lastSyncedRecords.current = JSON.stringify([]);
     lastFamilySignature.current = null;
-    const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG });
-    [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY].forEach((key) => {
+    const resetPayload = JSON.stringify({ items: [], customCategories: { income: [], expense: [], loan: [] }, monthlyBudgets: {}, emergencyReserve: 0, assetBalances: [], lockScreenConfig: DEFAULT_LOCKSCREEN_CONFIG, monthlyCycleStartDay: 1 });
+    [STORAGE_KEY, CATEGORY_STORAGE_KEY, BUDGET_STORAGE_KEY, RESERVE_STORAGE_KEY, ASSET_BALANCE_STORAGE_KEY, LOCKSCREEN_STORAGE_KEY, MONTHLY_CYCLE_START_DAY_STORAGE_KEY].forEach((key) => {
       window.localStorage.removeItem(key);
       if (accountStorageScope) window.localStorage.removeItem(scopedStorageKey(key, accountStorageScope));
     });
@@ -1326,6 +1348,7 @@ export default function Home() {
     setEmergencyReserve(0);
     setAssetBalances([]);
     setLockScreenConfig(DEFAULT_LOCKSCREEN_CONFIG);
+    setMonthlyCycleStartDay(1);
     setSelectedDate(todayISO);
     setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setViewAndScroll("home");
@@ -1358,7 +1381,7 @@ export default function Home() {
   };
 
   const exportBackup = () => {
-    const backup = { app: "daldal-calendar", version: 2, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig };
+    const backup = { app: "daldal-calendar", version: 3, exportedAt: new Date().toISOString(), items, customCategories, monthlyBudgets, emergencyReserve, assetBalances, lockScreenConfig, monthlyCycleStartDay };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const fileName = `daldal-calendar-backup-${toISO(new Date())}.json`;
     const url = URL.createObjectURL(blob);
@@ -1547,10 +1570,11 @@ export default function Home() {
             onCreate={openCreate}
             onManageCategories={() => setCategoryManagerOpen(true)}
             onManageAssets={() => setAssetManagerOpen(true)}
+            cycleStartDay={monthlyCycleStartDay}
           />
         )}
         {view === "report" && <CashflowReportView month={month} items={displayItems} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} nextBudget={monthlyBudgets[`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} emergencyReserve={emergencyReserve} onEmergencyReserveChange={setEmergencyReserve} onBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onNextBudgetChange={(budget: { expense: number; loan: number; categories?: Record<string, number> }) => setMonthlyBudgets((current) => ({ ...current, [`${addMonths(month, 1).getFullYear()}-${pad(addMonths(month, 1).getMonth() + 1)}`]: budget }))} onMonthChange={changeMonth} onEdit={openEdit} onCreate={(type) => openCreate(type, toISO(month))} onOpenBudgetManager={() => setBudgetManagerOpen(true)} />}
-        {view === "settings" && <SettingsView lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onBulkTransfer={() => setBulkTransferOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} onOpenTutorial={() => setTutorialOpen(true)} />}
+        {view === "settings" && <SettingsView monthlyCycleStartDay={monthlyCycleStartDay} onMonthlyCycleStartDayChange={setMonthlyCycleStartDay} lockScreenConfig={lockScreenConfig} onLockScreenConfigChange={setLockScreenConfig} onCreate={(type) => openCreate(type, selectedDate)} onManageCategories={() => setCategoryManagerOpen(true)} onManageAssets={() => setAssetManagerOpen(true)} onBulkTransfer={() => setBulkTransferOpen(true)} onFamily={() => setFamilyOpen(true)} onExport={exportBackup} onImport={importBackup} backupInputRef={backupInputRef} onReset={resetAppData} onAddTestData={addTestData} onOpenTutorial={() => setTutorialOpen(true)} />}
         </div>
       </main>
 
@@ -1620,7 +1644,7 @@ function BulkTransferSheet({ items, assets, onChange, onClose }: { items: Calend
   return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet" role="dialog" aria-modal="true" aria-labelledby="bulk-transfer-title"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">DATA CLEANUP</span><h2 id="bulk-transfer-title">기존 수입을 이체로 변환</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">잘못 수입으로 등록된 계좌 이체·충전 내역을 선택하면 수입 합계에서 제외하고 두 자산 사이의 이동으로 바꿔요. 실제 수입은 선택하지 마세요.</p>{candidates.length ? <><div className="field-row"><label className="field-label">출발 자산<select value={transferFrom} onChange={(event) => setTransferFrom(event.target.value)}><option value="">선택하세요</option>{accountAssets.map((asset) => <option value={asset.name} key={`bulk-from-${asset.id}`}>{asset.name}</option>)}</select></label><label className="field-label">도착 자산<select value={transferTo} onChange={(event) => setTransferTo(event.target.value)}><option value="">선택하세요</option>{targetAssets.map((asset) => <option value={asset.name} key={`bulk-to-${asset.id}`}>{asset.name} · {asset.kind === "localCurrency" ? "지역화폐" : asset.kind === "cash" ? "현금" : "계좌"}</option>)}</select></label></div><div className="bulk-transfer-toolbar"><strong>{selectedIds.length}건 선택</strong><button type="button" className="text-button" onClick={() => setSelectedIds(selectedIds.length === candidates.length ? [] : candidates.map((item) => item.id))}>{selectedIds.length === candidates.length ? "전체 해제" : "전체 선택"}</button></div><div className="bulk-transfer-list">{candidates.map((item) => <label className="bulk-transfer-row" key={item.id}><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggle(item.id)} /><span><strong>{item.title}</strong><small>{item.date} · {item.category || "수입"}</small></span><b>{formatWon(item.amount)}</b></label>)}</div><small className="backup-note">출발 자산은 계좌·현금, 도착 자산은 등록된 모든 자산에서 선택할 수 있어요.</small><button className="save-button manager-done" type="button" disabled={!selectedIds.length || !transferFrom || !transferTo || transferFrom === transferTo} onClick={convert}>선택 항목 이체로 변환 <Check size={17} /></button></> : <div className="soft-empty">변환할 수입 기록이 없어요.</div>}<button className="secondary-button manager-done" type="button" onClick={onClose}>닫기</button></section></div>;
 }
 
-function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onBulkTransfer, onFamily, onExport, onImport, backupInputRef, onReset, onAddTestData, onOpenTutorial }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onBulkTransfer: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void; onAddTestData: () => void; onOpenTutorial: () => void }) {
+function SettingsView({ monthlyCycleStartDay, onMonthlyCycleStartDayChange, lockScreenConfig, onLockScreenConfigChange, onCreate, onManageCategories, onManageAssets, onBulkTransfer, onFamily, onExport, onImport, backupInputRef, onReset, onAddTestData, onOpenTutorial }: { lockScreenConfig: LockScreenConfig; onLockScreenConfigChange: (config: LockScreenConfig) => void; onCreate: (type: ItemType) => void; onManageCategories: () => void; onManageAssets: () => void; onBulkTransfer: () => void; onFamily: () => void; onExport: () => void; onImport: (event: ChangeEvent<HTMLInputElement>) => void; backupInputRef: RefObject<HTMLInputElement | null>; onReset: () => void; onAddTestData: () => void; onOpenTutorial: () => void; monthlyCycleStartDay: number; onMonthlyCycleStartDayChange: (day: number) => void }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetText, setResetText] = useState("");
   const confirmReset = () => {
@@ -1629,7 +1653,7 @@ function SettingsView({ lockScreenConfig, onLockScreenConfigChange, onCreate, on
     setResetOpen(false);
     setResetText("");
   };
-  return <div className="settings-view view-stack"><div className="page-title-row"><div><span className="section-eyebrow">SETTINGS</span><h1>설정과 관리</h1><p>자주 쓰는 순서대로 정리해 두었어요.</p></div></div><section className="settings-steps"><button type="button" onClick={onOpenTutorial}><span className="settings-step-number">00</span><span><strong>처음 사용 안내</strong><small>등록·백업·잠금화면 설정 순서를 다시 볼 수 있어요.</small></span><Sparkles size={17} /></button><button type="button" onClick={() => onCreate("expense")}><span className="settings-step-number">01</span><span><strong>기록 추가</strong><small>일정·할 일·수입·지출·이체를 바로 기록해요.</small></span><Plus size={17} /></button><button type="button" onClick={onManageAssets}><span className="settings-step-number">02</span><span><strong>자산 관리</strong><small>계좌·카드·현금·지역화폐와 초기 잔액을 관리해요.</small></span><WalletCards size={17} /></button><button type="button" onClick={onManageCategories}><span className="settings-step-number">03</span><span><strong>카테고리 관리</strong><small>AI 분류에 사용할 카테고리를 추가하거나 정리해요.</small></span><ListChecks size={17} /></button><button type="button" onClick={onBulkTransfer}><span className="settings-step-number">04</span><span><strong>기존 수입을 이체로 변환</strong><small>잘못 수입으로 등록한 계좌 이체·충전을 한 번에 고쳐요.</small></span><Repeat2 size={17} /></button><button type="button" onClick={onFamily}><span className="settings-step-number">05</span><span><strong>가족 공유</strong><small>신랑과 장부를 공유하고 충돌·백업을 관리해요.</small></span><Users size={17} /></button></section><section className="lockscreen-settings surface-card"><SectionHeading eyebrow="LIVE LOCKSCREEN" title="잠금화면 구성" /><p className="settings-description">잠금화면에 보일 요소를 직접 선택할 수 있어요. 변경하면 잠금화면에 자동으로 반영됩니다.</p><div className="lockscreen-presets"><div className="lockscreen-presets-heading"><strong>추천 조합</strong><small>누르면 배경·포인트 색상·글자 크기를 한 번에 적용해요.</small></div><div className="lockscreen-preset-grid">{LOCKSCREEN_PRESETS.map((preset) => { const isSelected = lockScreenConfig.backgroundTheme === preset.theme && lockScreenConfig.customBackgroundColor.toUpperCase() === preset.background && lockScreenConfig.customAccentColor.toUpperCase() === preset.accent && lockScreenConfig.fontScale === preset.fontScale; return <button type="button" className={`lockscreen-preset ${isSelected ? "selected" : ""} ${preset.theme === "night" ? "dark" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: preset.theme, customBackgroundColor: preset.background, customAccentColor: preset.accent, fontScale: preset.fontScale })} key={preset.id}><span className="preset-swatches"><i style={{ backgroundColor: preset.background }} /><i style={{ backgroundColor: preset.accent }} /></span><span className="preset-copy"><strong>{preset.label}</strong><small>{preset.description}</small></span><span className="preset-check" aria-hidden="true">{isSelected ? "✓" : ""}</span></button>; })}</div></div><div className="lockscreen-toggle-list">{([
+  return <div className="settings-view view-stack"><div className="page-title-row"><div><span className="section-eyebrow">SETTINGS</span><h1>설정과 관리</h1><p>자주 쓰는 순서대로 정리해 두었어요.</p></div></div><section className="monthly-cycle-settings surface-card"><SectionHeading eyebrow="MONTHLY INCOME CYCLE" title="한 달 기준 설정" /><p className="settings-description">급여일을 기준으로 실제 수입과 지출을 계산해요. 예를 들어 25일이면 매월 25일~다음 달 24일을 한 달로 봅니다.</p><label className="field-label">나의 급여일 기준<select value={monthlyCycleStartDay} onChange={(event) => onMonthlyCycleStartDayChange(Math.min(28, Math.max(1, Number(event.target.value))))}>{Array.from({ length: 28 }, (_, index) => index + 1).map((day) => <option value={day} key={day}>매월 {day}일</option>)}</select></label></section><section className="settings-steps"><button type="button" onClick={onOpenTutorial}><span className="settings-step-number">00</span><span><strong>처음 사용 안내</strong><small>등록·백업·잠금화면 설정 순서를 다시 볼 수 있어요.</small></span><Sparkles size={17} /></button><button type="button" onClick={() => onCreate("expense")}><span className="settings-step-number">01</span><span><strong>기록 추가</strong><small>일정·할 일·수입·지출·이체를 바로 기록해요.</small></span><Plus size={17} /></button><button type="button" onClick={onManageAssets}><span className="settings-step-number">02</span><span><strong>자산 관리</strong><small>계좌·카드·현금·지역화폐와 초기 잔액을 관리해요.</small></span><WalletCards size={17} /></button><button type="button" onClick={onManageCategories}><span className="settings-step-number">03</span><span><strong>카테고리 관리</strong><small>AI 분류에 사용할 카테고리를 추가하거나 정리해요.</small></span><ListChecks size={17} /></button><button type="button" onClick={onBulkTransfer}><span className="settings-step-number">04</span><span><strong>기존 수입을 이체로 변환</strong><small>잘못 수입으로 등록한 계좌 이체·충전을 한 번에 고쳐요.</small></span><Repeat2 size={17} /></button><button type="button" onClick={onFamily}><span className="settings-step-number">05</span><span><strong>가족 공유</strong><small>신랑과 장부를 공유하고 충돌·백업을 관리해요.</small></span><Users size={17} /></button></section><section className="lockscreen-settings surface-card"><SectionHeading eyebrow="LIVE LOCKSCREEN" title="잠금화면 구성" /><p className="settings-description">잠금화면에 보일 요소를 직접 선택할 수 있어요. 변경하면 잠금화면에 자동으로 반영됩니다.</p><div className="lockscreen-presets"><div className="lockscreen-presets-heading"><strong>추천 조합</strong><small>누르면 배경·포인트 색상·글자 크기를 한 번에 적용해요.</small></div><div className="lockscreen-preset-grid">{LOCKSCREEN_PRESETS.map((preset) => { const isSelected = lockScreenConfig.backgroundTheme === preset.theme && lockScreenConfig.customBackgroundColor.toUpperCase() === preset.background && lockScreenConfig.customAccentColor.toUpperCase() === preset.accent && lockScreenConfig.fontScale === preset.fontScale; return <button type="button" className={`lockscreen-preset ${isSelected ? "selected" : ""} ${preset.theme === "night" ? "dark" : ""}`} onClick={() => onLockScreenConfigChange({ ...lockScreenConfig, backgroundTheme: preset.theme, customBackgroundColor: preset.background, customAccentColor: preset.accent, fontScale: preset.fontScale })} key={preset.id}><span className="preset-swatches"><i style={{ backgroundColor: preset.background }} /><i style={{ backgroundColor: preset.accent }} /></span><span className="preset-copy"><strong>{preset.label}</strong><small>{preset.description}</small></span><span className="preset-check" aria-hidden="true">{isSelected ? "✓" : ""}</span></button>; })}</div></div><div className="lockscreen-toggle-list">{([
   ["showCalendar", "월간 달력", "달력과 날짜별 기록 표시"],
   ["showSchedule", "일정", "오늘 일정 표시"],
   ["showTodo", "할 일", "오늘 할 일 표시"],
@@ -1823,6 +1847,7 @@ function LedgerView({
   onCreate,
   onManageCategories,
   onManageAssets,
+  cycleStartDay,
 }: {
   month: Date;
   monthItems: CalendarItem[];
@@ -1834,10 +1859,10 @@ function LedgerView({
   onCreate: (type?: ItemType, date?: string) => void;
   onManageCategories: () => void;
   onManageAssets: () => void;
+  cycleStartDay: number;
 }) {
-  const financeItems = monthItems.filter((item) => ["income", "expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item)).sort((a, b) => b.date.localeCompare(a.date));
-  const expectedIncomeItems = financeItems.filter((item) => item.type === "income" && item.expectedIncome).sort((a, b) => a.date.localeCompare(b.date));
-  const expectedIncomeTotal = expectedIncomeItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const cycleItems = getMonthlyCycleItems(items, month, cycleStartDay);
+  const financeItems = cycleItems.filter((item) => ["income", "expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item)).sort((a, b) => b.date.localeCompare(a.date));
   const grouped = financeItems.reduce<Record<string, CalendarItem[]>>((groups, item) => {
     groups[item.date] = [...(groups[item.date] ?? []), item];
     return groups;
@@ -1848,15 +1873,20 @@ function LedgerView({
     return totals;
   }, {})).sort(([, a], [, b]) => b - a).slice(0, 4);
   const topCategory = categoryTotals[0];
+  const cycleSummary = {
+    income: financeItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0),
+    expense: financeItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
+    loan: financeItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0),
+  };
   const analysisText = topCategory ? `이번 달은 ${topCategory[0]}에 ${formatWon(topCategory[1])}을 기록했어요.` : "기록이 쌓이면 카테고리별 패턴을 분석해 드려요.";
+  const cycleRange = getMonthlyCycleRange(month, cycleStartDay);
   return (
     <div className="view-stack ledger-view">
       <div className="page-title-row"><div><span className="section-eyebrow">MY LEDGER</span><h2>돈의 흐름도 차곡차곡</h2></div><div className="page-title-actions"><button className="text-button" type="button" onClick={onManageAssets}><WalletCards size={14} /> 자산</button><button className="text-button" type="button" onClick={onManageCategories}><Settings2 size={14} /> 카테고리</button><button className="round-action" type="button" onClick={() => onCreate("expense", toISO(new Date()))}><Plus size={18} /></button></div></div>
       <div className="month-switcher"><button className="month-arrow" type="button" onClick={() => onMonthChange(-1)}><ChevronLeft size={18} /></button><strong>{monthLabel(month)}</strong><button className="month-arrow" type="button" onClick={() => onMonthChange(1)}><ChevronRight size={18} /></button></div>
-      <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(summary.balance)}</strong><p>이번 달에 남은 금액이에요</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(summary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(summary.expense + summary.loan)}</span></div></section>
-      <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="수입" amount={summary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={summary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={summary.loan} tone="loan" /></section>
+      <section className="ledger-hero surface-card"><span className="section-eyebrow">MONTHLY BALANCE</span><strong>{formatWon(cycleSummary.income - cycleSummary.expense - cycleSummary.loan)}</strong><p>{cycleRange.start.slice(5).replace("-", ".")}~{cycleRange.end.slice(5).replace("-", ".")} 급여 기준</p><div className="ledger-hero-bottom"><span><ArrowUpRight size={15} /> 수입 {formatWon(cycleSummary.income)}</span><span><ArrowDownRight size={15} /> 지출·대출 {formatWon(cycleSummary.expense + cycleSummary.loan)}</span></div></section>
+      <section className="ledger-stat-grid"><LedgerStat icon={ArrowUpRight} label="한 달 수입" amount={cycleSummary.income} tone="income" /><LedgerStat icon={ArrowDownRight} label="지출" amount={cycleSummary.expense} tone="expense" /><LedgerStat icon={Landmark} label="대출" amount={cycleSummary.loan} tone="loan" /></section>
       <PortfolioSummary assets={assets} items={items} />
-      <section className="expected-income-panel surface-card"><SectionHeading eyebrow="EXPECTED INCOME" title="예상 수입 목록" action={<><span className="section-total">합계 {formatWon(expectedIncomeTotal)}</span><button className="text-button" type="button" onClick={() => onCreate("income", toISO(new Date()))}>수입 추가 <Plus size={15} /></button></>} />{expectedIncomeItems.length ? <div className="expected-income-list">{expectedIncomeItems.map((item) => <button className="expected-income-row" type="button" key={item.id} onClick={() => onEdit(item)}><span className="expected-income-date"><strong>{fromISO(item.date).getDate()}</strong><small>{fromISO(item.date).toLocaleDateString("ko-KR", { weekday: "short" })}</small></span><span className="item-icon" style={{ backgroundColor: typeMeta.income.soft, color: typeMeta.income.color }}><ArrowUpRight size={16} /></span><span className="expected-income-copy"><strong>{item.title}</strong><small>{item.category || "미분류"}{item.assetName ? ` · ${item.assetName}` : ""}</small></span><b className="positive">+{formatWon(item.amount)}</b><ChevronRight size={15} /></button>)}</div> : <div className="soft-empty">등록된 예상 수입이 없어요.</div>}</section>
       <section className="ai-analysis-card surface-card"><div className="ai-analysis-head"><span className="ai-spark"><Sparkles size={15} /></span><div><span className="section-eyebrow">AI MONEY INSIGHT</span><strong>카테고리별로 살펴봤어요</strong></div><span className="ai-live">자동 분석</span></div><p>{analysisText}</p><div className="category-analysis-bars">{categoryTotals.length ? categoryTotals.map(([category, amount]) => <div className="category-analysis-row" key={category}><span>{category}</span><div><i style={{ width: `${Math.max(8, (amount / categoryTotals[0][1]) * 100)}%` }} /></div><b>{formatCompact(amount)}원</b></div>) : <span className="analysis-empty">금융 기록을 추가해 보세요.</span>}</div></section>
       <section className="ledger-list-section"><SectionHeading eyebrow="TRANSACTIONS" title="이번 달 기록" action={<button className="text-button" type="button" onClick={() => onCreate("expense", toISO(new Date()))}>빠른 입력 <Plus size={15} /></button>} /><div className="ledger-groups">{Object.keys(grouped).length ? Object.entries(grouped).map(([date, entries]) => <div className="ledger-group" key={date}><div className="ledger-date"><strong>{fromISO(date).getDate()}</strong><span>{fromISO(date).toLocaleDateString("ko-KR", { weekday: "short" })}</span></div><div className="ledger-entries">{entries.map((item) => <button className="ledger-entry" type="button" key={item.id} onClick={() => onEdit(item)}><span className="item-icon" style={{ backgroundColor: typeMeta[item.type].soft, color: typeMeta[item.type].color }}>{(() => { const Icon = typeMeta[item.type].icon; return <Icon size={16} />; })()}</span><span><strong>{item.title}</strong><small>{item.category}{item.assetName ? ` · ${item.assetName}` : ""}{item.type === "expense" && item.paymentMethod ? ` · ${PAYMENT_METHODS.find((method) => method.value === item.paymentMethod)?.label ?? ""}` : ""}</small></span><b className={item.type === "income" ? "positive" : ""}>{item.type === "income" ? "+" : "−"}{formatWon(item.amount)}</b><ChevronRight size={15} /></button>)}</div></div>) : <div className="soft-empty">이번 달 금융 기록이 아직 없어요.</div>}</div></section>
     </div>
