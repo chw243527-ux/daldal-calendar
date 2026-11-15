@@ -1014,3 +1014,21 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .app-theme-night .simple-guide-banner p, .app-theme-night .easy-guide-steps span { color: #d9cbd3; }
 .app-theme-night .easy-guide-steps > div, .app-theme-night .easy-guide-terms { background: #453d4a; border-color: #5a4e5e; }
 @media (max-width: 430px) { .simple-guide-banner { align-items: flex-start; flex-direction: column; }.simple-guide-banner .primary-button { width: 100%; justify-content: center; } }
+
+/* 초보자 가이드 마스코트 */
+.easy-guide-mascot { display: flex; align-items: center; gap: 11px; margin: 3px 0 14px; padding: 11px 12px; border: 1px solid #f1d9ca; border-radius: 15px; background: linear-gradient(135deg, #fff8ef, #fff0e9); }
+.easy-guide-moon { position: relative; display: grid; width: 48px; height: 48px; flex: 0 0 48px; place-items: center; overflow: hidden; border-radius: 50%; background: #f6c86f; color: #9f6d51; box-shadow: 0 4px 0 #e9b85f; font-size: 21px; }
+.easy-guide-moon i { position: absolute; top: -9px; right: -8px; width: 35px; height: 35px; border-radius: 50%; background: #fff8ef; }
+.easy-guide-moon span { position: relative; z-index: 1; transform: translateY(2px); }
+.easy-guide-mascot strong { color: #7d564c; font-size: 12px; }
+.easy-guide-mascot p { margin: 4px 0 0; color: #a08073; font-size: 10px; line-height: 1.45; }
+.easy-guide-character-ideas { display: grid; gap: 6px; margin: 0 0 14px; padding: 11px 12px; border: 1px dashed #e7cfc2; border-radius: 13px; background: rgba(255,255,255,.55); }
+.easy-guide-character-ideas > strong { margin-bottom: 2px; color: #765d55; font-size: 11px; }
+.easy-guide-character-ideas > div { display: flex; align-items: baseline; gap: 8px; }
+.easy-guide-character-ideas span { min-width: 42px; color: #bb665a; font-size: 10px; font-weight: 850; }
+.easy-guide-character-ideas small { color: #96847c; font-size: 9px; }
+.app-theme-night .easy-guide-mascot { border-color: #5a4e5e; background: #4a3e43; }
+.app-theme-night .easy-guide-moon i { background: #4a3e43; }
+.app-theme-night .easy-guide-mascot strong, .app-theme-night .easy-guide-character-ideas > strong { color: #fff0e9; }
+.app-theme-night .easy-guide-mascot p, .app-theme-night .easy-guide-character-ideas small { color: #d4bdc1; }
+.app-theme-night .easy-guide-character-ideas { border-color: #6b5960; background: rgba(69, 59, 72, .8); }
