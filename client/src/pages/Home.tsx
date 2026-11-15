@@ -1645,7 +1645,7 @@ export default function Home() {
             monthItems={monthItems}
             summary={monthSummary}
             assets={assetBalances}
-            items={displayItems}
+            items={items}
             onMonthChange={changeMonth}
             onEdit={openEdit}
             onCreate={openCreate}
