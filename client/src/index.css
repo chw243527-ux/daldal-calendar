@@ -1148,3 +1148,11 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 380px) {
   .asset-detail-kind-grid > button { flex-basis: 138px; min-width: 138px; padding: 11px 10px; }
 }
+
+/* 자산 목록은 가로 스크롤 없이 등록 순서대로 아래에 표시 */
+.asset-detail-kind-grid { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; padding: 0; gap: 8px; }
+.asset-detail-kind-grid > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; flex: none; width: 100%; min-width: 0; min-height: 86px; }
+.asset-detail-kind-grid > button span { grid-column: 1 / -1; }
+.asset-detail-kind-grid > button strong { grid-column: 1; }
+.asset-detail-kind-grid > button b { grid-column: 2; grid-row: 2; text-align: right; }
+@media (max-width: 380px) { .asset-detail-kind-grid > button { width: 100%; min-width: 0; padding: 11px 12px; } }
