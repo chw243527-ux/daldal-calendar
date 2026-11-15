@@ -1065,12 +1065,12 @@ export default function Home() {
       return { ...balances, [target]: (balances[target] ?? 0) + amount };
     }, initial);
   }, [assetBalances, displayItems]);
-  const monthlyCardSpend = useMemo(() => monthItems.filter((item) => item.type === "expense" && !isLocalCurrencyTransfer(item) && item.paymentMethod === "card" && item.cardCompany).reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.cardCompany as string]: (totals[item.cardCompany as string] ?? 0) + (item.amount ?? 0) }), {}), [monthItems]);
+  const monthlyCardSpend = useMemo(() => monthItems.filter((item) => item.type === "expense" && !isAccountTransfer(item) && !isLocalCurrencyTransfer(item) && item.paymentMethod === "card" && item.cardCompany).reduce<Record<string, number>>((totals, item) => ({ ...totals, [item.cardCompany as string]: (totals[item.cardCompany as string] ?? 0) + (item.amount ?? 0) }), {}), [monthItems]);
   const selectedItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, selectedDate)), [displayItems, selectedDate]);
   const todayItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, todayISO)), [displayItems, todayISO]);
   const monthSummary = useMemo(() => {
     const income = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
-    const expense = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const expense = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isAccountTransfer(item) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const loan = monthItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
     return { income, expense, loan, balance: income - expense - loan };
   }, [monthItems]);
@@ -1874,7 +1874,7 @@ function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve
   const loan = monthItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const outgoing = fixed + expense + loan;
   const actualExpense = actualExpenseOnly;
-  const categoryStats = Object.entries(monthItems.filter((item) => item.type === "expense" && !isLocalCurrencyTransfer(item)).reduce<Record<string, CalendarItem[]>>((groups, item) => {
+  const categoryStats = Object.entries(monthItems.filter((item) => item.type === "expense" && !isAccountTransfer(item) && !isLocalCurrencyTransfer(item)).reduce<Record<string, CalendarItem[]>>((groups, item) => {
     const key = item.category || "미분류";
     groups[key] = [...(groups[key] ?? []), item];
     return groups;
@@ -1897,17 +1897,17 @@ function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve
   });
   const ownerMaxBalance = Math.max(...ownerStats.map((stat) => Math.abs(stat.balance)), 1);
   const totalOwnerFlow = Math.max(ownerStats.reduce((sum, stat) => sum + stat.income + stat.outgoing, 0), 1);
-  const nextMonthItems = getMonthItems(items, addMonths(month, 1)).filter((item) => ["expense", "loan"].includes(item.type));
+  const nextMonthItems = getMonthItems(items, addMonths(month, 1)).filter((item) => ["expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item));
   const nextMonthAllItems = getMonthItems(items, addMonths(month, 1));
   const nextIncome = nextMonthAllItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const nextOutgoing = nextMonthItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const reportMonthKey = toISO(month).slice(0, 7);
-  const scheduledPayments = items.filter((item) => ["expense", "loan"].includes(item.type) && (item.dueDate ?? item.date).startsWith(reportMonthKey)).sort((a, b) => (a.dueDate ?? a.date).localeCompare(b.dueDate ?? b.date));
+  const scheduledPayments = items.filter((item) => ["expense", "loan"].includes(item.type) && !isAccountTransfer(item) && (item.dueDate ?? item.date).startsWith(reportMonthKey)).sort((a, b) => (a.dueDate ?? a.date).localeCompare(b.dueDate ?? b.date));
   const householdForecast = [0, 1, 2].map((offset) => {
     const forecastMonth = addMonths(month, offset);
-    const records = getMonthItems(items, forecastMonth).filter((item) => ["income", "expense", "loan"].includes(item.type));
+    const records = getMonthItems(items, forecastMonth).filter((item) => ["income", "expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item));
     const forecastIncome = records.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
-    const forecastExpense = records.filter((item) => item.type !== "income").reduce((sum, item) => sum + (item.amount ?? 0), 0) + emergencyReserve;
+    const forecastExpense = records.filter((item) => item.type !== "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0) + emergencyReserve;
     return { month: forecastMonth, income: forecastIncome, expense: forecastExpense, net: forecastIncome - forecastExpense };
   });
   const forecastCumulative = householdForecast.reduce<number[]>((totals, forecast) => [...totals, (totals[totals.length - 1] ?? 0) + forecast.net], []);
@@ -2010,7 +2010,7 @@ function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[]) {
   });
   return {
     income: related.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
-    expense: related.filter((item) => ["expense", "savings"].includes(item.type)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
+    expense: related.filter((item) => ["expense", "savings"].includes(item.type) && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
     transfers: related.filter((item) => isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
     recent: [...related].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3),
   };
