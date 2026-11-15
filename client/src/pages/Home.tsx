@@ -673,6 +673,12 @@ function createDraft(date: string, type: ItemType = "todo", categoryMap: Categor
   };
 }
 
+function isAccountTransfer(item: CalendarItem) {
+  // 계좌 간 이체는 자산의 위치만 바뀌는 내부 이동이므로 수입·지출로 집계하지 않는다.
+  // transferFrom/transferTo가 남아 있는 구버전 기록도 이체로 안전하게 판별한다.
+  return item.type === "transfer" || Boolean(item.transferFrom || item.transferTo);
+}
+
 function isLocalCurrencyTransfer(item: CalendarItem) {
   return item.category === "지역화폐 충전" && (item.type === "transfer" || item.type === "expense");
 }
@@ -1062,7 +1068,7 @@ export default function Home() {
   const selectedItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, selectedDate)), [displayItems, selectedDate]);
   const todayItems = useMemo(() => displayItems.filter((item) => isDateInRange(item, todayISO)), [displayItems, todayISO]);
   const monthSummary = useMemo(() => {
-    const income = monthItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const income = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const expense = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const loan = monthItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
     return { income, expense, loan, balance: income - expense - loan };
@@ -1821,8 +1827,8 @@ function BudgetManager({ month, budget, expenseCategories, onChange, onClose }: 
 }
 function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve, onEmergencyReserveChange, onBudgetChange, onNextBudgetChange, onMonthChange, onEdit, onCreate, onOpenBudgetManager }: { month: Date; items: CalendarItem[]; budget: { expense: number; loan: number; categories?: Record<string, number> }; nextBudget: { expense: number; loan: number; categories?: Record<string, number> }; emergencyReserve: number; onEmergencyReserveChange: (amount: number) => void; onBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onNextBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onMonthChange: (offset: number) => void; onEdit: (item: CalendarItem) => void; onCreate: (type: ItemType) => void; onOpenBudgetManager: () => void }) {
   const monthItems = getMonthItems(items, month).filter((item) => ["income", "expense", "loan", "savings"].includes(item.type)).sort((a, b) => a.date.localeCompare(b.date));
-  const income = monthItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
-  const expectedIncome = monthItems.filter((item) => item.type === "income" && item.expectedIncome).reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const income = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const expectedIncome = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item) && item.expectedIncome).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const actualIncome = income - expectedIncome;
   const fixed = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item) && item.recurrence === "monthly").reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const expense = monthItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item) && item.recurrence !== "monthly").reduce((sum, item) => sum + (item.amount ?? 0), 0);
@@ -1845,25 +1851,25 @@ function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve
   const topCategory = topCategoryStats[0];
   const expenseRatio = budget.expense ? actualExpense / budget.expense * 100 : 0;
   const loanRatio = budget.loan ? loan / budget.loan * 100 : 0;
-  const ownerNet = (owner: string) => monthItems.filter((item) => (item.owner ?? "나") === owner).reduce((sum, item) => sum + (item.type === "income" ? 1 : -1) * (item.amount ?? 0), 0);
+  const ownerNet = (owner: string) => monthItems.filter((item) => (item.owner ?? "나") === owner).reduce((sum, item) => sum + (item.type === "income" && !isAccountTransfer(item) ? 1 : -1) * (item.amount ?? 0), 0);
   const ownerStats = ["나", "신랑", "공동"].map((owner) => {
     const records = monthItems.filter((item) => (item.owner ?? "나") === owner);
-    const ownerIncome = records.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
-    const ownerOutgoing = records.filter((item) => item.type !== "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const ownerIncome = records.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const ownerOutgoing = records.filter((item) => !isAccountTransfer(item) && item.type !== "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
     return { owner, income: ownerIncome, outgoing: ownerOutgoing, balance: ownerIncome - ownerOutgoing };
   });
   const ownerMaxBalance = Math.max(...ownerStats.map((stat) => Math.abs(stat.balance)), 1);
   const totalOwnerFlow = Math.max(ownerStats.reduce((sum, stat) => sum + stat.income + stat.outgoing, 0), 1);
   const nextMonthItems = getMonthItems(items, addMonths(month, 1)).filter((item) => ["expense", "loan"].includes(item.type));
   const nextMonthAllItems = getMonthItems(items, addMonths(month, 1));
-  const nextIncome = nextMonthAllItems.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const nextIncome = nextMonthAllItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const nextOutgoing = nextMonthItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const reportMonthKey = toISO(month).slice(0, 7);
   const scheduledPayments = items.filter((item) => ["expense", "loan"].includes(item.type) && (item.dueDate ?? item.date).startsWith(reportMonthKey)).sort((a, b) => (a.dueDate ?? a.date).localeCompare(b.dueDate ?? b.date));
   const householdForecast = [0, 1, 2].map((offset) => {
     const forecastMonth = addMonths(month, offset);
     const records = getMonthItems(items, forecastMonth).filter((item) => ["income", "expense", "loan"].includes(item.type));
-    const forecastIncome = records.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const forecastIncome = records.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
     const forecastExpense = records.filter((item) => item.type !== "income").reduce((sum, item) => sum + (item.amount ?? 0), 0) + emergencyReserve;
     return { month: forecastMonth, income: forecastIncome, expense: forecastExpense, net: forecastIncome - forecastExpense };
   });
@@ -1928,7 +1934,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
       if (asset.cardType === "debit") {
         if (item.type === "income") return balance + (item.amount ?? 0);
         if (item.type === "expense") return balance - (item.amount ?? 0);
-        if (item.type === "transfer" && item.transferTo === asset.name) return balance + (item.amount ?? 0);
+        if (isAccountTransfer(item) && item.transferTo === asset.name) return balance + (item.amount ?? 0);
         return balance;
       }
       if (item.type === "expense") return balance + (item.amount ?? 0);
@@ -1937,8 +1943,8 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
     }, asset.initialBalance);
   }
   return items.reduce((balance, item) => {
-    const transferOut = item.type === "transfer" && item.transferFrom === asset.name;
-    const transferIn = item.type === "transfer" && item.transferTo === asset.name;
+    const transferOut = isAccountTransfer(item) && item.transferFrom === asset.name;
+    const transferIn = isAccountTransfer(item) && item.transferTo === asset.name;
     const debitCardForItem = item.paymentMethod === "card" ? allAssets.find((candidate) => candidate.kind === "card" && candidate.cardType === "debit" && (candidate.name === item.assetName || candidate.name === item.cardCompany)) : undefined;
     const linkedDebitCardExpense = asset.kind === "account" && item.type === "expense" && (item.linkedAccountName === asset.name || debitCardForItem?.linkedAccountName === asset.name);
     const matches = asset.kind === "localCurrency"
@@ -1966,9 +1972,9 @@ function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[]) {
     return asset.kind === "card" && (item.cardCompany === asset.cardCompany || item.assetName === asset.name);
   });
   return {
-    income: related.filter((item) => item.type === "income").reduce((sum, item) => sum + (item.amount ?? 0), 0),
+    income: related.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
     expense: related.filter((item) => ["expense", "savings"].includes(item.type)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
-    transfers: related.filter((item) => item.type === "transfer").reduce((sum, item) => sum + (item.amount ?? 0), 0),
+    transfers: related.filter((item) => isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
     recent: [...related].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3),
   };
 }
@@ -1998,7 +2004,7 @@ function AssetManager({ assets, items, onChange, onClose }: { assets: AssetBalan
   const isInvestment = kind === "stock" || kind === "crypto";
   const resetForm = () => { setEditingAssetId(null); setName(""); setCardCompany(CARD_COMPANIES[0]); setCardType("credit"); setLinkedAccountName(""); setPaymentDay(""); setCreditLimit(""); setBalance(""); setQuantity(""); setAveragePurchasePrice(""); setCurrentPrice(""); setTicker(""); setKind("account"); setOwner("나"); };
   const editAsset = (asset: AssetBalance) => { setEditingAssetId(asset.id); setKind(asset.kind); setName(asset.name); setCardCompany(asset.cardCompany ?? CARD_COMPANIES[0]); setCardType(asset.cardType ?? "credit"); setLinkedAccountName(asset.linkedAccountName ?? ""); setPaymentDay(asset.paymentDay ? String(asset.paymentDay) : ""); setCreditLimit(asset.creditLimit ? String(asset.creditLimit) : ""); setBalance(String(asset.initialBalance)); setQuantity(asset.quantity ? String(asset.quantity) : ""); setAveragePurchasePrice(asset.averagePurchasePrice ? String(asset.averagePurchasePrice) : ""); setCurrentPrice(asset.currentPrice ? String(asset.currentPrice) : ""); setTicker(asset.ticker ?? ""); setOwner(asset.owner); };
-  const transfers = items.filter((item) => item.category === "지역화폐 충전").sort((a, b) => b.date.localeCompare(a.date));
+  const transfers = items.filter((item) => item.category === "지역화폐 충전" && isAccountTransfer(item)).sort((a, b) => b.date.localeCompare(a.date));
   const loanGroups = Array.from(items.filter((item) => item.type === "loan" && ["대출", "추가대출"].includes(item.category ?? "")).reduce<Map<string, CalendarItem[]>>((groups, item) => {
     const key = item.sourceLoanId ?? item.id.split("-schedule-")[0];
     groups.set(key, [...(groups.get(key) ?? []), item]);
