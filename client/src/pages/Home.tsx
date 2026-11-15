@@ -1658,7 +1658,7 @@ function HomeView({
   const homeMonthStart = toISO(new Date(month.getFullYear(), month.getMonth(), 1, 12));
   const homeMonthEnd = toISO(new Date(month.getFullYear(), month.getMonth() + 1, 0, 12));
   const homeMonthItems = calendarItems.filter((item) => item.date <= homeMonthEnd && (!item.endDate || item.endDate >= homeMonthStart));
-  const homeFinanceItems = todayItems.filter((item) => ["income", "expense", "loan"].includes(item.type));
+  const homeFinanceItems = todayItems.filter((item) => ["income", "expense", "loan"].includes(item.type) && !isAccountTransfer(item));
   return (
     <div className="view-stack home-view">
       <section className="home-calendar-first surface-card">
@@ -1763,7 +1763,7 @@ function CalendarView({
             const isSelected = iso === selectedDate;
             const isToday = iso === toISO(new Date());
             const holidayName = getKoreanHolidayName(date);
-            const finances = dayItems.filter((item) => ["income", "expense", "loan"].includes(item.type));
+            const finances = dayItems.filter((item) => ["income", "expense", "loan"].includes(item.type) && !isAccountTransfer(item));
             const allChips = sortCalendarChips(dayItems.filter((item) => item.type === "todo" || item.type === "event"));
             const chips = allChips.slice(0, 3)
             return (
@@ -1811,7 +1811,7 @@ function LedgerView({
   onManageCategories: () => void;
   onManageAssets: () => void;
 }) {
-  const financeItems = monthItems.filter((item) => ["income", "expense", "loan", "savings"].includes(item.type)).sort((a, b) => b.date.localeCompare(a.date));
+  const financeItems = monthItems.filter((item) => ["income", "expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item)).sort((a, b) => b.date.localeCompare(a.date));
   const grouped = financeItems.reduce<Record<string, CalendarItem[]>>((groups, item) => {
     groups[item.date] = [...(groups[item.date] ?? []), item];
     return groups;
@@ -1861,7 +1861,7 @@ function BudgetManager({ month, budget, expenseCategories, onChange, onClose }: 
   return <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="composer-sheet budget-manager-sheet" role="dialog" aria-modal="true" aria-label="월 예산 등록"><div className="sheet-handle" /><div className="sheet-header"><div><span className="section-eyebrow">MONTHLY BUDGET</span><h2>{monthLabel(month)} 예산 등록</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={19} /></button></div><p className="manager-description">기록과 별도로 이번 달에 사용할 금액을 먼저 정해요. 저장하면 현금흐름 리포트에서 실제 사용액과 자동 비교됩니다.</p><div className="budget-manager-fields"><label className="field-label">전체 지출 예산<input inputMode="numeric" value={draft.expense || ""} onChange={(event) => setDraft((current) => ({ ...current, expense: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 }))} placeholder="예: 1500000" /></label><label className="field-label">대출 상환 예산<input inputMode="numeric" value={draft.loan || ""} onChange={(event) => setDraft((current) => ({ ...current, loan: Number(event.target.value.replace(/[^0-9]/g, "")) || 0 }))} placeholder="예: 800000" /></label></div><div className="budget-manager-section"><strong>카테고리별 예산</strong><div className="budget-manager-category-grid">{expenseCategories.filter((category) => category !== "지역화폐 충전").map((category) => <label className="field-label" key={category}>{category}<input inputMode="numeric" value={draft.categories?.[category] || ""} onChange={(event) => updateCategory(category, event.target.value)} placeholder="0" /></label>)}</div></div><div className="budget-manager-tip"><PiggyBank size={16} /><span>고정지출·생활비·대출 예산을 먼저 등록하고, 실제 기록은 평소처럼 입력하세요.</span></div><button className="save-button manager-done" type="button" onClick={() => { onChange(draft); onClose(); }}>예산 저장 <Check size={17} /></button></section></div>;
 }
 function CashflowReportView({ month, items, budget, nextBudget, emergencyReserve, onEmergencyReserveChange, onBudgetChange, onNextBudgetChange, onMonthChange, onEdit, onCreate, onOpenBudgetManager }: { month: Date; items: CalendarItem[]; budget: { expense: number; loan: number; categories?: Record<string, number> }; nextBudget: { expense: number; loan: number; categories?: Record<string, number> }; emergencyReserve: number; onEmergencyReserveChange: (amount: number) => void; onBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onNextBudgetChange: (budget: { expense: number; loan: number; categories?: Record<string, number> }) => void; onMonthChange: (offset: number) => void; onEdit: (item: CalendarItem) => void; onCreate: (type: ItemType) => void; onOpenBudgetManager: () => void }) {
-  const monthItems = getMonthItems(items, month).filter((item) => ["income", "expense", "loan", "savings"].includes(item.type)).sort((a, b) => a.date.localeCompare(b.date));
+  const monthItems = getMonthItems(items, month).filter((item) => ["income", "expense", "loan", "savings"].includes(item.type) && !isAccountTransfer(item)).sort((a, b) => a.date.localeCompare(b.date));
   const income = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const expectedIncome = monthItems.filter((item) => item.type === "income" && !isAccountTransfer(item) && item.expectedIncome).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const actualIncome = income - expectedIncome;
