@@ -2179,6 +2179,12 @@ function getInvestmentProfitRate(asset: AssetBalance) {
   const cost = getInvestmentCost(asset);
   return cost > 0 ? ((getInvestmentMarketValue(asset) - cost) / cost) * 100 : 0;
 }
+function isCardLinkedToItem(item: CalendarItem, asset: AssetBalance): boolean {
+  if (asset.kind !== "card") return false;
+  if (item.assetName === asset.name) return true;
+  // 예전 기록에는 카드 이름 대신 카드사만 저장된 경우가 있어 실제 카드 결제일 때만 보조 연결합니다.
+  return item.paymentMethod === "card" && Boolean(asset.cardCompany) && item.cardCompany === asset.cardCompany;
+}
 function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []): number {
   if (asset.kind === "stock" || asset.kind === "crypto") return getInvestmentMarketValue(asset);
   if (asset.kind === "card") {
@@ -2187,7 +2193,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
       return linkedAccount ? getAssetCurrentBalance(linkedAccount, items, allAssets) : asset.initialBalance;
     }
     return items.reduce((balance, item) => {
-      const matchesCard = item.assetName === asset.name || item.cardCompany === asset.cardCompany;
+      const matchesCard = isCardLinkedToItem(item, asset);
       if (!matchesCard) return balance;
       if (asset.cardType === "debit") {
         if (item.type === "income") return balance + (item.amount ?? 0);
@@ -2227,7 +2233,7 @@ function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[]) {
     if (item.type === "loan") return false;
     if (item.transferFrom === asset.name || item.transferTo === asset.name) return true;
     if (item.assetName === asset.name || item.linkedAccountName === asset.name) return true;
-    return asset.kind === "card" && (item.cardCompany === asset.cardCompany || item.assetName === asset.name);
+    return isCardLinkedToItem(item, asset);
   });
   return {
     income: related.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
