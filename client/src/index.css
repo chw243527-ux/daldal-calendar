@@ -1306,3 +1306,13 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .card-billing-row small { color: #968a85; font-size: 11px; line-height: 1.35; white-space: normal; }
 .card-billing-row b { flex: 0 0 auto; color: #b85f55; font-size: 15px; }
 @media (max-width: 420px) { .card-billing-panel { padding: 14px; } .card-billing-row { align-items: flex-start; } .card-billing-row b { font-size: 14px; } }
+
+/* 달달이·콩이·몽실이 달력 스티커 선택 */
+.calendar-sticker-picker { display: grid; gap: 8px; margin-top: 10px; padding: 11px 12px; border: 1px solid #eee3dd; border-radius: 14px; background: #fffaf7; }
+.calendar-sticker-picker > span { color: #8f817c; font-size: 10px; font-weight: 850; }
+.calendar-sticker-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.calendar-sticker-options button { display: grid; min-width: 0; place-items: center; gap: 3px; min-height: 48px; padding: 5px 2px; border: 1px solid #eee3dd; border-radius: 12px; background: #fff; color: #4b4240; font-size: 20px; line-height: 1; }
+.calendar-sticker-options button small { color: #9a8d88; font-size: 8px; font-weight: 800; white-space: nowrap; }
+.calendar-sticker-options button.selected { border-color: #d87568; background: #fff0ed; box-shadow: 0 0 0 2px rgba(216,117,104,.12); }
+.calendar-sticker { display: inline-block; margin-right: 3px; font-size: 11px; line-height: 1; vertical-align: -1px; }
+@media (max-width: 380px) { .calendar-sticker-options { gap: 4px; }.calendar-sticker-options button { font-size: 18px; }.calendar-sticker-options button small { font-size: 7px; } }
