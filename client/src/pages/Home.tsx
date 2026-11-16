@@ -58,6 +58,7 @@ type CalendarItem = {
   note?: string;
   completed?: boolean;
   completedDates?: string[];
+  excludedDates?: string[];
   expectedIncome?: boolean;
   expectedExpense?: boolean;
   loanPrincipal?: number;
@@ -539,6 +540,7 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
       const boundedEnd = rangeEnd && (!scheduleBase.repeatUntil || scheduleBase.repeatUntil > rangeEnd || legacyYearlyEnd) ? rangeEnd : scheduleBase.repeatUntil;
       const recurringItem = boundedEnd ? { ...scheduleBase, repeatUntil: boundedEnd } : scheduleBase;
       return getRecurringDates(recurringItem)
+        .filter((date) => !item.excludedDates?.includes(toISO(date)))
         .filter((date) => !rangeStart || toISO(date) >= rangeStart)
         .filter((date) => !rangeEnd || toISO(date) <= rangeEnd)
         .map((date, index) => {
@@ -1221,7 +1223,7 @@ export default function Home() {
       })),
       // 잠금화면은 앱이 열려 있지 않아도 현재 연·월을 다시 계산해야 하므로
       // 화면에 펼친 한 달치가 아니라 일정·할 일 원본과 반복 정보를 전달합니다.
-      calendarItems: JSON.stringify(items.filter((item) => item.type === "event" || item.type === "todo").map(({ id, type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }) => ({ id, type, title, date, endDate, time, amount, completed, completedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }))),
+      calendarItems: JSON.stringify(items.filter((item) => item.type === "event" || item.type === "todo").map(({ id, type, title, date, endDate, time, amount, completed, completedDates, excludedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }) => ({ id, type, title, date, endDate, time, amount, completed, completedDates, excludedDates, expectedIncome, expectedExpense, accentColor, category, recurrence, repeatUntil, calendarKind, lunarMonth, lunarDay, lunarLeapMonth }))),
     });
   }, [todayISO, todayTodos, todayEvents, monthSummary.balance, month, items, lockScreenConfig]);
 
@@ -1415,7 +1417,18 @@ export default function Home() {
 
   const deleteRecord = (item: CalendarItem) => {
     const sourceId = item.sourceLoanId ?? item.id;
-    if (!window.confirm(`“${item.title}” 기록을 삭제할까요?`)) return;
+    const sourceItem = items.find((entry) => entry.id === sourceId);
+    const legacyItem = sourceItem as (CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string }) | undefined;
+    const recurrence = sourceItem?.recurrence ?? legacyItem?.repeatCycle ?? legacyItem?.repeatType ?? legacyItem?.recurring ?? "none";
+    const occurrenceMatch = item.id.match(/-repeat-(\d{4}-\d{2}-\d{2})$/);
+    const occurrenceDate = occurrenceMatch?.[1];
+    if (!window.confirm(occurrenceDate && item.type === "todo" && recurrence !== "none" ? `“${item.title}”의 ${occurrenceDate} 할 일만 삭제할까요?` : `“${item.title}” 기록을 삭제할까요?`)) return;
+    if (occurrenceDate && item.type === "todo" && recurrence !== "none") {
+      setItems((current) => current.map((entry) => entry.id === sourceId
+        ? { ...entry, excludedDates: Array.from(new Set([...(entry.excludedDates ?? []), occurrenceDate])).sort() }
+        : entry));
+      return;
+    }
     setItems((current) => current.filter((entry) => entry.id !== sourceId));
   };
 

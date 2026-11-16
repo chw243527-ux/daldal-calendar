@@ -289,6 +289,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private boolean itemMatchesDate(JSONObject item, String key) {
             String start = item.optString("date", "");
             String end = item.optString("endDate", "");
+            JSONArray excludedDates = item.optJSONArray("excludedDates");
+            if (excludedDates != null) {
+                for (int index = 0; index < excludedDates.length(); index++) if (key.equals(excludedDates.optString(index, ""))) return false;
+            }
             if (key.equals(start) || ("event".equals(item.optString("type")) && !end.isEmpty() && start.compareTo(key) <= 0 && key.compareTo(end) <= 0)) return true;
             String recurrence = item.optString("recurrence", "");
             if (recurrence.isEmpty()) recurrence = item.optString("repeatType", "");
