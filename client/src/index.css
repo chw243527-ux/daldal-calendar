@@ -1286,3 +1286,9 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-manager-copy small { font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
 .insurance-manager-copy small + small { margin-top: 0; }
 .insurance-manager-row > b { font-size: 11px; line-height: 1.2; }
+
+/* 쉬운 사용법은 배경 오버레이보다 항상 앞에 선명하게 표시 */
+.tutorial-backdrop { z-index: 1000; align-items: center; padding: 12px; background: rgba(44, 35, 40, .38); }
+.tutorial-backdrop .easy-guide-sheet { position: relative; z-index: 1001; display: flex; flex-direction: column; width: min(100%, 560px); max-height: min(760px, calc(100dvh - 24px)); min-height: 0; overflow-y: auto; opacity: 1; filter: none; background: #fffdfb; }
+.tutorial-backdrop .easy-guide-sheet * { opacity: 1; filter: none; }
+@media (max-width: 600px) { .tutorial-backdrop { padding: 8px; } .tutorial-backdrop .easy-guide-sheet { max-height: calc(100dvh - 16px); border-radius: 22px; } }
