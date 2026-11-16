@@ -229,7 +229,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                         paint.setStyle(Paint.Style.FILL);
                         paint.setColor(accent);
                         canvas.drawCircle(todayCircleX, todayCircleY, 10f, paint);
-                        drawCenteredText(canvas, String.valueOf(day), todayCircleX, todayCircleY - dayTextSize * 0.35f, 11f, Color.WHITE, true);
+                        drawCenteredTextInCircle(canvas, String.valueOf(day), todayCircleX, todayCircleY, 11f, Color.WHITE, true);
                     } else {
                         // 날짜 숫자를 줄인 크기로 유지하고 음력과 겹치지 않게 배치합니다.
                         drawText(canvas, String.valueOf(day), cellX + 3, cellY + 6, dayTextSize, primaryTextColor(darkTheme), true);
@@ -661,6 +661,17 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             paint.setTypeface(android.graphics.Typeface.create("sans-serif", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
             paint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText(value, x, y + size * .35f, paint);
+        }
+
+        // 글꼴의 실제 ascent/descent를 사용해 양력 날짜를 원의 정중앙에 맞춥니다.
+        private void drawCenteredTextInCircle(Canvas canvas, String value, float centerX, float centerY, float size, int color, boolean bold) {
+            paint.setColor(color);
+            paint.setTextSize(size * fontScale(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("fontScale", "medium")));
+            paint.setTypeface(android.graphics.Typeface.create("sans-serif", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
+            paint.setTextAlign(Paint.Align.CENTER);
+            Paint.FontMetrics metrics = paint.getFontMetrics();
+            float baseline = centerY - (metrics.ascent + metrics.descent) / 2f;
+            canvas.drawText(value, centerX, baseline, paint);
         }
     }
 }
