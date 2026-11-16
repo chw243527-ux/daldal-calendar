@@ -221,20 +221,22 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     canvas.clipRect(cellX, cellY - 18, cellX + cellWidth, cellY + cellHeight);
                     boolean isToday = day == now.get(Calendar.DAY_OF_MONTH);
                     int accent = parseColor(preferences.getString("customAccentColor", ""), themeAccent(backgroundTheme));
-                    if (isToday) {
-                        paint.setStyle(Paint.Style.STROKE);
-                        paint.setStrokeWidth(1.7f);
-                        paint.setColor(accent);
-                        // 테두리는 날짜 칸 안쪽에만 그려 인접한 칸으로 넘어가지 않게 합니다.
-                        canvas.drawRoundRect(new RectF(cellX + 2.5f, cellY - 15, cellX + cellWidth - 2.5f, cellY + cellHeight - 5), 8, 8, paint);
-                        paint.setStyle(Paint.Style.FILL);
-                    }
-                    // 날짜 숫자를 한 단계 줄이고, 음력은 실제 날짜 글자 폭 뒤에 배치해 겹치지 않게 합니다.
+                    // 오늘은 날짜 칸 테두리 대신 포인트 색상으로 채운 동그라미를 표시합니다.
                     final float dayTextSize = 12f;
-                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 6, dayTextSize, primaryTextColor(darkTheme), true);
+                    final float todayCircleX = cellX + 10f;
+                    final float todayCircleY = cellY + 1f;
+                    if (isToday) {
+                        paint.setStyle(Paint.Style.FILL);
+                        paint.setColor(accent);
+                        canvas.drawCircle(todayCircleX, todayCircleY, 10f, paint);
+                        drawCenteredText(canvas, String.valueOf(day), todayCircleX, todayCircleY - dayTextSize * 0.35f, 11f, Color.WHITE, true);
+                    } else {
+                        // 날짜 숫자를 줄인 크기로 유지하고 음력과 겹치지 않게 배치합니다.
+                        drawText(canvas, String.valueOf(day), cellX + 3, cellY + 6, dayTextSize, primaryTextColor(darkTheme), true);
+                    }
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
                     if (!lunarLabel.isEmpty()) {
-                        float lunarLeft = cellX + 3 + paint.measureText(String.valueOf(day)) + 3f;
+                        float lunarLeft = cellX + (isToday ? 23f : 3f + paint.measureText(String.valueOf(day)) + 3f);
                         drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 6.2f, secondaryTextColor(darkTheme), false);
                     }
                     // 첫 내역은 날짜·음력 바로 아래에서 시작하되, 날짜·음력 영역과 겹치지 않도록 안전 여백을 확보합니다.
