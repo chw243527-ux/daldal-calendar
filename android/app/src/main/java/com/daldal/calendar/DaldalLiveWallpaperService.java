@@ -191,7 +191,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             boolean showTodo = preferences.getBoolean("showTodo", true);
 
             // 좌우 기준선을 같은 값으로 사용해 7개 날짜 칸의 폭을 항상 동일하게 유지합니다.
-            float margin = Math.max(4f, width * 0.015f);
+            float margin = Math.max(12f, width * 0.045f);
             float cardTop = height * 0.19f;
             JSONArray entries = parseItems(calendarItems);
             int year = now.get(Calendar.YEAR);
@@ -502,9 +502,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
             if (line.length() > 0 && lineNumber < maxLines) {
                 String last = line.toString();
-                boolean clipped = index < value.length();
-                while (paint.measureText(last + (clipped ? "…" : "")) > maxWidth && last.length() > 1) last = last.substring(0, last.length() - 1);
-                canvas.drawText(last + (clipped ? "…" : ""), x, firstBaseline + lineNumber * Math.max(7f, size + 1.5f), paint);
+                // 내용은 말줄임표를 붙이지 않고, 표시 가능한 범위까지 그대로 줄바꿈해 그립니다.
+                while (paint.measureText(last) > maxWidth && last.length() > 1) last = last.substring(0, last.length() - 1);
+                canvas.drawText(last, x, firstBaseline + lineNumber * Math.max(7f, size + 1.5f), paint);
             }
         }
 
@@ -584,7 +584,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
         private String safeTitle(String value, int maxLength) {
             if (value == null || value.trim().isEmpty()) return "기록";
             String clean = value.trim();
-            return clean.length() > maxLength ? clean.substring(0, Math.max(1, maxLength - 1)) + "…" : clean;
+            return clean.length() > maxLength ? clean.substring(0, maxLength) : clean;
         }
 
         private void drawFinanceDetails(Canvas canvas, JSONArray entries, float x, float y, float panelWidth, String type) {
@@ -611,7 +611,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 boolean matches = item != null && (type.equals(item.optString("type")) || ("outgoing".equals(type) && "loan".equals(item.optString("type")) && isOutgoingCategory(item.optString("category"))));
                 if (!matches || !item.optString("date", "").startsWith(monthPrefix)) continue;
                 String title = item.optString("title", "기록");
-                if (title.length() > 17) title = title.substring(0, 16) + "…";
+                if (title.length() > 17) title = title.substring(0, 17);
                 float rowY = y + 53 + row * 24;
                 drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, secondaryTextColor(darkTheme), false);
                 drawText(canvas, title, x + 61, rowY, 13, primaryTextColor(darkTheme), false);
