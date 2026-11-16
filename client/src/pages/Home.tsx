@@ -2138,7 +2138,10 @@ function AssetDetailView({ assets, items, onEdit, onOpenManager, netWorthPolicy,
   useEffect(() => {
     if (!selectedAsset && assets[0]) setSelectedAssetId(assets[0].id);
   }, [assets, selectedAsset]);
-  const isRelated = (item: CalendarItem, asset: AssetBalance) => [item.assetName, item.cardCompany, item.transferFrom, item.transferTo, item.localCurrencySource, item.localCurrencyTarget, item.autopayAccount, item.linkedAccountName].some((value) => value === asset.name);
+  const isRelated = (item: CalendarItem, asset: AssetBalance) => {
+    if (asset.kind === "card" && isCardLinkedToItem(item, asset, assets)) return true;
+    return [item.assetName, item.transferFrom, item.transferTo, item.localCurrencySource, item.localCurrencyTarget, item.autopayAccount, item.linkedAccountName].some((value) => value === asset.name);
+  };
   const relatedItems = selectedAsset ? items.filter((item) => isRelated(item, selectedAsset) && ["income", "expense", "transfer", "loan", "savings"].includes(item.type)).sort((a, b) => b.date.localeCompare(a.date)) : [];
   const dateScopedItems = relatedItems.filter((item) => {
     if (dateFilter === "all") return true;
@@ -2179,11 +2182,12 @@ function getInvestmentProfitRate(asset: AssetBalance) {
   const cost = getInvestmentCost(asset);
   return cost > 0 ? ((getInvestmentMarketValue(asset) - cost) / cost) * 100 : 0;
 }
-function isCardLinkedToItem(item: CalendarItem, asset: AssetBalance): boolean {
+function isCardLinkedToItem(item: CalendarItem, asset: AssetBalance, allAssets: AssetBalance[] = []): boolean {
   if (asset.kind !== "card") return false;
   if (item.assetName === asset.name) return true;
-  // 예전 기록에는 카드 이름 대신 카드사만 저장된 경우가 있어 실제 카드 결제일 때만 보조 연결합니다.
-  return item.paymentMethod === "card" && Boolean(asset.cardCompany) && item.cardCompany === asset.cardCompany;
+  // 같은 카드사가 여러 장이면 카드사명만 있는 구버전 기록을 특정 카드에 임의로 넣지 않습니다.
+  const sameIssuerCardCount = allAssets.filter((candidate) => candidate.kind === "card" && candidate.cardCompany === asset.cardCompany).length;
+  return sameIssuerCardCount <= 1 && item.paymentMethod === "card" && Boolean(asset.cardCompany) && item.cardCompany === asset.cardCompany;
 }
 function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []): number {
   if (asset.kind === "stock" || asset.kind === "crypto") return getInvestmentMarketValue(asset);
@@ -2193,7 +2197,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
       return linkedAccount ? getAssetCurrentBalance(linkedAccount, items, allAssets) : asset.initialBalance;
     }
     return items.reduce((balance, item) => {
-      const matchesCard = isCardLinkedToItem(item, asset);
+      const matchesCard = isCardLinkedToItem(item, asset, allAssets);
       if (!matchesCard) return balance;
       if (asset.cardType === "debit") {
         if (item.type === "income") return balance + (item.amount ?? 0);
@@ -2228,12 +2232,12 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
     return balance;
   }, asset.initialBalance);
 }
-function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[]) {
+function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []) {
   const related = items.filter((item) => {
     if (item.type === "loan") return false;
     if (item.transferFrom === asset.name || item.transferTo === asset.name) return true;
     if (item.assetName === asset.name || item.linkedAccountName === asset.name) return true;
-    return isCardLinkedToItem(item, asset);
+    return isCardLinkedToItem(item, asset, allAssets);
   });
   return {
     income: related.filter((item) => item.type === "income" && !isAccountTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
@@ -2307,7 +2311,7 @@ function AssetManager({ assets, items, netWorthPolicy, onNetWorthPolicyChange, o
   const assetKindGroups: Array<[AssetBalance["kind"], string]> = [["account", "계좌"], ["card", "카드"], ["cash", "현금"], ["localCurrency", "지역화폐"], ["voucher", "상품권"], ["stock", "주식"], ["crypto", "코인"]];
   const renderAssetRow = (asset: AssetBalance) => {
     const current = currentBalance(asset);
-    const usage = getAssetUsageSummary(asset, items);
+    const usage = getAssetUsageSummary(asset, items, assets);
     const assetIsInvestment = asset.kind === "stock" || asset.kind === "crypto";
     const cost = assetIsInvestment ? getInvestmentCost(asset) : 0;
     const profit = current - cost;
