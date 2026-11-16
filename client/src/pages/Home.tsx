@@ -521,6 +521,7 @@ function sortCalendarChips(items: CalendarItem[]) {
 }
 
 function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: string) {
+  const todayISO = toISO(new Date());
   return items.flatMap((item) => {
     if (item.type === "loan" && item.termMonths && item.loanPrincipal) {
       const schedule = calculateLoanSchedule(item);
@@ -542,14 +543,16 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
         .filter((date) => !rangeEnd || toISO(date) <= rangeEnd)
         .map((date, index) => {
           const occurrenceDate = toISO(date);
+          const completed = item.completedDates ? item.completedDates.includes(occurrenceDate) : item.completed;
+          const displayDate = item.type === "todo" && !completed && occurrenceDate < todayISO ? todayISO : occurrenceDate;
           const originalDuration = scheduleBase.type === "event" && scheduleBase.endDate ? differenceInDays(fromISO(scheduleBase.endDate), fromISO(scheduleBase.date)) : 0;
           return {
             ...scheduleBase,
             id: `${item.id}-repeat-${occurrenceDate}`,
             sourceLoanId: item.id,
-            date: occurrenceDate,
+            date: displayDate,
             endDate: scheduleBase.type === "event" && scheduleBase.endDate ? toISO(addDays(date, Math.max(0, originalDuration))) : scheduleBase.endDate,
-            completed: item.completedDates ? item.completedDates.includes(occurrenceDate) : item.completed,
+            completed,
             title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title,
           };
         });
@@ -557,7 +560,9 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
     if (["expense", "loan"].includes(item.type) && item.dueDate && item.dueDate !== item.date) {
       return [{ ...item, id: `${item.id}-due`, date: item.dueDate, title: `${item.title} · ${item.autopay ? "자동이체" : "결제 예정"}` }];
     }
-    return !rangeStart || !rangeEnd || (item.date <= rangeEnd && (!item.endDate || item.endDate >= rangeStart)) ? [item] : [];
+    const displayDate = item.type === "todo" && !item.completed && item.date < todayISO ? todayISO : item.date;
+    const displayItem = displayDate === item.date ? item : { ...item, date: displayDate };
+    return !rangeStart || !rangeEnd || (displayItem.date <= rangeEnd && (!displayItem.endDate || displayItem.endDate >= rangeStart)) ? [displayItem] : [];
   });
 }
 
