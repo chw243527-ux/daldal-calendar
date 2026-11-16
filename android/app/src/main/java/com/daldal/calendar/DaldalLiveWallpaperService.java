@@ -229,13 +229,13 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                         canvas.drawRoundRect(new RectF(cellX + 2.5f, cellY - 15, cellX + cellWidth - 2.5f, cellY + cellHeight - 5), 8, 8, paint);
                         paint.setStyle(Paint.Style.FILL);
                     }
-                    // 날짜 숫자와 음력을 해당 날짜 칸의 왼쪽 기준으로 정렬합니다.
-                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 7, 16, primaryTextColor(darkTheme), true);
+                    // 날짜 숫자를 한 단계 줄이고, 음력은 실제 날짜 글자 폭 뒤에 배치해 겹치지 않게 합니다.
+                    final float dayTextSize = 12f;
+                    drawText(canvas, String.valueOf(day), cellX + 3, cellY + 6, dayTextSize, primaryTextColor(darkTheme), true);
                     String lunarLabel = lunarLabel(parseItems(lunarCalendar), year, month + 1, day);
-                    // 모든 칸에서 음력은 양력 숫자 오른쪽에 같은 규칙으로 표시합니다.
                     if (!lunarLabel.isEmpty()) {
-                        float lunarLeft = cellX + (day >= 10 ? 24f : 18f);
-                        drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 7.2f, secondaryTextColor(darkTheme), false);
+                        float lunarLeft = cellX + 3 + paint.measureText(String.valueOf(day)) + 3f;
+                        drawText(canvas, lunarLabel, lunarLeft, cellY + 5, 6.2f, secondaryTextColor(darkTheme), false);
                     }
                     // 첫 내역은 날짜·음력 바로 아래에서 시작하되, 날짜·음력 영역과 겹치지 않도록 안전 여백을 확보합니다.
                     drawCellItems(canvas, entries, year, month, day, cellX, cellY + 20, cellWidth, cellHeight, showSchedule, showTodo, darkTheme);
