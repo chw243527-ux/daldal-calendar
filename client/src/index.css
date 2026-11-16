@@ -1271,3 +1271,18 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-manager-copy small + small { margin-top: 1px; }
 .insurance-manager-row > b { gap: 2px; font-size: 12px; }
 .insurance-manager-row > b svg { width: 12px; height: 12px; }
+
+/* 보험 내역 최종 밀도 조정: 긴 내용은 줄바꿈하고 생략하지 않음 */
+.insurance-manager-panel { padding: 13px; }
+.insurance-manager-summary { margin: 8px 0; }
+.insurance-manager-summary div { padding: 7px 8px; }
+.insurance-manager-summary strong { font-size: 14px; }
+.insurance-insured-group + .insurance-insured-group { margin-top: 5px; }
+.insurance-insured-heading { padding: 4px 1px; }
+.insurance-manager-row { gap: 5px; padding: 5px 1px; align-items: flex-start; }
+.insurance-manager-icon { width: 26px; height: 26px; flex-basis: 26px; border-radius: 8px; }
+.insurance-manager-icon svg { width: 12px; height: 12px; }
+.insurance-manager-copy strong { font-size: 12px; line-height: 1.2; }
+.insurance-manager-copy small { font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
+.insurance-manager-copy small + small { margin-top: 0; }
+.insurance-manager-row > b { font-size: 11px; line-height: 1.2; }
