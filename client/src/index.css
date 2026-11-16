@@ -1252,3 +1252,22 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 
 /* 자산 요약의 총 보험료 카드 */
 .asset-overview-card.insurance strong { color: #5b7caa; }
+
+/* 보험 내역은 내용은 유지하고 카드 밀도만 낮춤 */
+.insurance-manager-panel { padding: 16px; }
+.insurance-manager-summary { gap: 8px; margin: 10px 0; }
+.insurance-manager-summary div { padding: 9px 10px; border-radius: 12px; }
+.insurance-manager-summary span, .insurance-manager-row small { font-size: 10px; }
+.insurance-manager-summary strong { margin-top: 3px; font-size: 15px; }
+.insurance-manager-list { gap: 3px; }
+.insurance-insured-group + .insurance-insured-group { margin-top: 8px; }
+.insurance-insured-heading { padding: 5px 2px; }
+.insurance-insured-heading span { font-size: 10px; }
+.insurance-role-check { width: 15px; height: 15px; margin-right: 4px; font-size: 10px; }
+.insurance-manager-row { gap: 7px; padding: 8px 2px; }
+.insurance-manager-icon { width: 30px; height: 30px; flex-basis: 30px; border-radius: 10px; }
+.insurance-manager-icon svg { width: 14px; height: 14px; }
+.insurance-manager-copy strong { font-size: 13px; line-height: 1.25; }
+.insurance-manager-copy small + small { margin-top: 1px; }
+.insurance-manager-row > b { gap: 2px; font-size: 12px; }
+.insurance-manager-row > b svg { width: 12px; height: 12px; }
