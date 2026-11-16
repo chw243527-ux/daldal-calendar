@@ -409,7 +409,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             for (JSONObject item : visibleItems) {
                 if (shown >= 3) break;
                 String type = item.optString("type");
-                int color = itemColor(type, item.optString("accentColor", ""));
+                int color = itemColor(type, item.optString("accentColor", ""), item.optBoolean("autopay", false));
                 boolean completed = "todo".equals(type) && isCompletedForDate(item, key);
                 String title = item.optString("title", "기록").trim();
                 if (title.isEmpty()) title = "기록";
@@ -570,13 +570,18 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             return darkTheme ? Color.rgb(210, 201, 205) : Color.rgb(143, 136, 133);
         }
 
-        private int itemColor(String type, String accentColor) {
+        private int itemColor(String type, String accentColor, boolean autopay) {
+            if ("income".equals(type) || "expense".equals(type) || "loan".equals(type) || "savings".equals(type) || "transfer".equals(type)) {
+                if ("transfer".equals(type)) return Color.rgb(113, 106, 101); // 웹: #716a65
+                if (autopay) return Color.rgb(212, 154, 24); // 웹: #D49A18
+            }
             if (accentColor != null && accentColor.startsWith("#")) { try { return Color.parseColor(accentColor); } catch (Exception ignored) {} }
-            if ("todo".equals(type)) return Color.rgb(111, 99, 182);
-            if ("event".equals(type)) return Color.rgb(232, 130, 114);
-            if ("income".equals(type)) return Color.rgb(36, 116, 198);
-            if ("loan".equals(type)) return Color.rgb(31, 122, 77);
-            return Color.rgb(180, 35, 24);
+            if ("todo".equals(type)) return Color.rgb(113, 106, 101); // 웹: #716a65
+            if ("event".equals(type)) return Color.rgb(201, 111, 98); // 웹: #c96f62
+            if ("income".equals(type)) return Color.rgb(36, 116, 198); // 웹: #2474C6
+            if ("loan".equals(type)) return Color.rgb(31, 122, 77); // 웹: #1F7A4D
+            if ("savings".equals(type)) return Color.rgb(102, 138, 123); // 웹: #668a7b
+            return Color.rgb(180, 35, 24); // 웹: #B42318
         }
 
         private boolean isOutgoingCategory(String category) {
@@ -606,7 +611,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             }
             boolean darkTheme = isDarkTheme(getSharedPreferences("daldal_widget", Context.MODE_PRIVATE).getString("backgroundTheme", "ivory"));
             drawText(canvas, label + " 상세", x + 18, y + 27, 14, primaryTextColor(darkTheme), true);
-            drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type, ""), true, true);
+            drawText(canvas, count + "건 · " + compactWon(total), x + panelWidth - 18, y + 27, 13, itemColor(type, "", false), true, true);
             int row = 0;
             for (int index = 0; index < entries.length() && row < 5; index++) {
                 JSONObject item = entries.optJSONObject(index);
@@ -617,7 +622,7 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                 float rowY = y + 53 + row * 24;
                 drawText(canvas, item.optString("date", "").substring(5), x + 18, rowY, 11, secondaryTextColor(darkTheme), false);
                 drawText(canvas, title, x + 61, rowY, 13, primaryTextColor(darkTheme), false);
-                drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type, ""), true, true);
+                drawText(canvas, compactWon(item.optInt("amount", 0)), x + panelWidth - 18, rowY, 12, itemColor(type, "", item.optBoolean("autopay", false)), true, true);
                 row++;
             }
             if (row == 0) drawText(canvas, "이번 달 내역이 없어요", x + 18, y + 67, 13, secondaryTextColor(darkTheme), false);
