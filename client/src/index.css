@@ -1232,3 +1232,12 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-insured-group + .insurance-insured-group { margin-top: 14px; }
 .insurance-insured-heading { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px; color: #3d8a70; border-bottom: 1px solid #e8eee9; }
 .insurance-insured-heading span { color: var(--muted, #8f8984); font-size: 12px; }
+
+/* 보험 피보험자 체크 구분 */
+.insurance-insured-selector { display: grid; gap: 8px; margin: 10px 0 14px; }
+.insurance-insured-selector > span { color: #7f7974; font-size: 13px; font-weight: 700; }
+.insurance-insured-selector > div { display: flex; gap: 8px; }
+.insurance-insured-selector button { flex: 1; border: 1px solid #e5ddd7; border-radius: 12px; background: #fffdf9; color: #77706b; padding: 10px 8px; font-weight: 700; }
+.insurance-insured-selector button.selected { border-color: #62a889; background: #edf8f1; color: #287557; }
+.insurance-insured-selector button span { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-right: 5px; border-radius: 50%; background: #62a889; color: white; font-size: 11px; }
+.insurance-role-check { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: #62a889; color: white; font-size: 12px; }
