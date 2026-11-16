@@ -433,8 +433,10 @@ public class DaldalLiveWallpaperService extends WallpaperService {
                     paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.7f); paint.setColor(color); canvas.drawCircle(left + 7, top + 9, 5.2f, paint);
                     if (completed) { paint.setStyle(Paint.Style.FILL); canvas.drawCircle(left + 7, top + 9, 5.2f, paint); drawText(canvas, "✓", left + 4f, top + 11f, 7, Color.WHITE, true); }
                     paint.setStyle(Paint.Style.FILL);
+                    // 완료된 할 일은 글자 자체에 취소선을 적용해 여러 줄에도 정확히 표시합니다.
+                    paint.setStrikeThruText(completed);
                     drawWrappedCellText(canvas, title, left + 16, top + 9, Math.max(5.2f, cellWidth - 20), cellTextSize, completed ? secondaryTextColor(darkTheme) : color, false, 2);
-                    if (completed) { paint.setColor(color); paint.setStrokeWidth(1.2f); float strikeY = top + 7f; canvas.drawLine(left + 16, strikeY, Math.min(right, left + 16 + Math.min(cellWidth - 20, paint.measureText(title))), strikeY, paint); }
+                    paint.setStrikeThruText(false);
                 }
                 shown++;
             }
