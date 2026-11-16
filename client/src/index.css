@@ -1249,3 +1249,6 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .ledger-date-flow .expense { color: var(--coral); }
 .ledger-date-flow .loan { color: var(--gold); }
 @media (max-width: 600px) { .ledger-group { grid-template-columns: 64px 1fr; gap: 8px; } .ledger-date-flow span { font-size: 8px; } }
+
+/* 자산 요약의 총 보험료 카드 */
+.asset-overview-card.insurance strong { color: #5b7caa; }
