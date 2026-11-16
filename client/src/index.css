@@ -1227,3 +1227,8 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-chart-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #70b595, #d87568); }
 /* 보험 관리를 대출 내역 바로 위에서만 표시 */
 .asset-detail-view > .insurance-manager-panel { display: none; }
+
+/* 보험을 피보험자(아이)별로 구분 */
+.insurance-insured-group + .insurance-insured-group { margin-top: 14px; }
+.insurance-insured-heading { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px; color: #3d8a70; border-bottom: 1px solid #e8eee9; }
+.insurance-insured-heading span { color: var(--muted, #8f8984); font-size: 12px; }
