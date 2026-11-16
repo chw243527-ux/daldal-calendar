@@ -1241,3 +1241,11 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .insurance-insured-selector button.selected { border-color: #62a889; background: #edf8f1; color: #287557; }
 .insurance-insured-selector button span { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-right: 5px; border-radius: 50%; background: #62a889; color: white; font-size: 11px; }
 .insurance-role-check { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: #62a889; color: white; font-size: 12px; }
+
+/* 가계부 날짜별 수입·지출 요약 */
+.ledger-date-flow { display: grid; gap: 2px; margin-top: 8px; text-align: center; white-space: nowrap; }
+.ledger-date-flow span { margin-top: 0; font-size: 9px; font-weight: 800; letter-spacing: -.04em; }
+.ledger-date-flow .income { color: var(--mint); }
+.ledger-date-flow .expense { color: var(--coral); }
+.ledger-date-flow .loan { color: var(--gold); }
+@media (max-width: 600px) { .ledger-group { grid-template-columns: 64px 1fr; gap: 8px; } .ledger-date-flow span { font-size: 8px; } }
