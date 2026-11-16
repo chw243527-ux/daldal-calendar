@@ -1292,3 +1292,17 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .tutorial-backdrop .easy-guide-sheet { position: relative; z-index: 1001; display: flex; flex-direction: column; width: min(100%, 560px); max-height: min(760px, calc(100dvh - 24px)); min-height: 0; overflow-y: auto; opacity: 1; filter: none; background: #fffdfb; }
 .tutorial-backdrop .easy-guide-sheet * { opacity: 1; filter: none; }
 @media (max-width: 600px) { .tutorial-backdrop { padding: 8px; } .tutorial-backdrop .easy-guide-sheet { max-height: calc(100dvh - 16px); border-radius: 22px; } }
+
+/* 카드 결제일별 자동 청구 예정액 */
+.card-billing-panel { margin: 16px 0; padding: 17px; border: 1px solid rgba(207,117,107,.22); border-radius: 22px; background: rgba(255,248,245,.72); }
+.card-billing-total { display: grid; gap: 5px; margin: 12px 0; padding: 15px; border-radius: 16px; background: #fff0ed; }
+.card-billing-total span { color: #8d7771; font-size: 12px; font-weight: 700; }
+.card-billing-total strong { color: #b85f55; font-size: 25px; letter-spacing: -.04em; }
+.card-billing-total small, .card-billing-note { color: #9a8b86; font-size: 11px; }
+.card-billing-list { display: grid; gap: 8px; }
+.card-billing-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 13px; border: 1px solid rgba(45,37,35,.08); border-radius: 14px; background: rgba(255,255,255,.72); }
+.card-billing-row div { min-width: 0; display: grid; gap: 4px; }
+.card-billing-row strong { color: #3d3431; font-size: 13px; }
+.card-billing-row small { color: #968a85; font-size: 11px; line-height: 1.35; white-space: normal; }
+.card-billing-row b { flex: 0 0 auto; color: #b85f55; font-size: 15px; }
+@media (max-width: 420px) { .card-billing-panel { padding: 14px; } .card-billing-row { align-items: flex-start; } .card-billing-row b { font-size: 14px; } }
