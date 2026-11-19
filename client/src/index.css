@@ -1316,3 +1316,15 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .calendar-sticker-options button.selected { border-color: #d87568; background: #fff0ed; box-shadow: 0 0 0 2px rgba(216,117,104,.12); }
 .calendar-sticker { display: inline-block; margin-right: 3px; font-size: 11px; line-height: 1; vertical-align: -1px; }
 @media (max-width: 380px) { .calendar-sticker-options { gap: 4px; }.calendar-sticker-options button { font-size: 18px; }.calendar-sticker-options button small { font-size: 7px; } }
+
+/* 적금 만기 예상 수령액 */
+.savings-projection { margin-top: 12px; padding: 14px; border: 1px solid rgba(76, 157, 131, 0.24); border-radius: 16px; background: linear-gradient(135deg, rgba(76, 157, 131, 0.10), rgba(255,255,255,0.72)); }
+.savings-projection-title { display: flex; align-items: center; gap: 6px; color: #357d68; font-weight: 800; font-size: 13px; }
+.savings-projection-main { display: flex; align-items: baseline; gap: 7px; margin: 8px 0 10px; }
+.savings-projection-main strong { color: #2e765f; font-size: 24px; letter-spacing: -0.04em; }
+.savings-projection-main span, .savings-projection-grid span, .savings-projection small { color: var(--muted); font-size: 11px; }
+.savings-projection-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.savings-projection-grid > div { padding: 8px 7px; border-radius: 10px; background: rgba(255,255,255,0.72); }
+.savings-projection-grid span, .savings-projection-grid b { display: block; }
+.savings-projection-grid b { margin-top: 3px; color: var(--ink); font-size: 12px; }
+.savings-projection small { display: block; margin-top: 9px; line-height: 1.45; }
