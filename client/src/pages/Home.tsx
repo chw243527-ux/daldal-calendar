@@ -555,7 +555,7 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
       const legacyYearlyEnd = recurrence === "yearly" && scheduleBase.repeatUntil && scheduleBase.repeatUntil.slice(0, 4) === scheduleBase.date.slice(0, 4);
       const boundedEnd = rangeEnd && (!scheduleBase.repeatUntil || scheduleBase.repeatUntil > rangeEnd || legacyYearlyEnd) ? rangeEnd : scheduleBase.repeatUntil;
       const recurringItem = boundedEnd ? { ...scheduleBase, repeatUntil: boundedEnd } : scheduleBase;
-      return getRecurringDates(recurringItem)
+      const recurringItems = getRecurringDates(recurringItem)
         .filter((date) => !item.excludedDates?.includes(toISO(date)))
         .filter((date) => !rangeStart || toISO(date) >= rangeStart)
         .filter((date) => !rangeEnd || toISO(date) <= rangeEnd)
@@ -574,6 +574,27 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
             title: index && ["expense", "loan", "savings"].includes(item.type) ? `${item.title} · ${index + 1}회차` : item.title,
           };
         });
+      // 적금 만기일은 납입금과 별개의 안내 일정으로 표시하되,
+      // 수입·지출 금액에는 포함하지 않아 잔액과 월 합계가 중복되지 않게 합니다.
+      const maturityDate = item.type === "savings" ? item.savingsMaturityDate ?? item.repeatUntil : undefined;
+      if (maturityDate && item.type === "savings" && (!rangeStart || maturityDate >= rangeStart) && (!rangeEnd || maturityDate <= rangeEnd)) {
+        const maturityEvent: CalendarItem = {
+          ...item,
+          id: `${item.id}-maturity-${maturityDate}`,
+          type: "event",
+          title: `${item.title} · 만기`,
+          date: maturityDate,
+          endDate: undefined,
+          amount: undefined,
+          category: "적금 만기",
+          recurrence: undefined,
+          repeatUntil: undefined,
+          note: `적금 만기일이에요. 납입 원금 ${formatWon((item.amount ?? 0) * Math.max(1, item.savingsTermMonths ?? 0))} 기준으로 확인해 주세요.`,
+          accentColor: item.accentColor || "#d9ae51",
+        };
+        return [...recurringItems, maturityEvent];
+      }
+      return recurringItems;
     }
     if (["expense", "loan"].includes(item.type) && item.dueDate && item.dueDate !== item.date) {
       return [{ ...item, id: `${item.id}-due`, date: item.dueDate, title: `${item.title} · ${item.autopay ? "자동이체" : "결제 예정"}` }];
