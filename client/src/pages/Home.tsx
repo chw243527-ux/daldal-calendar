@@ -2229,12 +2229,24 @@ function MaturityDashboard({ items, onEdit }: { items: CalendarItem[]; onEdit: (
       return next && maturity ? { kind: "loan" as const, id: loan.id, source: loan, title: loan.title, nextDate: next.date, maturityDate: maturity.date, nextAmount: next.amount ?? 0, nextPrincipal: next.principalPaid ?? 0, nextInterest: next.interestPaid ?? 0, remaining: next.remainingBalance ?? 0 } : null;
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row));
-  const depositRows = items
+  // 같은 상품을 다시 등록하거나 저장 과정에서 중복 원본이 생겨도
+  // 만기 대시보드에는 상품명·만기일·상품 종류가 같은 최신 기록 하나만 표시합니다.
+  const uniqueSavingsItems = Array.from(items
     .filter((item) => item.type === "savings" && item.savingsMaturityDate && !item.sourceLoanId)
-    .map((item) => {
-      const projection = calculateSavingsProjection(item.amount ?? 0, item.savingsInterestRate ?? 0, item.savingsTermMonths ?? 0, item.savingsTaxMode === "taxFree" ? 0 : item.savingsTaxMode === "preferential" ? 0.095 : 0.154, item.date, item.savingsMaturityDate);
-      return { kind: item.savingsProductType === "deposit" ? "deposit" as const : "savings" as const, id: item.id, source: item, title: item.title, nextDate: item.savingsMaturityDate!, maturityDate: item.savingsMaturityDate!, expectedAmount: projection?.netAmount ?? item.amount ?? 0 };
-    });
+    .reduce((groups, item) => {
+      const key = `${item.title.trim()}|${item.savingsMaturityDate}|${item.savingsProductType ?? "savings"}`;
+      const previous = groups.get(key);
+      const itemScore = (item.savingsCurrentBalance ?? 0) > 0 ? 2 : 0;
+      const previousScore = previous && (previous.savingsCurrentBalance ?? 0) > 0 ? 2 : 0;
+      const itemTime = item.updatedAt ?? item.id;
+      const previousTime = previous?.updatedAt ?? previous?.id ?? "";
+      if (!previous || itemScore > previousScore || (itemScore === previousScore && itemTime > previousTime)) groups.set(key, item);
+      return groups;
+    }, new Map<string, CalendarItem>()).values());
+  const depositRows = uniqueSavingsItems.map((item) => {
+    const projection = calculateSavingsProjection(item.amount ?? 0, item.savingsInterestRate ?? 0, item.savingsTermMonths ?? 0, item.savingsTaxMode === "taxFree" ? 0 : item.savingsTaxMode === "preferential" ? 0.095 : 0.154, item.date, item.savingsMaturityDate);
+    return { kind: item.savingsProductType === "deposit" ? "deposit" as const : "savings" as const, id: item.id, source: item, title: item.title, nextDate: item.savingsMaturityDate!, maturityDate: item.savingsMaturityDate!, expectedAmount: projection?.netAmount ?? item.amount ?? 0 };
+  });
   const rows = [...loanRows, ...depositRows].sort((a, b) => a.maturityDate.localeCompare(b.maturityDate));
   const nearest = rows.find((row) => row.maturityDate >= today) ?? rows[0];
   return <section className="maturity-dashboard surface-card"><div className="section-heading"><div><span className="section-eyebrow">MATURITY DASHBOARD</span><h3>자산 만기 한눈에 보기</h3></div><CalendarDays size={18} /></div><p className="maturity-dashboard-intro">대출 상환 일정과 예·적금 만기일을 한 곳에서 확인해요.</p><div className="maturity-summary-grid"><div><span>대출</span><strong>{loanRows.length}건</strong></div><div><span>예·적금</span><strong>{depositRows.length}건</strong></div><div><span>가장 가까운 일정</span><strong>{nearest ? nearest.maturityDate : "없음"}</strong></div></div>{rows.length ? <div className="maturity-list">{rows.map((row) => row.kind === "loan" ? <button type="button" className="maturity-row loan" key={`maturity-${row.id}`} onClick={() => onEdit(row.source)}><span className="maturity-row-icon"><Landmark size={15} /></span><span className="maturity-row-copy"><strong>{row.title}</strong><small>다음 상환 {row.nextDate} · 만기 {row.maturityDate}</small><small>다음 납부 원금 {formatWon(row.nextPrincipal)} · 이자 {formatWon(row.nextInterest)} · 잔액 {formatWon(row.remaining)}</small></span><span className="maturity-row-value"><b>{formatWon(row.nextAmount)}</b><small>다음 납부액</small></span><ChevronRight size={14} /></button> : <button type="button" className={`maturity-row ${row.kind}`} key={`maturity-${row.id}`} onClick={() => onEdit(row.source)}><span className="maturity-row-icon"><PiggyBank size={15} /></span><span className="maturity-row-copy"><strong>{row.title} · {row.kind === "deposit" ? "예금" : "적금"}</strong><small>만기일 {row.maturityDate}</small><small>{row.kind === "deposit" ? "예치 원금" : "만기 예상 수령액"} {formatWon(row.expectedAmount)}</small></span><span className="maturity-row-value"><b>{row.maturityDate}</b><small>만기 예정</small></span><ChevronRight size={14} /></button>)}</div> : <div className="soft-empty">등록된 대출이나 예·적금 만기 일정이 없어요.</div>}</section>;
