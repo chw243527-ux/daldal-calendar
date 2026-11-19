@@ -436,6 +436,11 @@ body { background: var(--ivory); }
 .planned-outgoing-stats span { display: flex; flex-direction: column; gap: 4px; padding: 9px 8px; border-radius: 11px; background: rgba(255,255,255,.72); color: #786b67; font-size: 9px; line-height: 1.35; }
 .planned-outgoing-stats span:first-child { color: #b6645b; }.planned-outgoing-stats span:nth-child(2) { color: #4e8b70; }.planned-outgoing-stats span:nth-child(3) { color: #9a7c3c; }
 .planned-outgoing-stats i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }.planned-outgoing-note { display: block; margin-top: 11px; color: #ad9891; font-size: 9px; line-height: 1.45; }
+.planned-outgoing-detail { margin-top: 14px; padding-top: 13px; border-top: 1px solid #f1dfd9; }
+.planned-outgoing-detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; color: #5f514d; font-size: 11px; }.planned-outgoing-detail-head span { color: #a99891; font-size: 9px; }
+.planned-outgoing-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 45px; padding: 7px 0; border-bottom: 1px solid rgba(240,221,214,.72); background: transparent; text-align: left; }.planned-outgoing-row:last-child { border-bottom: 0; }.planned-outgoing-row:hover .planned-outgoing-copy strong { color: #c96f64; }
+.planned-outgoing-type { display: grid; place-items: center; width: 32px; height: 25px; flex: 0 0 auto; border-radius: 8px; background: #fff0ed; color: #b6645b; font-size: 9px; font-weight: 850; }.planned-outgoing-type.loan { background: #e8f5ee; color: #4e8b70; }.planned-outgoing-type.savings { background: #edf5f0; color: #668a7b; }
+.planned-outgoing-copy { min-width: 0; flex: 1; }.planned-outgoing-copy strong, .planned-outgoing-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.planned-outgoing-copy strong { color: #4f4643; font-size: 11px; }.planned-outgoing-copy small { margin-top: 3px; color: #a5958f; font-size: 9px; }.planned-outgoing-row b { flex: 0 0 auto; color: #bd6b61; font-size: 11px; }.planned-outgoing-row > svg { flex: 0 0 auto; color: #cab6af; }.planned-outgoing-empty { display: block; padding: 12px 0 4px; color: #a99891; font-size: 10px; }
 
 /* 소형 모바일·세로 태블릿 보정: 헤더와 입력 탭이 폭을 밀어내지 않도록 함 */
 @media (max-width: 380px) {
