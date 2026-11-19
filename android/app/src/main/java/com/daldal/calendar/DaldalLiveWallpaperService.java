@@ -293,6 +293,9 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             if (excludedDates != null) {
                 for (int index = 0; index < excludedDates.length(); index++) if (key.equals(excludedDates.optString(index, ""))) return false;
             }
+            // 앱과 동일하게, 오늘 이전의 미완료 할 일은 잠금화면의 오늘 칸으로 이월합니다.
+            // 반복 할 일은 각 회차의 completedDates와 excludedDates를 따로 확인합니다.
+            if ("todo".equals(item.optString("type")) && key.equals(todayKey()) && start.compareTo(key) < 0 && hasOverdueTodoOccurrence(item, key)) return true;
             if (key.equals(start) || ("event".equals(item.optString("type")) && !end.isEmpty() && start.compareTo(key) <= 0 && key.compareTo(end) <= 0)) return true;
             String recurrence = item.optString("recurrence", "");
             if (recurrence.isEmpty()) recurrence = item.optString("repeatType", "");
@@ -302,6 +305,31 @@ public class DaldalLiveWallpaperService extends WallpaperService {
             int duration = dayDifference(start, end);
             Calendar occurrenceEnd = addDays(parseDate(key), Math.max(0, duration));
             return key.compareTo(formatDate(occurrenceEnd)) <= 0;
+        }
+
+        private String todayKey() {
+            return String.format(Locale.US, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
+        }
+
+        private boolean hasOverdueTodoOccurrence(JSONObject item, String today) {
+            String startValue = item.optString("date", "");
+            String recurrence = item.optString("recurrence", "");
+            if (recurrence.isEmpty()) recurrence = item.optString("repeatType", "");
+            if (recurrence.isEmpty()) recurrence = item.optString("repeatCycle", "");
+            if (recurrence.isEmpty() || "none".equals(recurrence)) return !isCompletedForDate(item, startValue);
+            Calendar cursor = parseDate(startValue);
+            Calendar end = parseDate(today);
+            if (cursor == null || end == null) return false;
+            int guard = 0;
+            while (!cursor.after(end) && guard++ < 36600) {
+                String occurrence = formatDate(cursor);
+                boolean excluded = false;
+                JSONArray excludedDates = item.optJSONArray("excludedDates");
+                if (excludedDates != null) for (int index = 0; index < excludedDates.length(); index++) if (occurrence.equals(excludedDates.optString(index, ""))) { excluded = true; break; }
+                if (!excluded && recurrenceMatchesDate(startValue, item.optString("repeatUntil", ""), recurrence, occurrence) && occurrence.compareTo(today) < 0 && !isCompletedForDate(item, occurrence)) return true;
+                cursor.add(Calendar.DAY_OF_MONTH, 1);
+            }
+            return false;
         }
 
         private boolean recurrenceMatchesDate(String startValue, String untilValue, String recurrence, String key) {
