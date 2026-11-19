@@ -1328,3 +1328,6 @@ html, body, #root, .app-shell { max-width: 100%; overflow-x: hidden; }
 .savings-projection-grid span, .savings-projection-grid b { display: block; }
 .savings-projection-grid b { margin-top: 3px; color: var(--ink); font-size: 12px; }
 .savings-projection small { display: block; margin-top: 9px; line-height: 1.45; }
+
+/* 적금 과세 방식 선택 */
+.savings-block .field-label select { min-height: 44px; }
