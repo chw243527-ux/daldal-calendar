@@ -70,6 +70,8 @@ type CalendarItem = {
   repaymentMethod?: "equalPayment" | "equalPrincipal" | "lumpSum";
   termMonths?: number;
   sourceLoanId?: string;
+  // 반복 항목이 오늘로 표시되어도 완료·삭제 기준은 원래 발생일을 유지합니다.
+  occurrenceDate?: string;
   linkedLoanId?: string;
   earlyRepaymentEffect?: "reduceTerm" | "reducePayment";
   prepaymentFeeRate?: number;
@@ -612,6 +614,7 @@ function getDisplayItems(items: CalendarItem[], rangeStart?: string, rangeEnd?: 
             ...scheduleBase,
             id: `${item.id}-repeat-${occurrenceDate}`,
             sourceLoanId: item.id,
+            occurrenceDate,
             date: displayDate,
             endDate: scheduleBase.type === "event" && scheduleBase.endDate ? toISO(addDays(date, Math.max(0, originalDuration))) : scheduleBase.endDate,
             completed,
@@ -1287,8 +1290,10 @@ export default function Home() {
     return { income, expense, loan, balance: income - expense - loan };
   }, [monthItems]);
 
-  const todayTodos = todayItems.filter((item) => item.type === "todo");
-  const todayEvents = todayItems.filter((item) => item.type === "event");
+  // 배열을 매 렌더링마다 새로 만들면 아래 Native 위젯 동기화 effect가
+  // 입력과 화면 갱신 때마다 다시 실행되어 Android에서 지연이 발생합니다.
+  const todayTodos = useMemo(() => todayItems.filter((item) => item.type === "todo"), [todayItems]);
+  const todayEvents = useMemo(() => todayItems.filter((item) => item.type === "event"), [todayItems]);
   const nextItems = useMemo(() => displayItems
     .filter((item) => item.date > todayISO && (item.type === "event" || item.type === "todo"))
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -1516,7 +1521,7 @@ export default function Home() {
     const legacyItem = sourceItem as (CalendarItem & { repeatCycle?: string; repeatType?: string; recurring?: string }) | undefined;
     const recurrence = sourceItem?.recurrence ?? legacyItem?.repeatCycle ?? legacyItem?.repeatType ?? legacyItem?.recurring ?? "none";
     const occurrenceMatch = item.id.match(/-repeat-(\d{4}-\d{2}-\d{2})$/);
-    const occurrenceDate = occurrenceMatch?.[1];
+    const occurrenceDate = item.occurrenceDate ?? occurrenceMatch?.[1];
     if (!window.confirm(occurrenceDate && item.type === "todo" && recurrence !== "none" ? `“${item.title}”의 ${occurrenceDate} 할 일만 삭제할까요?` : `“${item.title}” 기록을 삭제할까요?`)) return;
     if (occurrenceDate && item.type === "todo" && recurrence !== "none") {
       setItems((current) => current.map((entry) => entry.id === sourceId
@@ -1535,7 +1540,8 @@ export default function Home() {
       setItems((current) => current.map((entry) => {
         if (entry.id !== sourceId) return entry;
         const dates = new Set(entry.completedDates ?? []);
-        if (dates.has(item.date)) dates.delete(item.date); else dates.add(item.date);
+        const occurrenceDate = item.occurrenceDate ?? item.date;
+        if (dates.has(occurrenceDate)) dates.delete(occurrenceDate); else dates.add(occurrenceDate);
         return { ...entry, completedDates: Array.from(dates).sort() };
       }));
       return;
@@ -2741,8 +2747,14 @@ function Composer({
       next = { ...next, cardFeeRate: next.cardMode === "lumpSum" ? "0" : officialRate === undefined ? "" : String(officialRate) };
     }
     const shouldAutoClassify = isFinance && categoryMode === "single" && (typeof patch.title === "string" || (next.type === "expense" && next.assetKind === "voucher" && (typeof patch.note === "string" || typeof patch.assetName === "string" || typeof patch.assetKind === "string"))) && `${next.title} ${next.note} ${next.assetName}`.trim().length >= 2;
+    // 자동 분류 대상이 아닌 입력(금액·날짜·메모 등)에서는 분류 검색을 하지 않습니다.
+    // 이전에는 모든 키 입력마다 카테고리 전체를 다시 훑어 모바일 입력이 끊겼습니다.
+    if (!shouldAutoClassify) {
+      setDraft(next);
+      return;
+    }
     const suggestion = next.type === "expense" && next.assetKind === "voucher" ? suggestVoucherCategory(`${next.title} ${next.note} ${next.assetName}`, categoryMap) : aiSuggestCategory(next.type, `${next.title} ${next.note}`, categoryMap);
-    setDraft(shouldAutoClassify ? { ...next, category: suggestion.category } : next);
+    setDraft({ ...next, category: suggestion.category });
   };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
