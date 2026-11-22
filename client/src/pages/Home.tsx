@@ -1837,7 +1837,7 @@ export default function Home() {
         />
       )}
       {isCategoryManagerOpen && <CategoryManager customCategories={customCategories} onChange={setCustomCategories} onClose={() => setCategoryManagerOpen(false)} />}
-      {isAssetManagerOpen && <AssetManager assets={assetBalances} items={displayItems} netWorthPolicy={netWorthPolicy} onNetWorthPolicyChange={setNetWorthPolicy} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
+      {isAssetManagerOpen && <AssetManager assets={assetBalances} items={items} netWorthPolicy={netWorthPolicy} onNetWorthPolicyChange={setNetWorthPolicy} onChange={setAssetBalances} onClose={() => setAssetManagerOpen(false)} />}
       {isBudgetManagerOpen && <BudgetManager month={month} budget={monthlyBudgets[`${month.getFullYear()}-${pad(month.getMonth() + 1)}`] ?? { expense: 0, loan: 0, categories: {} }} expenseCategories={categoryMap.expense} onChange={(budget) => setMonthlyBudgets((current) => ({ ...current, [`${month.getFullYear()}-${pad(month.getMonth() + 1)}`]: budget }))} onClose={() => setBudgetManagerOpen(false)} />}
       {isBulkTransferOpen && <BulkTransferSheet items={items} assets={assetBalances} onChange={setItems} onClose={() => setBulkTransferOpen(false)} />}
       {isTutorialOpen && <TutorialSheet onClose={() => { window.localStorage.setItem("daldal-calendar-tutorial-seen", "1"); setTutorialOpen(false); }} />}
@@ -2407,11 +2407,12 @@ function getCardBillingRows(asset: AssetBalance, items: CalendarItem[], allAsset
 }
 
 function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []): number {
+  const initialBalance = Number.isFinite(asset.initialBalance) ? asset.initialBalance : 0;
   if (asset.kind === "stock" || asset.kind === "crypto") return getInvestmentMarketValue(asset);
   if (asset.kind === "card") {
     if (asset.cardType === "debit" && asset.linkedAccountName) {
       const linkedAccount = allAssets.find((candidate) => candidate.kind === "account" && candidate.name === asset.linkedAccountName);
-      return linkedAccount ? getAssetCurrentBalance(linkedAccount, items, allAssets) : asset.initialBalance;
+      return linkedAccount ? getAssetCurrentBalance(linkedAccount, items, allAssets) : initialBalance;
     }
     return items.reduce((balance, item) => {
       const matchesCard = isCardLinkedToItem(item, asset, allAssets);
@@ -2425,7 +2426,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
       if (item.type === "expense") return balance + (item.amount ?? 0);
       if (item.type === "loan" && item.category === "카드값") return balance - (item.amount ?? 0);
       return balance;
-    }, asset.initialBalance);
+    }, initialBalance);
   }
   return items.reduce((balance, item) => {
     const transferOut = isAccountTransfer(item) && item.transferFrom === asset.name;
@@ -2447,7 +2448,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
     if (item.type === "income") return balance + (item.amount ?? 0);
     if (["expense", "loan", "savings"].includes(item.type)) return balance - (item.amount ?? 0);
     return balance;
-  }, asset.initialBalance);
+  }, initialBalance);
 }
 function getAssetUsageSummary(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []) {
   const related = items.filter((item) => {
@@ -2489,7 +2490,7 @@ function AssetManager({ assets, items, netWorthPolicy, onNetWorthPolicyChange, o
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const isInvestment = kind === "stock" || kind === "crypto";
   const resetForm = () => { setEditingAssetId(null); setName(""); setCardCompany(CARD_COMPANIES[0]); setCardType("credit"); setLinkedAccountName(""); setPaymentDay(""); setCreditLimit(""); setBalance(""); setQuantity(""); setAveragePurchasePrice(""); setCurrentPrice(""); setTicker(""); setKind("account"); setOwner("나"); setAssetRole("personal"); };
-  const editAsset = (asset: AssetBalance) => { setEditingAssetId(asset.id); setKind(asset.kind); setName(asset.name); setCardCompany(asset.cardCompany ?? CARD_COMPANIES[0]); setCardType(asset.cardType ?? "credit"); setLinkedAccountName(asset.linkedAccountName ?? ""); setPaymentDay(asset.paymentDay ? String(asset.paymentDay) : ""); setCreditLimit(asset.creditLimit ? String(asset.creditLimit) : ""); setBalance(String(asset.initialBalance)); setQuantity(asset.quantity ? String(asset.quantity) : ""); setAveragePurchasePrice(asset.averagePurchasePrice ? String(asset.averagePurchasePrice) : ""); setCurrentPrice(asset.currentPrice ? String(asset.currentPrice) : ""); setTicker(asset.ticker ?? ""); setOwner(asset.owner); setAssetRole(asset.assetRole ?? "personal"); };
+  const editAsset = (asset: AssetBalance) => { setEditingAssetId(asset.id); setKind(asset.kind); setName(asset.name); setCardCompany(asset.cardCompany ?? CARD_COMPANIES[0]); setCardType(asset.cardType ?? "credit"); setLinkedAccountName(asset.linkedAccountName ?? ""); setPaymentDay(asset.paymentDay ? String(asset.paymentDay) : ""); setCreditLimit(asset.creditLimit ? String(asset.creditLimit) : ""); setBalance(String(asset.initialBalance ?? 0)); setQuantity(asset.quantity ? String(asset.quantity) : ""); setAveragePurchasePrice(asset.averagePurchasePrice ? String(asset.averagePurchasePrice) : ""); setCurrentPrice(asset.currentPrice ? String(asset.currentPrice) : ""); setTicker(asset.ticker ?? ""); setOwner(asset.owner); setAssetRole(asset.assetRole ?? "personal"); };
   const transfers = items.filter((item) => item.category === "지역화폐 충전" && isAccountTransfer(item)).sort((a, b) => b.date.localeCompare(a.date));
   const loanGroups = Array.from(items.filter((item) => item.type === "loan" && ["대출", "추가대출"].includes(item.category ?? "")).reduce<Map<string, CalendarItem[]>>((groups, item) => {
     const key = item.sourceLoanId ?? item.id.split("-schedule-")[0];
@@ -2520,7 +2521,7 @@ function AssetManager({ assets, items, netWorthPolicy, onNetWorthPolicyChange, o
   const addAsset = () => {
     if (!name.trim()) return;
     const next = { id: `asset-${Date.now()}`, kind, name: name.trim(), initialBalance: isInvestment ? 0 : Number(balance.replace(/[^0-9]/g, "")) || 0, owner, assetRole, cardCompany: kind === "card" ? cardCompany : undefined, cardType: kind === "card" ? cardType : undefined, paymentDay: kind === "card" ? Number(paymentDay) || undefined : undefined, creditLimit: kind === "card" ? Number(creditLimit.replace(/[^0-9]/g, "")) || 0 : undefined, linkedAccountName: kind === "card" && cardType === "debit" ? linkedAccountName || undefined : undefined, quantity: isInvestment ? Number(quantity) || 0 : undefined, averagePurchasePrice: isInvestment ? Number(averagePurchasePrice) || 0 : undefined, currentPrice: isInvestment ? Number(currentPrice || averagePurchasePrice) || 0 : undefined, ticker: isInvestment ? inferMarketTicker(kind, name, ticker) : undefined };
-    onChange(editingAssetId ? assets.map((asset) => asset.id === editingAssetId ? { ...asset, ...next, id: asset.id } : asset) : [...assets, next]);
+    onChange(editingAssetId ? assets.map((asset) => asset.id === editingAssetId ? { ...asset, ...next, id: asset.id, initialBalance: next.initialBalance } : asset) : [...assets, next]);
     resetForm();
   };
   const labelForKind = (assetKind: AssetBalance["kind"]) => assetKind === "account" ? "계좌" : assetKind === "cash" ? "현금" : assetKind === "card" ? "카드" : assetKind === "localCurrency" ? "지역화폐" : assetKind === "voucher" ? "상품권" : assetKind === "stock" ? "주식" : "코인";
