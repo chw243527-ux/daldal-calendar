@@ -2406,6 +2406,12 @@ function getCardBillingRows(asset: AssetBalance, items: CalendarItem[], allAsset
   return [...rows.values()].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
+function isPendingAssetOutflow(item: CalendarItem): boolean {
+  if (!["expense", "loan", "savings"].includes(item.type)) return false;
+  if (item.type === "expense" && item.expectedExpense) return true;
+  return item.paymentStatus === "scheduled";
+}
+
 function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allAssets: AssetBalance[] = []): number {
   const initialBalance = Number.isFinite(asset.initialBalance) ? asset.initialBalance : 0;
   if (asset.kind === "stock" || asset.kind === "crypto") return getInvestmentMarketValue(asset);
@@ -2415,6 +2421,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
       return linkedAccount ? getAssetCurrentBalance(linkedAccount, items, allAssets) : initialBalance;
     }
     return items.reduce((balance, item) => {
+      if (isPendingAssetOutflow(item)) return balance;
       const matchesCard = isCardLinkedToItem(item, asset, allAssets);
       if (!matchesCard) return balance;
       if (asset.cardType === "debit") {
@@ -2429,6 +2436,7 @@ function getAssetCurrentBalance(asset: AssetBalance, items: CalendarItem[], allA
     }, initialBalance);
   }
   return items.reduce((balance, item) => {
+    if (isPendingAssetOutflow(item)) return balance;
     const transferOut = isAccountTransfer(item) && item.transferFrom === asset.name;
     const transferIn = isAccountTransfer(item) && item.transferTo === asset.name;
     const debitCardForItem = item.paymentMethod === "card" ? allAssets.find((candidate) => candidate.kind === "card" && candidate.cardType === "debit" && (candidate.name === item.assetName || candidate.name === item.cardCompany)) : undefined;
