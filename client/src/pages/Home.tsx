@@ -2120,7 +2120,7 @@ function LedgerView({
     expense: financeItems.filter((item) => ["expense", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
     loan: financeItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0),
   };
-  const plannedOutgoingItems = financeItems.filter((item) => ["expense", "loan", "savings"].includes(item.type) && !isLocalCurrencyTransfer(item));
+  const plannedOutgoingItems = financeItems.filter((item) => isPendingAssetOutflow(item) && !isLocalCurrencyTransfer(item));
   const plannedOutgoing = plannedOutgoingItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const plannedExpense = plannedOutgoingItems.filter((item) => ["expense", "savings"].includes(item.type)).reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const plannedLoan = plannedOutgoingItems.filter((item) => item.type === "loan").reduce((sum, item) => sum + (item.amount ?? 0), 0);
